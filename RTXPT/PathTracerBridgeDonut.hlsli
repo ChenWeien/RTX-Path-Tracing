@@ -700,6 +700,47 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
 #endif
 }
 
+bool Bridge::traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
+{
+    rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_NONE, 0xff, ray);
+    while (rayQuery.Proceed())
+    {
+        if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
+        {
+            // A.k.a. 'Anyhit' shader!
+            [branch]if (Bridge::AlphaTest(
+                rayQuery.CandidateInstanceID(),
+                rayQuery.CandidateInstanceIndex(),
+                rayQuery.CandidateGeometryIndex(),
+                rayQuery.CandidatePrimitiveIndex(),
+                rayQuery.CandidateTriangleBarycentrics()
+                //, workingContext.debug
+                )
+            )
+            {
+                rayQuery.CommitNonOpaqueTriangleHit();
+            }
+        }
+    }
+
+    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+        ray.TMax = rayQuery.CommittedRayT();    // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
+
+        TriangleHit triangleHit;
+        triangleHit.instanceID      = GeometryInstanceID::make( rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex() );
+        triangleHit.primitiveIndex  = rayQuery.CommittedPrimitiveIndex();
+        triangleHit.barycentrics    = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
+        packedHitInfo = triangleHit.pack();
+        return true;
+    }
+    else
+    {
+        packedHitInfo = PACKED_HIT_INFO_ZERO; // this invokes miss shader a.k.a. sky!
+        return false;
+    }
+}
+
 void Bridge::traceScatterRay(const PathState path, inout RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, inout uint SERSortKey, DebugContext debug)
 {
     ray = path.getScatterRay().toRayDesc();

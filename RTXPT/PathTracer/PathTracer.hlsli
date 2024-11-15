@@ -491,6 +491,24 @@ namespace PathTracer
         
         const PathState preScatterPath = path;
 
+    #if PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
+
+        #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
+        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, true);
+        float phi = 2.f * 3.14159f * sampleNext1D(sampleGenerator);
+        float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
+
+        const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+        
+        RayDesc ray;
+        ray.Origin = origin;
+        ray.Direction = -shadingData.faceN;
+        RayQuery<RAY_FLAG_NONE> rayQuery;
+        PackedHitInfo packedHitInfo;
+        bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+
+    #endif
+        
         // Generate the next path segment!
         ScatterResult scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
 
