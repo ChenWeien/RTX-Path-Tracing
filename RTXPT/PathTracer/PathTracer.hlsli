@@ -505,6 +505,10 @@ namespace PathTracer
         RayDesc ray;
         ray.Origin = origin;
         ray.Direction = -shadingData.faceN;
+        ray.TMin = 0;
+        //ray.TMax = FLT_MAX;
+        ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
+
         RayQuery<RAY_FLAG_NONE> rayQuery;
         PackedHitInfo packedHitInfo;
         bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
