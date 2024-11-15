@@ -428,8 +428,10 @@ namespace PathTracer
             return;
 
         // These will not change anymore, so make const shortcuts
-        const ShadingData shadingData    = bridgedData.shadingData;
-        const ActiveBSDF bsdf   = bridgedData.bsdf;
+        //const ShadingData shadingData    = bridgedData.shadingData;
+        //const ActiveBSDF bsdf   = bridgedData.bsdf;
+        ShadingData shadingData    = bridgedData.shadingData;
+        ActiveBSDF bsdf   = bridgedData.bsdf;
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (debugPath)
@@ -491,7 +493,7 @@ namespace PathTracer
         
         const PathState preScatterPath = path;
 
-    #if PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
+    #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, true);
@@ -506,8 +508,23 @@ namespace PathTracer
         RayQuery<RAY_FLAG_NONE> rayQuery;
         PackedHitInfo packedHitInfo;
         bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+        // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
 
-    #endif
+        if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+        {
+            BuiltInTriangleIntersectionAttributes attrib;
+            attrib.barycentrics = rayQuery.CommittedTriangleBarycentrics();
+            const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+
+            const uint vertexIndex = path.getVertexIndex();
+            RayCone rayCone = RayCone::make( 1, 1 );
+            SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, rayCone, path.getVertexIndex(), workingContext.debug);
+
+            // use X2 vertex data to replace X1's to GenerateScatterRay(
+            shadingData = bridgedData.shadingData;
+            bsdf   = bridgedData.bsdf;
+        }
+    #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
         
         // Generate the next path segment!
         ScatterResult scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
