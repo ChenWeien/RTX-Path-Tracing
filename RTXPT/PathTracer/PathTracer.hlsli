@@ -428,10 +428,8 @@ namespace PathTracer
             return;
 
         // These will not change anymore, so make const shortcuts
-        //const ShadingData shadingData    = bridgedData.shadingData;
-        //const ActiveBSDF bsdf   = bridgedData.bsdf;
-        ShadingData shadingData    = bridgedData.shadingData;
-        ActiveBSDF bsdf   = bridgedData.bsdf;
+        const ShadingData shadingData    = bridgedData.shadingData;
+        const ActiveBSDF bsdf   = bridgedData.bsdf;
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (debugPath)
@@ -493,6 +491,8 @@ namespace PathTracer
         
         const PathState preScatterPath = path;
 
+        ScatterResult scatterResult;
+        
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
@@ -522,16 +522,17 @@ namespace PathTracer
 
             const uint vertexIndex = path.getVertexIndex();
             RayCone rayCone = RayCone::make( 1, 1 );
-            SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, rayCone, path.getVertexIndex(), workingContext.debug);
+            SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
             // use X2 vertex data to replace X1's to GenerateScatterRay(
-            shadingData = bridgedData.shadingData;
-            bsdf   = bridgedData.bsdf;
+            scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
+        }
+        else
+        {
+            // Generate the next path segment!
+            scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         }
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
-        
-        // Generate the next path segment!
-        ScatterResult scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
 
 //        // debug-view invalid scatters
 //        if (!scatterResult.Valid && path.getVertexIndex() == 1)
