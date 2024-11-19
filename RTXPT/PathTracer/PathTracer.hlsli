@@ -491,7 +491,7 @@ namespace PathTracer
         
         const PathState preScatterPath = path;
 
-        ScatterResult scatterResult;
+        ScatterResult scatterResult; // next path segment
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
