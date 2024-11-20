@@ -347,6 +347,23 @@ void SampleUI::buildUI(void)
             ImGui::EndCombo();
         }
 
+        std::vector<std::string> operations; 
+        operations.push_back("First Person");
+        operations.push_back("Third Person");
+        uint& currentlySelectedOperation = m_app.SelectedCameraOperation();
+        if (ImGui::BeginCombo("Operation", operations[currentlySelectedOperation].c_str()))
+        {
+            for (uint i = 0; i < 2; i++)
+            {
+                bool is_selected = i == currentlySelectedOperation;
+                if (ImGui::Selectable(operations[i].c_str(), is_selected))
+                    currentlySelectedOperation = i;
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
         if (currentlySelected == 0)
         {
             ImGui::Text("Camera position: "); ImGui::SameLine();
@@ -1764,11 +1781,11 @@ void SampleUI::buildDeltaTreeViz()
             if (isAnyHovered)
             {
                 float3 worldPos = treeNode.deltaVertex.worldPos;
-                float3 viewVec = worldPos - m_app.GetCurrentCamera().GetPosition();
+                float3 viewVec = worldPos - m_app.GetCurrentCamera()->GetPosition();
                 float sphereSize = 0.006f + 0.004f * dm::length(viewVec);
                 float step = 0.15f;
                 viewVec = dm::normalize(viewVec);
-                float3 right = dm::cross(viewVec, m_app.GetCurrentCamera().GetUp());
+                float3 right = dm::cross(viewVec, m_app.GetCurrentCamera()->GetUp());
                 float3 up = dm::cross(right, viewVec);
                 float3 prev0 = worldPos;
                 float3 prev1 = worldPos;

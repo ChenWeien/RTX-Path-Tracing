@@ -33,6 +33,20 @@ void BaseCamera::BaseLookAt(float3 cameraPos, float3 cameraTarget, float3 camera
     UpdateWorldToView();
 }
 
+void BaseCamera::CopyFromCamera(const BaseCamera& camera)
+{
+    m_MatWorldToView = camera.m_MatWorldToView;
+    m_MatTranslatedWorldToView = camera.m_MatTranslatedWorldToView;
+
+    m_CameraPos = camera.m_CameraPos;
+    m_CameraDir = camera.m_CameraDir;
+    m_CameraUp = camera.m_CameraUp;
+    m_CameraRight = camera.m_CameraRight;
+
+    m_MoveSpeed = camera.m_MoveSpeed;
+    m_RotateSpeed = camera.m_RotateSpeed;
+}
+
 void FirstPersonCamera::KeyboardUpdate(int key, int scancode, int action, int mods)
 {
     if (keyboardMap.find(key) == keyboardMap.end())
@@ -316,6 +330,27 @@ void ThirdPersonCamera::SetRotation(float yaw, float pitch)
 {
     m_Yaw = yaw;
     m_Pitch = pitch;
+}
+
+void ThirdPersonCamera::ConvertBasePoseToTarget()
+{
+    m_Distance = length(m_CameraPos - m_TargetPos);
+    m_Distance = clamp(m_Distance, m_MinDistance, m_MaxDistance);
+    m_TargetPos = m_CameraPos + m_Distance * m_CameraDir;
+    m_Pitch = -atan2(m_CameraDir.y, sqrt(m_CameraDir.x * m_CameraDir.x + m_CameraDir.z * m_CameraDir.z));
+    m_Yaw = atan2(m_CameraDir.x, m_CameraDir.z);
+}
+
+void ThirdPersonCamera::CopyFromCamera(const BaseCamera& camera)
+{
+    BaseCamera::CopyFromCamera(camera);
+    ConvertBasePoseToTarget();
+}
+
+void ThirdPersonCamera::LookAt(float3 cameraPos, float3 cameraTarget, float3 cameraUp)
+{
+    BaseLookAt(cameraPos, cameraTarget, cameraUp);
+    ConvertBasePoseToTarget();
 }
 
 void ThirdPersonCamera::SetView(const engine::PlanarView& view)

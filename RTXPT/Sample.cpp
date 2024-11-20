@@ -134,7 +134,9 @@ Sample::Sample( donut::app::DeviceManager * deviceManager, CommandLineOptions& c
     m_OpaqueDrawStrategy = std::make_shared<InstancedOpaqueDrawStrategy>( );
     m_TransparentDrawStrategy = std::make_shared<TransparentDrawStrategy>( );
 
-    m_Camera.SetRotateSpeed(.003f);
+    m_FirstCamera.SetRotateSpeed(.003f);
+    m_ThirdCamera.SetRotateSpeed(.003f);
+    m_pCamera = &m_FirstCamera;
 
 #ifdef STREAMLINE_INTEGRATION
     if (!cmdLine.noStreamline)
@@ -478,7 +480,7 @@ void Sample::UpdateCameraFromScene( const std::shared_ptr<donut::engine::Perspec
 {
     dm::affine3 viewToWorld = sceneCamera->GetViewToWorldMatrix();
     dm::float3 cameraPos = viewToWorld.m_translation;
-    m_Camera.LookAt(cameraPos, cameraPos + viewToWorld.m_linear.row2, viewToWorld.m_linear.row1);
+    m_pCamera->LookAt(cameraPos, cameraPos + viewToWorld.m_linear.row2, viewToWorld.m_linear.row1);
     m_CameraVerticalFOV = sceneCamera->verticalFov;
     m_CameraZNear = sceneCamera->zNear;
 
@@ -495,6 +497,24 @@ void Sample::UpdateCameraFromScene( const std::shared_ptr<donut::engine::Perspec
     }
 }
 
+void Sample::SyncCameraOperation()
+{
+    if (m_SelectedCameraOperation != m_CurrentCameraOperation)
+    {
+        BaseCamera* pNewCamera = &m_FirstCamera;
+        if (1 == m_SelectedCameraOperation)
+        {
+            pNewCamera = &m_ThirdCamera;
+        }
+        if (m_pCamera)
+        {
+            pNewCamera->CopyFromCamera(*m_pCamera);
+        }
+        m_pCamera = pNewCamera;
+        m_CurrentCameraOperation = m_SelectedCameraOperation;
+    }
+}
+
 void Sample::UpdateViews( nvrhi::IFramebuffer* framebuffer )
 {
     // we currently use TAA for jitter even when it's not used itself
@@ -504,9 +524,12 @@ void Sample::UpdateViews( nvrhi::IFramebuffer* framebuffer )
     nvrhi::Viewport windowViewport(float(m_RenderSize.x), float(m_RenderSize.y));
     m_View->SetViewport(windowViewport);
 
-    m_View->SetMatrices(m_Camera.GetWorldToViewMatrix(), perspProjD3DStyleReverse(m_CameraVerticalFOV, windowViewport.width() / windowViewport.height(), m_CameraZNear));
+    m_View->SetMatrices(m_pCamera->GetWorldToViewMatrix(), perspProjD3DStyleReverse(m_CameraVerticalFOV, windowViewport.width() / windowViewport.height(), m_CameraZNear));
     m_View->SetPixelOffset(ComputeCameraJitter(m_sampleIndex));
     m_View->UpdateCache();
+
+    SyncCameraOperation();
+    m_pCamera->SetView(*m_View);
     if (GetFrameIndex() == 0)
     {
         m_ViewPrevious->SetMatrices(m_View->GetViewMatrix(), m_View->GetProjectionMatrix());
@@ -598,7 +621,7 @@ void Sample::SceneLoaded( )
 
     if( camScene == nullptr )
     {
-        m_Camera.LookAt(float3(0.f, 1.8f, 0.f), float3(1.f, 1.55f, 0.f), float3(0, 1, 0));
+        m_pCamera->LookAt(float3(0.f, 1.8f, 0.f), float3(1.f, 1.55f, 0.f), float3(0, 1, 0));
         m_CameraVerticalFOV = dm::radians(60.0f);
         m_CameraZNear = 0.001f;
     }
@@ -655,7 +678,7 @@ void Sample::SceneLoaded( )
 
 bool Sample::KeyboardUpdate(int key, int scancode, int action, int mods) 
 {
-    m_Camera.KeyboardUpdate(key, scancode, action, mods);
+    m_pCamera->KeyboardUpdate(key, scancode, action, mods);
 
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
     {
@@ -685,7 +708,7 @@ bool Sample::MousePosUpdate(double xpos, double ypos)
     xpos *= scaleX;
     ypos *= scaleY;
 
-    m_Camera.MousePosUpdate(xpos, ypos);
+    m_pCamera->MousePosUpdate(xpos, ypos);
 
     float2 upscalingScale = float2(1,1);
     if (m_RenderTargets != nullptr)
@@ -703,7 +726,7 @@ bool Sample::MousePosUpdate(double xpos, double ypos)
 
 bool Sample::MouseButtonUpdate(int button, int action, int mods)
 {
-    m_Camera.MouseButtonUpdate(button, action, mods);
+    m_pCamera->MouseButtonUpdate(button, action, mods);
 
     if( action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_2 )
     {
@@ -722,7 +745,7 @@ bool Sample::MouseButtonUpdate(int button, int action, int mods)
 
 bool Sample::MouseScrollUpdate(double xoffset, double yoffset)
 {
-    m_Camera.MouseScrollUpdate(xoffset, yoffset);
+    m_pCamera->MouseScrollUpdate(xoffset, yoffset);
     return true;
 }
 
@@ -731,7 +754,7 @@ void Sample::Animate(float fElapsedTimeSeconds)
     if (m_ui.FPSLimiter>0)    // essential for stable video recording
         fElapsedTimeSeconds = 1.0f / (float)m_ui.FPSLimiter;
 
-    m_Camera.SetMoveSpeed(m_ui.CameraMoveSpeed);
+    m_pCamera->SetMoveSpeed(m_ui.CameraMoveSpeed);
 
     if( m_ui.ShaderReloadDelayedRequest > 0 )
     {
@@ -787,11 +810,11 @@ void Sample::Animate(float fElapsedTimeSeconds)
             UpdateCameraFromScene( sceneCamera );
     }
 
-    m_Camera.Animate(fElapsedTimeSeconds);
+    m_pCamera->Animate(fElapsedTimeSeconds);
 
-    dm::float3 camPos = m_Camera.GetPosition();
-    dm::float3 camDir = m_Camera.GetDir();
-    dm::float3 camUp = m_Camera.GetUp();
+    dm::float3 camPos = m_pCamera->GetPosition();
+    dm::float3 camDir = m_pCamera->GetDir();
+    dm::float3 camUp = m_pCamera->GetUp();
 
     // if camera moves, reset accumulation
     if (m_LastCamDir.x != camDir.x || m_LastCamDir.y != camDir.y || m_LastCamDir.z != camDir.z || m_LastCamPos.x != camPos.x || m_LastCamPos.y != camPos.y || m_LastCamPos.z != camPos.z
@@ -850,11 +873,11 @@ float Sample::GetAvgTimePerFrame() const
 
 void Sample::SaveCurrentCamera()
 {
-    float3 worldPos = m_Camera.GetPosition();
-    float3 worldDir = m_Camera.GetDir();
-    float3 worldUp  = m_Camera.GetUp();
+    float3 worldPos = m_pCamera->GetPosition();
+    float3 worldDir = m_pCamera->GetDir();
+    float3 worldUp  = m_pCamera->GetUp();
     dm::dquat rotation;
-    dm::affine3 sceneWorldToView = dm::scaling(dm::float3(1.f, 1.f, -1.f)) * dm::inverse(m_Camera.GetWorldToViewMatrix()); // see SceneCamera::GetViewToWorldMatrix
+    dm::affine3 sceneWorldToView = dm::scaling(dm::float3(1.f, 1.f, -1.f)) * dm::inverse(m_pCamera->GetWorldToViewMatrix()); // see SceneCamera::GetViewToWorldMatrix
     dm::decomposeAffine<double>( daffine3(sceneWorldToView), nullptr, &rotation, nullptr );
 
     float4x4 projMatrix = m_View->GetProjectionMatrix();
@@ -913,7 +936,7 @@ void Sample::LoadCurrentCamera()
         file >> worldDir.x >> std::ws >> worldDir.y >> std::ws >> worldDir.z; file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         file >> worldUp.x  >> std::ws >> worldUp.y  >> std::ws >> worldUp.z; file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         file.close();
-        m_Camera.LookAt( worldPos, worldPos + worldDir, worldUp );
+        m_pCamera->LookAt( worldPos, worldPos + worldDir, worldUp );
     }
 }
 
@@ -1646,7 +1669,7 @@ void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraD
     RtxdiBridgeParameters bridgeParameters;
 	bridgeParameters.frameIndex = GetFrameIndex();
 	bridgeParameters.frameDims = renderDims;
-	bridgeParameters.cameraPosition = m_Camera.GetPosition();
+	bridgeParameters.cameraPosition = m_pCamera->GetPosition();
 	bridgeParameters.userSettings = m_ui.RTXDI;
     bridgeParameters.usingLightSampling = m_ui.ActualUseReSTIRDI() || (m_ui.NEELocalFullSamples > 0 && m_ui.UseNEE);
     bridgeParameters.usingReGIR = m_ui.ActualUseReSTIRDI() || (m_ui.NEELocalType == 2 && (m_ui.NEELocalFullSamples > 0 && m_ui.UseNEE));
@@ -1846,7 +1869,7 @@ void Sample::Render(nvrhi::IFramebuffer* framebuffer)
             bool rowMajor = true;
             float tanHalfFOVY = 1.0f / ((rowMajor) ? (projMatrix.m_data[1 * 4 + 1]) : (projMatrix.m_data[1 + 1 * 4]));
             float fovY = atanf(tanHalfFOVY) * 2.0f;
-            cameraData = BridgeCamera(uint(viewSize.x), uint(viewSize.y), m_Camera.GetPosition(), m_Camera.GetDir(), m_Camera.GetUp(), fovY, m_CameraZNear, 1e7f, m_ui.CameraFocalDistance, m_ui.CameraAperture, jitter);
+            cameraData = BridgeCamera(uint(viewSize.x), uint(viewSize.y), m_pCamera->GetPosition(), m_pCamera->GetDir(), m_pCamera->GetUp(), fovY, m_CameraZNear, 1e7f, m_ui.CameraFocalDistance, m_ui.CameraAperture, jitter);
         }
 
         // Early init for RTXDI
@@ -2071,10 +2094,10 @@ void Sample::Render(nvrhi::IFramebuffer* framebuffer)
             slConstants.cameraMotionIncluded = sl::Boolean::eTrue;
             slConstants.cameraNear = zNear;
             slConstants.cameraPinholeOffset = { 0.f, 0.f };
-            slConstants.cameraPos = make_sl_float3(m_Camera.GetPosition());
-            slConstants.cameraFwd = make_sl_float3(m_Camera.GetDir());
-            slConstants.cameraUp = make_sl_float3(m_Camera.GetUp());
-            slConstants.cameraRight = make_sl_float3(normalize(cross(m_Camera.GetDir(), m_Camera.GetUp())));
+            slConstants.cameraPos = make_sl_float3(m_pCamera->GetPosition());
+            slConstants.cameraFwd = make_sl_float3(m_pCamera->GetDir());
+            slConstants.cameraUp = make_sl_float3(m_pCamera->GetUp());
+            slConstants.cameraRight = make_sl_float3(normalize(cross(m_pCamera->GetDir(), m_pCamera->GetUp())));
             slConstants.cameraViewToClip = make_sl_float4x4(projection);
             slConstants.clipToCameraView = make_sl_float4x4(inverse(projection));
             slConstants.clipToPrevClip = make_sl_float4x4(reprojectionMatrix);

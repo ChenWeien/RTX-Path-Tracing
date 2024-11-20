@@ -51,6 +51,11 @@ namespace donut::app
         virtual void Animate(float deltaT) { }
         virtual ~BaseCamera() = default;
 
+        virtual void LookAt(dm::float3 cameraPos, dm::float3 cameraTarget, dm::float3 cameraUp = dm::float3{ 0.f, 1.f, 0.f }) = 0;
+        virtual void SetView(const engine::PlanarView& view) = 0;
+
+        virtual void CopyFromCamera(const BaseCamera& camera);
+
         void SetMoveSpeed(float value) { m_MoveSpeed = value; }
         void SetRotateSpeed(float value) { m_RotateSpeed = value; }
 
@@ -88,6 +93,7 @@ namespace donut::app
         void AnimateSmooth(float deltaT);
 
         void LookAt(dm::float3 cameraPos, dm::float3 cameraTarget, dm::float3 cameraUp = dm::float3{ 0.f, 1.f, 0.f });
+        void SetView(const engine::PlanarView& view) {}
 
     private:
         std::pair<bool, dm::affine3> AnimateRoll(dm::affine3 initialRotation);
@@ -178,9 +184,13 @@ namespace donut::app
         void SetMinDistance(float value) { m_MinDistance = value; }
         void SetMaxDistance(float value) { m_MaxDistance = value; }
 
+        void CopyFromCamera(const BaseCamera& camera);
+
+        void LookAt(dm::float3 cameraPos, dm::float3 cameraTarget, dm::float3 cameraUp = dm::float3{ 0.f, 1.f, 0.f });
         void SetView(const engine::PlanarView& view);
         
     private:
+        void ConvertBasePoseToTarget();
         void AnimateOrbit(float deltaT);
         void AnimateTranslation(const dm::float3x3& viewMatrix);
 

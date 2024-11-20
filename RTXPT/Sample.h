@@ -73,6 +73,8 @@ private:
     std::shared_ptr<donut::engine::ExtendedScene>   m_Scene;
     double                                      m_SceneTime = 0.;           // if m_ui.LoopLongestAnimation then it loops with longest animation
     uint                                        m_SelectedCameraIndex = 0;  // 0 is first person camera, the rest (if any) are scene cameras
+    uint m_SelectedCameraOperation = 0; // 0 - first person camera, 1 - third person camera
+    uint m_CurrentCameraOperation = 0;
 
 
     // device setup
@@ -110,7 +112,9 @@ private:
     nvrhi::rt::AccelStructHandle                m_TopLevelAS;
 
     // camera
-    donut::app::FirstPersonCamera               m_Camera;
+    donut::app::BaseCamera* m_pCamera;
+    donut::app::FirstPersonCamera               m_FirstCamera;
+    donut::app::ThirdPersonCamera               m_ThirdCamera;
     std::shared_ptr<donut::engine::PlanarView>  m_View;
     std::shared_ptr<donut::engine::PlanarView>  m_ViewPrevious;
     float                                       m_CameraVerticalFOV = 60.0f;
@@ -204,6 +208,8 @@ public:
     const DeltaTreeVizPathVertex *             GetDebugDeltaPathTree() const           { return m_DebugDeltaPathTree; }
     uint                                    GetSceneCameraCount() const             { return (uint)m_Scene->GetSceneGraph()->GetCameras().size() + 1; }
     uint &                                  SelectedCameraIndex()                   { return m_SelectedCameraIndex; }   // 0 is default fps free flight, above (if any) will just use current scene camera
+    uint& SelectedCameraOperation() { return m_SelectedCameraOperation; }
+    void SyncCameraOperation();
     
     void                                    SetUIPick()                             { m_Pick = true; }
 
@@ -261,7 +267,7 @@ public:
     std::string                             GetFPSInfo() const              { return m_FPSInfo; }
 
     void                                    DebugDrawLine( float3 start, float3 stop, float4 col1, float4 col2 );
-    const donut::app::FirstPersonCamera &   GetCurrentCamera( ) const { return m_Camera; }
+    const donut::app::BaseCamera* GetCurrentCamera() const { return m_pCamera; }
 
     void                                    ResetSceneTime( ) { m_SceneTime = 0.; }
 
