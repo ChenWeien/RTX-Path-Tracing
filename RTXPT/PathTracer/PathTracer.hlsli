@@ -428,8 +428,8 @@ namespace PathTracer
             return;
 
         // These will not change anymore, so make const shortcuts
-        const ShadingData shadingData    = bridgedData.shadingData;
-        const ActiveBSDF bsdf   = bridgedData.bsdf;
+        ShadingData shadingData    = bridgedData.shadingData;
+        ActiveBSDF bsdf   = bridgedData.bsdf;
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (debugPath)
@@ -522,10 +522,15 @@ namespace PathTracer
 
             const uint vertexIndex = path.getVertexIndex();
             RayCone rayCone = RayCone::make( 1, 1 );
-            SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+            //SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
             // use X2 vertex data to replace X1's to GenerateScatterRay(
-            scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
+            //scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
+            //shadingData.diffuse;
+
+            bsdf.data.diffuse = float3(1,1,1) - bsdf.data.diffuse;
+            bridgedData.bsdf.data.diffuse = float3(1,1,1) - bridgedData.bsdf.data.diffuse;
+            scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         }
         else
         {
