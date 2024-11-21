@@ -2680,7 +2680,7 @@ int main(int __argc, const char** __argv)
 
     deviceParams.enablePerMonitorDPI = true;
     
-    std::string preferredScene = "kitchen.scene.json"; //"programmer-art.scene.json";
+    std::string preferredScene = "ajax_statue.scene"; // kitchen.scene.json"; //"programmer - art.scene.json";
     LocalConfig::PreferredSceneOverride(preferredScene);
 
     CommandLineOptions cmdLine;
