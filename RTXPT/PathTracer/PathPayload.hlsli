@@ -22,6 +22,11 @@ struct PathPayload
     uint4   packed[6];                              // generate requires more for imageXForm or various additional radiances
 #endif
 
+    
+    float3 sssMfp; // UE: sssMfp (mean free path)
+    uint isSssPath;
+    float4 Lpbr;  ///< pbr bsdf in restirSSS
+
 #ifdef PATH_STATE_DEFINED
     static PathPayload pack(const PathState path);
     static PathState unpack(const PathPayload p, const PackedHitInfo packedHitInfo);
@@ -33,6 +38,8 @@ struct PathPayload
 PathPayload PathPayload::pack(const PathState path)
 {
     PathPayload p; // = {};
+    p.sssMfp    = path.sssMfp;
+    p.isSssPath = path.isSssPath;
 
     p.packed[0].xyz = asuint(path.origin);
     p.packed[0].w = path.id;
@@ -51,6 +58,7 @@ PathPayload PathPayload::pack(const PathState path)
 
 #if PATH_TRACER_MODE!=PATH_TRACER_MODE_FILL_STABLE_PLANES
     float3 radianceVal = path.L;
+    p.Lpbr      = path.Lpbr;
 #else
     float3 radianceVal = path.secondaryL;
 #endif
@@ -77,6 +85,9 @@ PathState PathPayload::unpack(const PathPayload p, const PackedHitInfo packedHit
 {
     PathState path; // = {};
 
+    path.sssMfp    = p.sssMfp;
+    path.isSssPath = p.isSssPath;
+
     path.origin = asfloat(p.packed[0].xyz);
     path.id = p.packed[0].w;
 
@@ -97,6 +108,7 @@ PathState PathPayload::unpack(const PathPayload p, const PackedHitInfo packedHit
     float3 radianceVal = float3( f16tof32(p.packed[4].x >> 16), f16tof32(p.packed[4].x & 0xffff), f16tof32(p.packed[4].y >> 16) );
 #if PATH_TRACER_MODE!=PATH_TRACER_MODE_FILL_STABLE_PLANES
     path.L = radianceVal;
+    path.Lpbr      = p.Lpbr;
 #else
     path.secondaryL = radianceVal;
 #endif

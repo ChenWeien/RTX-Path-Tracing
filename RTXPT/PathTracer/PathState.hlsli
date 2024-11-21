@@ -107,12 +107,16 @@ struct PathState
     float3      thp;                    ///< Path throughput.
 #if PATH_TRACER_MODE!=PATH_TRACER_MODE_FILL_STABLE_PLANES // nothing to accumulate in this case - all goes to denoiser
     float3      L;                      ///< Accumulated path contribution.
+    float4      Lpbr;                   ///< pbr bsdf in restirSSS, float4.a is unused
 #else
     float4      denoiserDiffRadianceHitDist;
     float4      denoiserSpecRadianceHitDist;
     float3      secondaryL;             ///< Radiance reflected and emitted by the secondary surface
     float       denoiserSampleHitTFromPlane;
 #endif
+
+    float3 sssMfp; // UE: sssMfp (mean free path)
+    uint isSssPath; // no time to check if PathFlags still have bits left, it share 32bits with vertex index
 
 #if 0 // disabled for now
     GuideData   guideData;              ///< Denoiser guide data.
@@ -125,6 +129,8 @@ struct PathState
 #endif
 
     // Accessors
+    void setSss( bool isSss ) { isSssPath = 0; }
+    bool isSss() { return isSssPath > 0; }
 
     bool isTerminated() { return !isActive(); }
     bool isActive() { return hasFlag(PathFlags::active); }

@@ -17,7 +17,16 @@
 #pragma pack_matrix(row_major)
 #endif
 
-#define PATH_TRACER_MAX_PAYLOAD_SIZE     4*4*6    // PathPayload is 96 at the moment
+struct CPathPayloadCopy // same as PathPayload.hlsli
+{
+    uint4   packed[ 6 ];
+    float3 sssMfp; // UE: sssMfp (mean free path)
+    uint isSssPath;
+    float4 Lpbr;  ///< pbr bsdf in restirSSS
+};
+
+//#define PATH_TRACER_MAX_PAYLOAD_SIZE     4*4*6    // PathPayload is 96 at the moment
+#define PATH_TRACER_MAX_PAYLOAD_SIZE     sizeof(CPathPayloadCopy)
 
 // Condensed version of ..\Falcor\Source\Falcor\Scene\Camera\CameraData.hlsli
 struct PathTracerCameraData
