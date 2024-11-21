@@ -367,6 +367,52 @@ namespace PathTracer
 #endif
     }
 
+
+    float disney_schlickWeight(in const float a)
+    {
+        const float b = clamp(1.0 - a, 0.0, 1.0);
+        const float bb = b * b;
+        return bb * bb * b;
+    }
+
+    float disney_diffuseLambertWeight(in const float fv, in const float fl)
+    {
+        return (1.0 - 0.5 * fl) * (1.0 - 0.5 * fv);
+    }
+
+    float disney_diffuseLambertWeightSingle(in const float f)
+    {
+        return 1.0 - 0.5 * f;
+    }
+    
+    #define K_PI 3.14159265358979323846
+    
+    float3 sss_diffusion_profile_evaluate(in const float radius, in const float3 scatterDistance)
+    {
+        if (radius <= 0)
+        {
+            return (float3)(0.25 / K_PI) / max((float3)0.000001, scatterDistance);
+        }
+        const float3 rd = radius / scatterDistance;
+        return (exp(-rd) + exp(-rd / 3.0)) / max((float3)0.000001, (8.0 * K_PI * scatterDistance * radius));
+    }
+    
+    float3 disney_bssrdf_fresnel_evaluate(in const float3 normal, in const float3 direction)
+    {
+        const float dotND = dot(normal, direction);
+        const float schlick = disney_schlickWeight(dotND);
+        const float lambertWeight = disney_diffuseLambertWeightSingle(schlick);
+        return (float3)lambertWeight;
+    }
+    
+    void disney_bssrdf_evaluate(in const float3 normal, in const float3 v, in const float distance, in const float3 scatterDistance, in const float3 surfaceAlbedo, out float3 bssrdf)
+    {
+        const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
+
+        bssrdf = diffusionProfile / K_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+    }
+    
+    
     // supports only TriangleHit for now; more to be added when needed
     inline void HandleHit(const uniform OptimizationHints optimizationHints, inout PathState path, const float3 rayOrigin, const float3 rayDir, const float rayTCurrent, const WorkingContext workingContext)
     {
@@ -428,8 +474,10 @@ namespace PathTracer
             return;
 
         // These will not change anymore, so make const shortcuts
-        const ShadingData shadingData    = bridgedData.shadingData;
-        const ActiveBSDF bsdf   = bridgedData.bsdf;
+        //const 
+        ShadingData shadingData    = bridgedData.shadingData;
+        //const 
+        ActiveBSDF bsdf   = bridgedData.bsdf;
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (debugPath)
@@ -495,42 +543,73 @@ namespace PathTracer
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
+        bool sssHitNearby = false;
+        float3 sssNearbyPosition = 0;
+        float sssNearbyDistance = 0;
+        bool isSssPixel = all(bsdf.data.sssMfp) > 0;
+        
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, true);
-        float phi = 2.f * 3.14159f * sampleNext1D(sampleGenerator);
-        float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
-
-        const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
         
-        RayDesc ray;
-        ray.Origin = origin;
-        ray.Direction = -shadingData.faceN;
-        ray.TMin = 0;
-        //ray.TMax = FLT_MAX;
-        ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
-
-        RayQuery<RAY_FLAG_NONE> rayQuery;
-        PackedHitInfo packedHitInfo;
-        bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
-        // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
-
-        if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-        {
-            BuiltInTriangleIntersectionAttributes attrib;
-            attrib.barycentrics = rayQuery.CommittedTriangleBarycentrics();
-            const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
-
-            const uint vertexIndex = path.getVertexIndex();
-            RayCone rayCone = RayCone::make( 1, 1 );
-            SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-
-            // use X2 vertex data to replace X1's to GenerateScatterRay(
-            scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
-        }
-        else
+        float sssProbability = sampleNext1D(sampleGenerator);
+        
+        if ( !isSssPixel )
         {
             // Generate the next path segment!
             scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+        }
+        else if ( sssProbability < 0.5f )
+        {
+            // PBR path
+            scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+        }
+        else
+        {
+            // SSS profile sampling
+        
+            float phi = 2.f * 3.14159f * sampleNext1D(sampleGenerator);
+            float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
+
+            const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+        
+            RayDesc ray;
+            ray.Origin = origin;
+            ray.Direction = -shadingData.faceN;
+            ray.TMin = 0;
+        //ray.TMax = FLT_MAX;
+            ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
+
+            RayQuery < RAY_FLAG_NONE > rayQuery;
+            PackedHitInfo packedHitInfo;
+            bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+        // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
+
+            if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+            {
+                sssHitNearby = true;
+                sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
+                sssNearbyDistance = distance(sssNearbyPosition, shadingData.posW);
+
+                BuiltInTriangleIntersectionAttributes attrib;
+                attrib.barycentrics = rayQuery.CommittedTriangleBarycentrics();
+                const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+
+                const uint vertexIndex = path.getVertexIndex();
+                RayCone rayCone = RayCone::make(1, 1);
+                SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+
+            // use X2 vertex data to replace X1's to GenerateScatterRay(
+                scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
+                
+                // test sssMfp is working
+                //bsdf.data.diffuse = bsdf.data.sssMfp;
+                //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
+            }
+            else
+            {
+                // on miss, continue with PBR path
+                scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+            }
         }
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
@@ -554,7 +633,20 @@ namespace PathTracer
             StablePlanesHandleNEE(preScatterPath, path, neeResult.DiffuseRadiance, neeResult.SpecularRadiance, neeResult.RadianceSourceDistance, workingContext);
 #else
             float3 neeContribution = neeResult.DiffuseRadiance + neeResult.SpecularRadiance;
-            path.L += max(0.xxx, preScatterPath.thp * neeContribution); // add to path contribution!
+            
+            if ( sssHitNearby && sssNearbyDistance > 0 )
+            {
+                float3 bssrdf = 0;
+                float3 albedo = bsdf.data.diffuse;
+                disney_bssrdf_evaluate(shadingData.N, shadingData.V,
+                                       sssNearbyDistance, bsdf.data.sssMfp, albedo, bssrdf);
+
+                path.L += max(0.xxx, preScatterPath.thp * bssrdf * neeResult.DiffuseRadiance);
+            }
+            else
+            {
+                path.L += max(0.xxx, preScatterPath.thp * neeContribution); // add to path contribution!
+            }
 #endif
         }
         
