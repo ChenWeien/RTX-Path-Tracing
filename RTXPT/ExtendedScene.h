@@ -55,6 +55,7 @@ namespace donut::engine
         std::optional<float>        volumeThicknessFactor;
         std::optional<float>        volumeAttenuationDistance;
         std::optional<dm::float3>   volumeAttenuationColor;
+        std::optional<dm::float3>   sssMfp;
         std::optional<float>        ior;
         std::optional<float>        transmissionFactor;
         std::optional<float>        diffuseTransmissionFactor;

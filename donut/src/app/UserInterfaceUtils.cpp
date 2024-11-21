@@ -215,7 +215,8 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::TextColored(filenameColor, "%s", getShortTexturePath(material->emissiveTexture->path).c_str());
     }
     
-    update |= ImGui::ColorEdit3("Emissive Color", material->emissiveColor.data(), ImGuiColorEditFlags_Float);
+    update |= ImGui::ColorEdit3( "sssMfp",         material->sssMfp.data(), ImGuiColorEditFlags_Float);
+    update |= ImGui::ColorEdit3( "Emissive Color", material->emissiveColor.data(), ImGuiColorEditFlags_Float );
     update |= ImGui::SliderFloat("Emissive Intensity", &material->emissiveIntensity, 0.f, 100000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
 
     if (material->domain == MaterialDomain::Transmissive ||

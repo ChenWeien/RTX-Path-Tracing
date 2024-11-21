@@ -119,7 +119,7 @@ struct StandardBSDF // : IBSDF
         p.diffuseTransmissionAlbedo = data.diffuseTransmission * data.transmission* (1.f - data.specularTransmission); // used to have  "* (1.f - data.specularTransmission)" too
         p.specularReflectionAlbedo = (1.f - data.specularTransmission) * data.specular;
         p.specularTransmissionAlbedo = data.specularTransmission * data.transmission;
-
+        p.sssMfp = data.sssMfp;
         // Pass on our specular reflectance field unmodified.
         p.specularReflectance = data.specular;
 

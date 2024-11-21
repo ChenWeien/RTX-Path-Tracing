@@ -88,9 +88,7 @@ struct MaterialConstants
     float   diffuseTransmissionFactor;
 
     float   shadowNoLFadeout;
-    uint    padding0;
-    uint    padding1;
-    uint    padding2;
+    float3  sssMfp;
 
     VolumeConstants volume;
 };

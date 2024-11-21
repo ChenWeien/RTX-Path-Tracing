@@ -283,6 +283,7 @@ struct PackedPathTracerSurfaceData
     uint _roughnessMetallicEta;				// R11G11B10_FLOAT
     uint _transmission;						// R11G11B10_FLOAT
     uint _diffuseSpecularTransmission;		// fp16 | fp16
+    uint _sssMfp;                           // R11G11B10_FLOAT
 };
 
 static const uint kPolymorphicLightTypeShift = 24;

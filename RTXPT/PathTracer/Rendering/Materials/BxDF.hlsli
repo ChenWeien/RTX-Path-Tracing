@@ -568,6 +568,7 @@ struct StandardBSDFData
     float3 specular;                ///< Specular albedo.
     float roughness;                ///< This is the original roughness, before remapping.
     float metallic;                 ///< Metallic parameter, blends between dielectric and conducting BSDFs.
+    float3 sssMfp;                  ///< Subsurface scattering mean free path.
     float eta;                      ///< Relative index of refraction (incident IoR / transmissive IoR).
     float3 transmission;            ///< Transmission color.
     float diffuseTransmission;      ///< Diffuse transmission, blends between diffuse reflection and transmission lobes.
@@ -581,6 +582,7 @@ struct StandardBSDFData
         d.roughness = 0;
         d.metallic = 0;
         d.eta = 0;
+        d.sssMfp = 0;
         d.transmission = 0;
         d.diffuseTransmission = 0;
         d.specularTransmission = 0;

@@ -207,6 +207,7 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
 
     result.transmission = material.transmissionFactor;
     result.diffuseTransmission = material.diffuseTransmissionFactor;
+    result.sssMfp = material.sssMfp;
     if (material.flags & MaterialFlags_UseTransmissionTexture)
     {
         result.transmission *= textures.transmission.r;

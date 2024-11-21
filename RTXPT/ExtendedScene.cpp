@@ -232,6 +232,7 @@ void MaterialPatch::Load(const Json::Value& node)
     node["IoR"] >> ior;
     node["specularTransmission"] >> transmissionFactor;
     node["diffuseTransmission"] >> diffuseTransmissionFactor;
+    node[ "sssMfp" ] >> sssMfp;
     node["nestedPriority"] >> nestedPriority;
     node["doubleSided"] >> doubleSided;
     node["thinSurface"] >> thinSurface;
@@ -267,6 +268,7 @@ void MaterialPatch::Patch(Material& mat)
     MAT_VALUE_OR(volumeAttenuationColor);
     MAT_VALUE_OR(ior);
     MAT_VALUE_OR(transmissionFactor);
+    MAT_VALUE_OR(sssMfp);
     MAT_VALUE_OR(diffuseTransmissionFactor);
     MAT_VALUE_OR(nestedPriority);
     MAT_VALUE_OR(doubleSided);
