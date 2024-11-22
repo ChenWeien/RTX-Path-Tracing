@@ -229,6 +229,7 @@ void MaterialPatch::Load(const Json::Value& node)
     node["volumeThicknessFactor"] >> volumeThicknessFactor;
     node["volumeAttenuationDistance"] >> volumeAttenuationDistance;
     node["volumeAttenuationColor"] >> volumeAttenuationColor;
+    node["baseOrDiffuseColor"] >> baseOrDiffuseColor;
     node["IoR"] >> ior;
     node["specularTransmission"] >> transmissionFactor;
     node["diffuseTransmission"] >> diffuseTransmissionFactor;
@@ -264,6 +265,7 @@ void MaterialPatch::Patch(Material& mat)
     }
     // safer to do with a macro - had a copy paste typo bug, this ensures it doesn't happen
 #define MAT_VALUE_OR(NAME) mat.##NAME = ##NAME.value_or(mat.##NAME)
+    MAT_VALUE_OR(baseOrDiffuseColor);
     MAT_VALUE_OR(volumeAttenuationDistance);
     MAT_VALUE_OR(volumeAttenuationColor);
     MAT_VALUE_OR(ior);
