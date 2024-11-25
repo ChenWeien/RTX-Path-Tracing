@@ -20,8 +20,8 @@ struct CommandLineOptions
 	bool noWindow = false;
 	bool noStreamline = false;
 	bool debug = false;
-	uint32_t width = 1920;
-	uint32_t height = 1080;
+	uint32_t width = 1280;
+	uint32_t height = 720;
 	bool fullscreen = false;
 	std::string adapter;
 	std::string screenshotFileName;

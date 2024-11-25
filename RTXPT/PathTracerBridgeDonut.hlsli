@@ -700,7 +700,7 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
 #endif
 }
 
-bool Bridge::traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
+void Bridge::traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
 {
     rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_NONE, 0xff, ray);
     while (rayQuery.Proceed())
@@ -732,12 +732,10 @@ bool Bridge::traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE>
         triangleHit.primitiveIndex  = rayQuery.CommittedPrimitiveIndex();
         triangleHit.barycentrics    = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
         packedHitInfo = triangleHit.pack();
-        return true;
     }
     else
     {
         packedHitInfo = PACKED_HIT_INFO_ZERO; // this invokes miss shader a.k.a. sky!
-        return false;
     }
 }
 

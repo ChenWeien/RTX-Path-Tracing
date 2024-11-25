@@ -409,7 +409,7 @@ namespace PathTracer
     {
         const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
 
-        bssrdf = diffusionProfile / K_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+        bssrdf = diffusionProfile / K_PI * disney_bssrdf_fresnel_evaluate( normal, v );
     }
     
     
@@ -581,7 +581,7 @@ namespace PathTracer
 
             RayQuery < RAY_FLAG_NONE > rayQuery;
             PackedHitInfo packedHitInfo;
-            bool hasHit = Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+            Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
         // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
 
             if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
@@ -639,9 +639,30 @@ namespace PathTracer
                 float3 bssrdf = 0;
                 float3 albedo = bsdf.data.diffuse;
                 disney_bssrdf_evaluate(shadingData.N, shadingData.V,
-                                       sssNearbyDistance, bsdf.data.sssMfp, albedo, bssrdf);
+                                       sssNearbyDistance / MAX_SS_RADIUS, bsdf.data.sssMfp, albedo, bssrdf);
 
-                path.L += max(0.xxx, preScatterPath.thp * bssrdf * neeResult.DiffuseRadiance);
+                float3 sssContribute = max( 0.xxx, preScatterPath.thp * bssrdf * neeResult.DiffuseRadiance );
+                path.L += sssContribute;
+
+#if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
+                if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
+                {
+                    DebugContext debug = workingContext.debug;
+                    switch ( g_Const.debug.debugViewType )
+                    {
+                        case ( ( int )DebugViewType::FirstHitSssColor ):           debug.DrawDebugViz( float4( bsdf.data.sssMfp, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitSssContribute ):      debug.DrawDebugViz( float4( sssContribute, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitBssrdf ):             debug.DrawDebugViz( float4( bssrdf, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitPreThp ):             debug.DrawDebugViz( float4( preScatterPath.thp, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitNeeDiffuseRadiance ): debug.DrawDebugViz( float4( neeResult.DiffuseRadiance, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitSssNormal ):          debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.N ), 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitSssView ):            debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.V ), 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitSssAlbedo ):          debug.DrawDebugViz( float4( albedo, 1.0 ) ); break;
+                        case ( ( int )DebugViewType::FirstHitNearbyDistance ):     debug.DrawDebugViz( float4( (sssNearbyDistance / MAX_SS_RADIUS).xxx, 1.0 ) ); break;
+                        default: break;
+                    }
+                }
+#endif
             }
             else
             {

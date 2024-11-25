@@ -24,6 +24,15 @@
 enum class DebugViewType : int
 {
     Disabled,
+    FirstHitSssColor,
+    FirstHitSssContribute,
+    FirstHitBssrdf,
+    FirstHitPreThp,
+    FirstHitNeeDiffuseRadiance,
+    FirstHitSssNormal,
+    FirstHitSssView,
+    FirstHitSssAlbedo,
+    FirstHitNearbyDistance,
     ImagePlaneRayLength,
     DominantStablePlaneIndex,
 
