@@ -498,61 +498,90 @@ namespace PathTracer
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
+        bool isSssPixel = any(bsdf.data.sssMfp) > 0;
+        bool isValidSssSample = false;
+
         bool sssHitNearby = false;
         float3 sssNearbyPosition = 0;
         float sssNearbyDistance = 0;
-        bool isSssPixel = all(bsdf.data.sssMfp) > 0;
         
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
-        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, true);
+        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
         
-        float sssProbability = sampleNext1D(sampleGenerator);
         
         if ( isSssPixel )
         {
+            const uint axis = 0; //sampleNext1D(sampleGenerator);
+            
+            const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
+            const float3 sssTangentFrame = shadingData.faceN; //pixelInfo.geometricNormal;
             // find nearby SSS sample point
+            
+            // !sss_sampling_sample(frame, projectionFrame
+            
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            float phi = xiAngle * M_2PI;
-            float radiusMax = MAX_SS_RADIUS;
-            //float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
-            float radius = xiRadius * radiusMax;
-            const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-            const float tMin = radiusMax - sphereFraction;
-            const float tMax = radiusMax + sphereFraction;
-            const float3 origin = shadingData.posW + radiusMax * shadingData.faceN + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
-        
-            RayDesc ray;
-            ray.Origin = origin;
-            ray.Direction = -shadingData.faceN;
-            ray.TMin = tMin; //0
-            ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
+            
+            float3 sampledScatterDistance = float3(0.46, 0.09, 0.04 );
 
-            RayQuery < RAY_FLAG_NONE > rayQuery;
-            PackedHitInfo packedHitInfo;
-            Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+            const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance[axis]);
+            const float radiusMax = sss_diffusion_profile_sample(0.999, sampledScatterDistance[axis]);
+            if (radius > radiusMax) {
+                isValidSssSample = false;
+            }
+            else
+            {
+                BSDFFrame projectionFrame;
+                projectionFrame.n = shadingData.faceN;
+                projectionFrame.t = shadingData.T;
+                projectionFrame.b = shadingData.B;
+                float phi = xiAngle * M_2PI;
+                //float radiusMax = MAX_SS_RADIUS;
+                //float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
+                //sss_sampling_sample
+                //float radius = xiRadius * radiusMax;
+                const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
+                const float tMin = radiusMax - sphereFraction;
+                const float tMax = radiusMax + sphereFraction;
+                const float3 origin = shadingData.posW + radiusMax * shadingData.faceN + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+        
+
+                
+                RayDesc ray;
+                ray.Origin = origin;
+                ray.Direction = -shadingData.faceN;
+                ray.TMin = tMin; //0
+                ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
+
+                RayQuery < RAY_FLAG_NONE > rayQuery;
+                PackedHitInfo packedHitInfo;
+                Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
             // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
 
-            if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-            {
-                sssHitNearby = true;
-                sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                float dist = distance(sssNearbyPosition, shadingData.posW);
-
-                if ( dist > 0 )
+                if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
                 {
-                    scatterResult.sssDistance = dist;
-                    scatterResult.sssPosition = sssNearbyPosition;
-                    scatterResult.position = shadingData.posW;
-                    scatterResult.IsSss = true;
+                    sssHitNearby = true;
+                    sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
+                    float dist = distance(sssNearbyPosition, shadingData.posW);
+
+                    if (dist > 0)
+                    {
+                        scatterResult.sssDistance = dist;
+                        scatterResult.sssPosition = sssNearbyPosition;
+                        scatterResult.position = shadingData.posW;
+                        scatterResult.IsSss = true;
                     
-                    bsdf.data.sssPosition = sssNearbyPosition;
-                    bsdf.data.position = shadingData.posW;
-                }
+                        bsdf.data.sssPosition = sssNearbyPosition;
+                        bsdf.data.position = shadingData.posW;
+
+                        float pdf = sss_sampling_disk_pdf(bsdf.data.sssPosition - bsdf.data.position, projectionFrame, shadingData.faceN, sampledScatterDistance);
+                        bsdf.data.bssrdfPDF = pdf;
+                    }
 
                 // test sssMfp is working
                 //bsdf.data.diffuse = bsdf.data.sssMfp;
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
+                }
             }
         }
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      

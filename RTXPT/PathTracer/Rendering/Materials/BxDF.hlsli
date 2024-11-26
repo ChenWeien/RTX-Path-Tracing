@@ -264,6 +264,28 @@ float3 GetMFPFromDMFPCoeff(float3 DMFPSurfaceAlbedo, float3 MFPSurfaceAlbedo, fl
 	return Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(MFPSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(DMFPSurfaceAlbedo);
 }
 
+float3 GetMFPFromDMFPApprox(float3 SurfaceAlbedo, float3 TargetSurfaceAlbedo, float3 DMFP)
+{
+	return GetMFPFromDMFPCoeff(SurfaceAlbedo, TargetSurfaceAlbedo) * DMFP;
+}
+
+float3 GetDMFPFromMFPApprox(float3 SurfaceAlbedo, float3 MFP)
+{
+	float3 MFPFromDMFPCoeff = GetMFPFromDMFPCoeff(SurfaceAlbedo, SurfaceAlbedo);
+	return MFP / MFPFromDMFPCoeff;
+}
+
+#if 0
+// With world unit scale 
+float4 GetSubsurfaceProfileMFPInCm(int SubsurfaceProfileInt)
+{
+	float4 DMFP = GetSubsurfaceProfileDMFPInCm(SubsurfaceProfileInt);
+	float4 SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+
+	return float4(GetMFPFromDMFPApprox(SurfaceAlbedo.xyz, SurfaceAlbedo.xyz, DMFP.xyz),0.0f);
+}
+#endif
+
 float sss_sampling_scatterDistance(in const uint channel, in const float3 scatterDistance) {
     return scatterDistance[channel];
 }
@@ -448,20 +470,21 @@ struct BssrdfDiffuseReflection
     
     float3 eval(const float3 wi, const float3 wo)
     {
+        scatterDistance = float3( 0.46, 0.09, 0.04 );
         float3 bssrdf = sssMfp;
         float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
         
         float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
         const float3 diffusionProfile = albedo * sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
 
-        bssrdf = diffusionProfile / M_PI; // * disney_bssrdf_fresnel_evaluate(normal, v);
+        bssrdf = diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
         //bssrdf = sssMfp;
         
         if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
-        float3 bsdf =  M_1_PI * albedo * wo.z;
-        return (bssrdf * bsdf / bssrdfPDF);
+        float3 bsdf = wo.z;
+        return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
@@ -969,6 +992,7 @@ struct StandardBSDFData
 
     float3 sssPosition; ///< nearby position within SSS radius
     float3 position;
+    float3 bssrdfPDF;
     //float sssDistance;  ///< distance(position, sssPosition)
 
     static StandardBSDFData make() 
@@ -985,6 +1009,7 @@ struct StandardBSDFData
         d.specularTransmission = 0;
         d.sssPosition = 0;
         d.position = 0;
+        d.bssrdfPDF = 1;
         //d.sssDistance = 0;
         return d;
     }
