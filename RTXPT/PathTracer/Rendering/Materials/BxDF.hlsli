@@ -98,6 +98,399 @@ struct DiffuseReflectionLambert // : IBxDF
     }
 };
 
+#define SSS_SAMPLING_DISK_AXIS_0_WEIGHT 0.5
+#define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0.25
+#define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 0.25
+#define SSS_SAMPLING_DISK_CHANNEL_0_WEIGHT 1.0 / 3.0
+#define SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT 1.0 / 3.0
+#define SSS_SAMPLING_DISK_CHANNEL_2_WEIGHT 1.0 / 3.0
+
+// Structures
+struct SSSInfo
+{
+    float3 position;
+    int objectDescriptorId;
+    float3 scatterDistance;
+    uint intersection;
+};
+
+struct SSSSample
+{
+    int objectDescriptorId;
+    int triangleId;
+    float2 barycentrics;
+    float3 position;
+    float3 geometricNormal;
+    float3 normal;
+    uint intersection;
+};
+
+struct BSDFFrame
+{
+    float3 n;
+    float3 t;
+    float3 b;
+};
+
+float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const float3 scatterDistance) {
+    if (radius <= 0) {
+        return (0.25 / M_PI) / max(float3(0.000001,0.000001,0.000001), scatterDistance);
+    }
+    const float3 rd = radius / scatterDistance;
+    return (exp(-rd) + exp(-rd / 3.0)) / max(float3(0.000001,0.000001,0.000001), (8.0 * M_PI * scatterDistance * radius));// divide by r to convert from polar to cartesian
+}
+
+// https://blogs.autodesk.com/media-and-entertainment/wp-content/uploads/sites/162/s2013_bssrdf_slides.pdf
+// https://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Subsurface_Reflection_Functions#SeparableBSSRDF::Pdf_Sp
+
+float sss_sampling_disk_pdf(
+    in float3 sssPositionDistance,
+    in BSDFFrame frame,
+    in float3 sampleNormal,
+    in float3 scatterDistance)
+{
+    float3 d = sssPositionDistance; //samplePosition - position;
+    
+    // Transform vector into local space using frame
+    float3 dLocal = float3(
+        dot(frame.n, d),
+        dot(frame.t, d),
+        dot(frame.b, d)
+    );
+    
+    // Compute projected distances
+    float3 rProj = float3(
+        sqrt(dLocal.y * dLocal.y + dLocal.z * dLocal.z),
+        sqrt(dLocal.z * dLocal.z + dLocal.x * dLocal.x),
+        sqrt(dLocal.x * dLocal.x + dLocal.y * dLocal.y)
+    );
+    
+    // Compute local normal components using absolute values
+    float3 nLocal = abs(float3(
+        dot(frame.n, sampleNormal),
+        dot(frame.t, sampleNormal),
+        dot(frame.b, sampleNormal)
+    ));
+    
+    // Sampling weights for axes and channels
+    static const float3 axisProb = { SSS_SAMPLING_DISK_AXIS_0_WEIGHT,
+                                   SSS_SAMPLING_DISK_AXIS_1_WEIGHT,
+                                   SSS_SAMPLING_DISK_AXIS_2_WEIGHT };
+    
+    static const float3 channelProb = { SSS_SAMPLING_DISK_CHANNEL_0_WEIGHT,
+                                      SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT,
+                                      SSS_SAMPLING_DISK_CHANNEL_2_WEIGHT };
+    
+    float pdf = 0.0f;
+    
+    // Calculate PDF contributions for each axis and channel combination
+    // Using vectorized version for better performance
+    
+    // Axis 0
+    float3 pdfAxis = sss_diffusion_profile_pdf_vectorized(rProj[0], scatterDistance) * 
+                     axisProb[0] * channelProb[0] * nLocal[0];
+    pdf += pdfAxis[0] + pdfAxis[1] + pdfAxis[2];
+    
+    // Axis 1
+    pdfAxis = sss_diffusion_profile_pdf_vectorized(rProj[1], scatterDistance) * 
+              axisProb[1] * channelProb[1] * nLocal[1];
+    pdf += pdfAxis[0] + pdfAxis[1] + pdfAxis[2];
+    
+    // Axis 2
+    pdfAxis = sss_diffusion_profile_pdf_vectorized(rProj[2], scatterDistance) * 
+              axisProb[2] * channelProb[2] * nLocal[2];
+    pdf += pdfAxis[0] + pdfAxis[1] + pdfAxis[2];
+    
+    return pdf;
+}
+
+#define LOG2_E 1.44269504089
+//// https://zero-radiance.github.io/post/sampling-diffusion/
+//// Performs sampling of a Normalized Burley diffusion profile in polar coordinates.
+//// 'u' is the random number (the value of the CDF): [0, 1).
+//// rcp(s) = 1 / ShapeParam = ScatteringDistance.
+//// 'r' is the sampled radial distance, s.t. (u = 0 -> r = 0) and (u = 1 -> r = Inf).
+//// rcp(Pdf) is the reciprocal of the corresponding PDF value.
+float sampleBurleyDiffusionProfileAnalytical(in float u, in const float rcpS) {
+    u = 1 - u;// Convert CDF to CCDF; the resulting value of (u != 0)
+
+    const float g = 1 + (4 * u) * (2 * u + sqrt(1 + (4 * u) * u));
+    const float n = exp2(log2(g) * (-1.0/3.0));// g^(-1/3)
+    const float p = (g * n) * n;// g^(+1/3)
+    const float c = 1 + p + n;// 1 + g^(+1/3) + g^(-1/3)
+    const float x = (3 / LOG2_E) * log2(c / (4 * u));// 3 * Log[c / (4 * u)]
+
+    // x      = s * r
+    // exp_13 = Exp[-x/3] = Exp[-1/3 * 3 * Log[c / (4 * u)]]
+    // exp_13 = Exp[-Log[c / (4 * u)]] = (4 * u) / c
+    // exp_1  = Exp[-x] = exp_13 * exp_13 * exp_13
+    // expSum = exp_1 + exp_13 = exp_13 * (1 + exp_13 * exp_13)
+    // rcpExp = rcp(expSum) = c^3 / ((4 * u) * (c^2 + 16 * u^2))
+    const float rcpExp = ((c * c) * c) / ((4 * u) * ((c * c) + (4 * u) * (4 * u)));
+
+    return x * rcpS; // r
+}
+
+float sss_diffusion_profile_sample(in const float xi, in const float scatterDistance) {
+    return sampleBurleyDiffusionProfileAnalytical(xi, scatterDistance);
+}
+
+
+
+// scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance(bsdfMaterial.baseColor);
+
+float3 sss_diffusion_profile_scatterDistance(in const float3 surfaceAlbedo) {
+    const float3 a = surfaceAlbedo - (float3)(0.8);
+    return (float3)1.9 - surfaceAlbedo + 3.5 * a * a;
+}
+
+float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
+{
+	float3 Value = SurfaceAlbedo - 0.33;
+	return 3.5 + 100 * Value * Value * Value * Value;
+}
+
+float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
+{
+	float3 Value = abs(SurfaceAlbedo - 0.8);
+	return 1.85 - SurfaceAlbedo + 7 * Value * Value * Value;
+}
+// Mathmatically matching based on diffusion coefficient instead of burley's approximation. However, it leads to incorrect result as 
+// we use burley's approximation (IOR=1.0) for screenspace diffuse scattering.
+//float3 Alpha = 1 - exp(-11.43 * SurfaceAlbedo + 15.38 * SurfaceAlbedo * SurfaceAlbedo - 13.91 * SurfaceAlbedo * SurfaceAlbedo * SurfaceAlbedo);
+//return DMFP * sqrt(3 * (1 - Alpha) / (2 - Alpha));
+float3 GetMFPFromDMFPCoeff(float3 DMFPSurfaceAlbedo, float3 MFPSurfaceAlbedo, float Dmfp2MfpMagicNumber = 0.6f)
+{
+	return Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(MFPSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(DMFPSurfaceAlbedo);
+}
+
+float sss_sampling_scatterDistance(in const uint channel, in const float3 scatterDistance) {
+    return scatterDistance[channel];
+}
+
+// if numIntersections == 1, pdf = 1
+bool sss_sampling_disk_sample(
+    inout uint rngState,
+    in float3 sssPosition,
+    in float3 origin,
+    in float3 direction,
+    in float tMin,
+    in float tMax,
+    in int objectDescriptorId,
+    inout SSSSample sssSample,
+    out float pdf)
+{
+    pdf= 1.0f;
+    return true;
+}
+
+// Main sampling function
+bool sss_sampling_sample(
+    in BSDFFrame frame,
+    in BSDFFrame projectionFrame,
+    in SSSInfo sssInfo,
+    in uint channel,
+    in float xiRadius,
+    in float xiAngle,
+    inout uint rngStateIntersection,
+    out SSSSample sssSample,
+    out float pdf,
+    out float intersectionPDF)
+{
+    const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
+    const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
+    const float radiusMax = sss_diffusion_profile_sample(0.999f, sampledScatterDistance);
+    
+    if (radius > radiusMax)
+    {
+        return false;
+    }
+    
+    const float phi = xiAngle * M_2PI;
+    const float3 origin = sssInfo.position + radiusMax * projectionFrame.n + 
+                         cos(phi) * radius * projectionFrame.t + 
+                         sin(phi) * radius * projectionFrame.b;
+    const float3 direction = -projectionFrame.n;
+    const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
+    const float tMin = radiusMax - sphereFraction;
+    const float tMax = radiusMax + sphereFraction;
+    
+    //if (sssInfo.intersection == INVALID_UINT_VALUE)
+    {
+        if (!sss_sampling_disk_sample(
+            rngStateIntersection,
+            sssInfo.position,
+            origin,
+            direction,
+            tMin,
+            tMax,
+            sssInfo.objectDescriptorId,
+            sssSample,
+            intersectionPDF))
+        {
+            return false;
+        }
+    }
+    //else
+    //{
+    //    intersectionPDF = 1.0f;
+    //    if (!sss_sampling_disk_sample_nthIntersection(
+    //        rngStateIntersection,
+    //        sssInfo.position,
+    //        origin,
+    //        direction,
+    //        tMin,
+    //        tMax,
+    //        sssInfo.objectDescriptorId,
+    //        sssInfo.intersection,
+    //        sssSample))
+    //    {
+    //        return false;
+    //    }
+    //}
+    
+    pdf = sss_sampling_disk_pdf(
+        sssSample.position - sssInfo.position,
+        frame,
+        sssSample.geometricNormal,
+        sssInfo.scatterDistance);
+        
+    return true;
+}
+
+
+    float disney_schlickWeight(in const float a)
+    {
+        const float b = clamp(1.0 - a, 0.0, 1.0);
+        const float bb = b * b;
+        return bb * bb * b;
+    }
+
+    float disney_diffuseLambertWeight(in const float fv, in const float fl)
+    {
+        return (1.0 - 0.5 * fl) * (1.0 - 0.5 * fv);
+    }
+
+    float disney_diffuseLambertWeightSingle(in const float f)
+    {
+        return 1.0 - 0.5 * f;
+    }
+    
+    
+    float3 sss_diffusion_profile_evaluate(in const float radius, in const float3 scatterDistance)
+    {
+        if (radius <= 0)
+        {
+            return (float3)(0.25 / M_PI) / max((float3)0.000001, scatterDistance);
+        }
+        const float3 rd = radius / scatterDistance;
+        return (exp(-rd) + exp(-rd / 3.0)) / max((float3)0.000001, (8.0 * M_PI * scatterDistance * radius));
+    }
+    
+    float3 disney_bssrdf_fresnel_evaluate(in const float3 normal, in const float3 direction)
+    {
+        const float dotND = dot(normal, direction);
+        const float schlick = disney_schlickWeight(dotND);
+        const float lambertWeight = disney_diffuseLambertWeightSingle(schlick);
+        return (float3)lambertWeight;
+    }
+    
+    void disney_bssrdf_evaluate(in const float3 normal, in const float3 v, in const float distance, in const float3 scatterDistance, in const float3 surfaceAlbedo, out float3 bssrdf)
+    {
+        const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
+
+        bssrdf = diffusionProfile / M_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+    }
+
+void disney_bssrdf_evaluate(in const float3 normal, 
+                            in const float3 v, 
+                            in const float3 normalSample, 
+                            in const float3 l, 
+                            in const float distance, 
+                            in const float3 scatterDistance, 
+                            in const float3 surfaceAlbedo, 
+                            out float3 bssrdf, 
+                            out float3 bsdf) {
+    const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
+
+    bssrdf = diffusionProfile / M_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+    bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
+}
+
+struct BssrdfDiffuseReflection
+{
+    float3 sssMfp; ///< mean free path
+    float3 albedo;  ///< Diffuse albedo.
+    BSDFFrame frame; ///< N, T, B
+    float sssMfpScale;
+    float3 sssDistance; // sssPosition - position
+    float3 scatterDistance;
+    
+    static BssrdfDiffuseReflection make( float3 albedo_,
+                                         float3 sssMfp_,
+                                         float3 N,
+                                         float3 T,
+                                         float3 B
+    )
+    {
+        BssrdfDiffuseReflection d;
+        d.frame.n = N;
+        d.frame.t = T;
+        d.frame.b = B;
+        d.sssMfp = sssMfp_;
+        d.sssMfpScale = 1;
+        d.albedo = albedo_;
+        // todo: check this term
+        d.scatterDistance = d.sssMfpScale * d.sssMfp * sss_diffusion_profile_scatterDistance(d.albedo);
+        // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
+        return d;
+    }
+    
+    float3 eval(const float3 wi, const float3 wo)
+    {
+        float3 bssrdf = sssMfp;
+        float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
+        
+        float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
+        const float3 diffusionProfile = albedo * sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
+
+        bssrdf = diffusionProfile / M_PI; // * disney_bssrdf_fresnel_evaluate(normal, v);
+        //bssrdf = sssMfp;
+        
+        if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
+
+        //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
+        float3 bsdf =  M_1_PI * albedo * wo.z;
+        return (bssrdf * bsdf / bssrdfPDF);
+    }
+
+    bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
+    {
+        wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
+        lobe = (uint)LobeType::DiffuseReflection;
+
+        if (min(wi.z, wo.z) < kMinCosTheta)
+        {
+            weight = float3(0,0,0);
+            lobeP = 0.0;
+            return false;
+        }
+
+        weight = albedo;
+        lobeP = 1.0;
+        return true;
+    }
+
+    float evalPdf(const float3 wi, const float3 wo)
+    {
+        // TODO:
+        
+        if (min(wi.z, wo.z) < kMinCosTheta) return 0.f;
+
+        return M_1_PI * wo.z;
+    }
+};
+
 /** Disney's diffuse reflection.
     Based on https://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
 */
@@ -573,7 +966,11 @@ struct StandardBSDFData
     float3 transmission;            ///< Transmission color.
     float diffuseTransmission;      ///< Diffuse transmission, blends between diffuse reflection and transmission lobes.
     float specularTransmission;     ///< Specular transmission, blends between opaque dielectric BRDF and specular transmissive BSDF.
-    
+
+    float3 sssPosition; ///< nearby position within SSS radius
+    float3 position;
+    //float sssDistance;  ///< distance(position, sssPosition)
+
     static StandardBSDFData make() 
     { 
         StandardBSDFData d;
@@ -586,6 +983,9 @@ struct StandardBSDFData
         d.transmission = 0;
         d.diffuseTransmission = 0;
         d.specularTransmission = 0;
+        d.sssPosition = 0;
+        d.position = 0;
+        //d.sssDistance = 0;
         return d;
     }
 
@@ -642,6 +1042,18 @@ struct FalcorBSDF // : IBxDF
 
     bool psdExclude; // disable PSD
 
+    float3 _N;
+    float3 _T;
+    float3 _B;
+    float3 sssMfp;
+    float3 sssDistance; // sssPosition - position
+    bool _isSss;
+    
+    bool isSss()
+    {
+        return _isSss > 0;
+    }
+    
     /** Initialize a new instance.
         \param[in] sd Shading data.
         \param[in] data BSDF parameters.
@@ -652,6 +1064,11 @@ struct FalcorBSDF // : IBxDF
         float3 V,
         const StandardBSDFData data)
     {
+        _N = N;
+        sssMfp = data.sssMfp;
+        sssDistance = data.sssPosition - data.position;
+        _isSss = any(sssMfp > 0.f) && any(abs(sssDistance) > 0.f);
+
         // TODO: Currently specular reflection and transmission lobes are not properly separated.
         // This leads to incorrect behaviour if only the specular reflection or transmission lobe is selected.
         // Things work fine as long as both or none are selected.
@@ -722,6 +1139,8 @@ struct FalcorBSDF // : IBxDF
     void __init(const ShadingData shadingData, const StandardBSDFData data)
     {
         __init(shadingData.mtl, shadingData.V, shadingData.N, data);
+        _T = shadingData.T;
+        _B = shadingData.B;
     }
 
     static FalcorBSDF make( const ShadingData shadingData, const StandardBSDFData data )     { FalcorBSDF ret; ret.__init(shadingData, data); return ret; }
@@ -767,7 +1186,25 @@ struct FalcorBSDF // : IBxDF
     void eval(const float3 wi, const float3 wo, out float3 diffuse, out float3 specular)
     {
         diffuse = 0.f; specular = 0.f;
-        if (pDiffuseReflection > 0.f) diffuse += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflection.eval(wi, wo);
+        if (pDiffuseReflection > 0.f)
+        {
+            float3 diffuseReflectionEval = 0;
+            if ( isSss() )
+            {
+                BssrdfDiffuseReflection bssrdfDiffuseReflection 
+                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                        sssMfp,
+                        _N,
+                        _T,
+                        _B );
+                diffuseReflectionEval = bssrdfDiffuseReflection.eval(wi, wo);;
+            }
+            else
+            {
+                diffuseReflectionEval = diffuseReflection.eval(wi, wo);
+            }
+            diffuse += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflectionEval;
+        }
         if (pDiffuseTransmission > 0.f) diffuse += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) specular += (1.f - specTrans) * specularReflection.eval(wi, wo);
         if (pSpecularReflectionTransmission > 0.f) specular += specTrans * (specularReflectionTransmission.eval(wi, wo));
@@ -776,7 +1213,9 @@ struct FalcorBSDF // : IBxDF
     float3 eval(const float3 wi, const float3 wo)
     {
         float3 result = 0.f;
-        if (pDiffuseReflection > 0.f) result += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflection.eval(wi, wo);
+        if (pDiffuseReflection > 0.f) {
+            result += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflection.eval(wi, wo);
+        }
         if (pDiffuseTransmission > 0.f) result += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) result += (1.f - specTrans) * specularReflection.eval(wi, wo);
         if (pSpecularReflectionTransmission > 0.f) result += specTrans * (specularReflectionTransmission.eval(wi, wo));

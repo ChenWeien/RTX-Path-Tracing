@@ -367,52 +367,6 @@ namespace PathTracer
 #endif
     }
 
-
-    float disney_schlickWeight(in const float a)
-    {
-        const float b = clamp(1.0 - a, 0.0, 1.0);
-        const float bb = b * b;
-        return bb * bb * b;
-    }
-
-    float disney_diffuseLambertWeight(in const float fv, in const float fl)
-    {
-        return (1.0 - 0.5 * fl) * (1.0 - 0.5 * fv);
-    }
-
-    float disney_diffuseLambertWeightSingle(in const float f)
-    {
-        return 1.0 - 0.5 * f;
-    }
-    
-    #define K_PI 3.14159265358979323846
-    
-    float3 sss_diffusion_profile_evaluate(in const float radius, in const float3 scatterDistance)
-    {
-        if (radius <= 0)
-        {
-            return (float3)(0.25 / K_PI) / max((float3)0.000001, scatterDistance);
-        }
-        const float3 rd = radius / scatterDistance;
-        return (exp(-rd) + exp(-rd / 3.0)) / max((float3)0.000001, (8.0 * K_PI * scatterDistance * radius));
-    }
-    
-    float3 disney_bssrdf_fresnel_evaluate(in const float3 normal, in const float3 direction)
-    {
-        const float dotND = dot(normal, direction);
-        const float schlick = disney_schlickWeight(dotND);
-        const float lambertWeight = disney_diffuseLambertWeightSingle(schlick);
-        return (float3)lambertWeight;
-    }
-    
-    void disney_bssrdf_evaluate(in const float3 normal, in const float3 v, in const float distance, in const float3 scatterDistance, in const float3 surfaceAlbedo, out float3 bssrdf)
-    {
-        const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
-
-        bssrdf = diffusionProfile / K_PI * disney_bssrdf_fresnel_evaluate( normal, v );
-    }
-    
-    
     // supports only TriangleHit for now; more to be added when needed
     inline void HandleHit(const uniform OptimizationHints optimizationHints, inout PathState path, const float3 rayOrigin, const float3 rayDir, const float rayTCurrent, const WorkingContext workingContext)
     {
@@ -540,6 +494,7 @@ namespace PathTracer
         const PathState preScatterPath = path;
 
         ScatterResult scatterResult;
+        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
@@ -553,62 +508,51 @@ namespace PathTracer
         
         float sssProbability = sampleNext1D(sampleGenerator);
         
-        if ( !isSssPixel )
+        if ( isSssPixel )
         {
-            // Generate the next path segment!
-            scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        }
-        else if ( sssProbability < 0.5f )
-        {
-            // PBR path
-            scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        }
-        else
-        {
-            // SSS profile sampling
-        
-            float phi = 2.f * 3.14159f * sampleNext1D(sampleGenerator);
-            float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
-
-            const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+            // find nearby SSS sample point
+            float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
+            float xiRadius = sampleNext1D(sampleGenerator);
+            float phi = xiAngle * M_2PI;
+            float radiusMax = MAX_SS_RADIUS;
+            //float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
+            float radius = xiRadius * radiusMax;
+            const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
+            const float tMin = radiusMax - sphereFraction;
+            const float tMax = radiusMax + sphereFraction;
+            const float3 origin = shadingData.posW + radiusMax * shadingData.faceN + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
         
             RayDesc ray;
             ray.Origin = origin;
             ray.Direction = -shadingData.faceN;
-            ray.TMin = 0;
-        //ray.TMax = FLT_MAX;
-            ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
+            ray.TMin = tMin; //0
+            ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
 
             RayQuery < RAY_FLAG_NONE > rayQuery;
             PackedHitInfo packedHitInfo;
             Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
-        // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
+            // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
 
             if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
             {
                 sssHitNearby = true;
                 sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                sssNearbyDistance = distance(sssNearbyPosition, shadingData.posW);
+                float dist = distance(sssNearbyPosition, shadingData.posW);
 
-                BuiltInTriangleIntersectionAttributes attrib;
-                attrib.barycentrics = rayQuery.CommittedTriangleBarycentrics();
-                const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+                if ( dist > 0 )
+                {
+                    scatterResult.sssDistance = dist;
+                    scatterResult.sssPosition = sssNearbyPosition;
+                    scatterResult.position = shadingData.posW;
+                    scatterResult.IsSss = true;
+                    
+                    bsdf.data.sssPosition = sssNearbyPosition;
+                    bsdf.data.position = shadingData.posW;
+                }
 
-                const uint vertexIndex = path.getVertexIndex();
-                RayCone rayCone = RayCone::make(1, 1);
-                SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-
-            // use X2 vertex data to replace X1's to GenerateScatterRay(
-                scatterResult = GenerateScatterRay(bridgedData.shadingData, bridgedData.bsdf, path, sampleGenerator, workingContext);
-                
                 // test sssMfp is working
                 //bsdf.data.diffuse = bsdf.data.sssMfp;
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
-            }
-            else
-            {
-                // on miss, continue with PBR path
-                scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
             }
         }
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
@@ -634,40 +578,9 @@ namespace PathTracer
 #else
             float3 neeContribution = neeResult.DiffuseRadiance + neeResult.SpecularRadiance;
             
-            if ( sssHitNearby && sssNearbyDistance > 0 )
-            {
-                float3 bssrdf = 0;
-                float3 albedo = bsdf.data.diffuse;
-                disney_bssrdf_evaluate(shadingData.N, shadingData.V,
-                                       sssNearbyDistance / MAX_SS_RADIUS, bsdf.data.sssMfp, albedo, bssrdf);
 
-                float3 sssContribute = max( 0.xxx, preScatterPath.thp * bssrdf * neeResult.DiffuseRadiance );
-                path.L += sssContribute;
-
-#if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
-                if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
-                {
-                    DebugContext debug = workingContext.debug;
-                    switch ( g_Const.debug.debugViewType )
-                    {
-                        case ( ( int )DebugViewType::FirstHitSssColor ):           debug.DrawDebugViz( float4( bsdf.data.sssMfp, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitSssContribute ):      debug.DrawDebugViz( float4( sssContribute, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitBssrdf ):             debug.DrawDebugViz( float4( bssrdf, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitPreThp ):             debug.DrawDebugViz( float4( preScatterPath.thp, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitNeeDiffuseRadiance ): debug.DrawDebugViz( float4( neeResult.DiffuseRadiance, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitSssNormal ):          debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.N ), 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitSssView ):            debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.V ), 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitSssAlbedo ):          debug.DrawDebugViz( float4( albedo, 1.0 ) ); break;
-                        case ( ( int )DebugViewType::FirstHitNearbyDistance ):     debug.DrawDebugViz( float4( (sssNearbyDistance / MAX_SS_RADIUS).xxx, 1.0 ) ); break;
-                        default: break;
-                    }
-                }
-#endif
-            }
-            else
-            {
                 path.L += max(0.xxx, preScatterPath.thp * neeContribution); // add to path contribution!
-            }
+
 #endif
         }
         
