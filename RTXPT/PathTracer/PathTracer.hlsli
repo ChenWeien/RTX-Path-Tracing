@@ -491,11 +491,10 @@ namespace PathTracer
         return;
 #endif 
         
-        const PathState preScatterPath = path;
+
 
         ScatterResult scatterResult;
-        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        
+
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
         bool isSssPixel = any(bsdf.data.sssMfp) > 0;
@@ -507,7 +506,6 @@ namespace PathTracer
         
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
-        
         
         if ( isSssPixel )
         {
@@ -564,7 +562,7 @@ namespace PathTracer
                     sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
                     float dist = distance(sssNearbyPosition, shadingData.posW);
 
-                    if (dist > 0)
+                    if (dist > 0.000001f)
                     {
                         scatterResult.sssDistance = dist;
                         scatterResult.sssPosition = sssNearbyPosition;
@@ -578,12 +576,24 @@ namespace PathTracer
                         bsdf.data.bssrdfPDF = pdf;
                     }
 
+                    const uint vertexIndex = path.getVertexIndex();
+                    const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+                    SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+
+                    shadingData = bridgedData.shadingData;
+                    bsdf = bridgedData.bsdf;
+
                 // test sssMfp is working
                 //bsdf.data.diffuse = bsdf.data.sssMfp;
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
                 }
             }
         }
+
+        const PathState preScatterPath = path;
+        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+
+
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
 //        // debug-view invalid scatters
