@@ -387,6 +387,7 @@ struct BssrdfDiffuseReflection
         d.albedo = albedo_;
         // todo: check this term
         d.scatterDistance = d.sssMfpScale * d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
+        d.scatterDistance = float3( 0.5, 0.1, 0.04 );
         // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
         return d;
     }
@@ -395,7 +396,7 @@ struct BssrdfDiffuseReflection
     {
         //scatterDistance = float3( 0.46, 0.09, 0.04 );
         float3 bssrdf = sssMfp;
-        float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
+        float bssrdfPDF = 1; //sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
         
         float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
         const float3 diffusionProfile = albedo * sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
@@ -407,6 +408,7 @@ struct BssrdfDiffuseReflection
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
         float3 bsdf = wo.z;
+        return diffusionProfile;
         return  bssrdfPDF;
         //return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
     }
