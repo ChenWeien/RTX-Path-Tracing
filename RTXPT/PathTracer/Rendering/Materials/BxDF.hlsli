@@ -369,6 +369,7 @@ struct BssrdfDiffuseReflection
     float sssMfpScale;
     float3 sssDistance; // sssPosition - position
     float3 scatterDistance;
+    float bssrdfPDF;
     
     static BssrdfDiffuseReflection make( float3 albedo_,
                                          float3 sssMfp_,
@@ -385,14 +386,14 @@ struct BssrdfDiffuseReflection
         d.sssMfpScale = 1;
         d.albedo = albedo_;
         // todo: check this term
-        d.scatterDistance = d.sssMfpScale * d.sssMfp * sss_diffusion_profile_scatterDistance(d.albedo);
+        d.scatterDistance = d.sssMfpScale * d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
         // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
         return d;
     }
     
     float3 eval(const float3 wi, const float3 wo)
     {
-        scatterDistance = float3( 0.46, 0.09, 0.04 );
+        //scatterDistance = float3( 0.46, 0.09, 0.04 );
         float3 bssrdf = sssMfp;
         float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
         
@@ -406,7 +407,8 @@ struct BssrdfDiffuseReflection
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
         float3 bsdf = wo.z;
-        return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
+        return  bssrdfPDF;
+        //return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
@@ -994,6 +996,7 @@ struct FalcorBSDF // : IBxDF
     float3 _B;
     float3 sssMfp;
     float3 sssDistance; // sssPosition - position
+    float bssrdfPDF;
     bool _isSss;
     
     bool isSss()
@@ -1012,9 +1015,10 @@ struct FalcorBSDF // : IBxDF
         const StandardBSDFData data)
     {
         _N = N;
+        bssrdfPDF = data.bssrdfPDF;
         sssMfp = data.sssMfp;
         sssDistance = data.sssPosition - data.position;
-        _isSss = any(sssMfp > 0.f) && any(abs(sssDistance) > 0.f);
+        _isSss = any(sssMfp > 0.f);
 
         // TODO: Currently specular reflection and transmission lobes are not properly separated.
         // This leads to incorrect behaviour if only the specular reflection or transmission lobe is selected.
@@ -1151,6 +1155,11 @@ struct FalcorBSDF // : IBxDF
                 diffuseReflectionEval = diffuseReflection.eval(wi, wo);
             }
             diffuse += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflectionEval;
+            //if ( _isSss )
+            //{
+            //    diffuse = sssMfp;
+            //}
+
         }
         if (pDiffuseTransmission > 0.f) diffuse += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) specular += (1.f - specTrans) * specularReflection.eval(wi, wo);
@@ -1162,6 +1171,7 @@ struct FalcorBSDF // : IBxDF
         float3 result = 0.f;
         if (pDiffuseReflection > 0.f) {
             result += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflection.eval(wi, wo);
+    result += float3(1,0,0);
         }
         if (pDiffuseTransmission > 0.f) result += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) result += (1.f - specTrans) * specularReflection.eval(wi, wo);

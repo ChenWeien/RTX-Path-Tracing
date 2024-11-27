@@ -462,6 +462,8 @@ inline bool sss_sampling_disk_sample(
                              out float pdf, 
                              out float intersectionPDF )
     {
+        pdf = 0;
+        intersectionPDF = 0;
         const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
 
         const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
@@ -628,7 +630,9 @@ inline bool sss_sampling_disk_sample(
 
 
         ScatterResult scatterResult;
-
+        const PathState preScatterPath = path;
+        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+        
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
@@ -648,8 +652,8 @@ inline bool sss_sampling_disk_sample(
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
 
-            //float3 scatterDistance = bsdf.data.sssMfp / sss_diffusion_profile_scatterDistance(bsdf.data.diffuse);
-            float3 scatterDistance = float3(0.46, 0.09, 0.04 );
+            float3 scatterDistance = bsdf.data.sssMfp / sss_diffusion_profile_scatterDistance(bsdf.data.diffuse);
+            //float3 scatterDistance = float3(0.46, 0.09, 0.04 );
 
 
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
@@ -675,21 +679,6 @@ inline bool sss_sampling_disk_sample(
             }
             else
             {
-                sssNearbyPosition = sssSample.position;
-                float dist = distance(sssNearbyPosition, shadingData.posW);
-
-                if (dist > 0.000001f)
-                {
-                    scatterResult.sssDistance = dist;
-                    scatterResult.sssPosition = sssNearbyPosition;
-                    scatterResult.position = shadingData.posW;
-                    scatterResult.IsSss = true;
-                    
-                    bsdf.data.sssPosition = sssNearbyPosition;
-                    bsdf.data.position = shadingData.posW;
-                    bsdf.data.bssrdfPDF = bssrdfPDF;
-                }
-
                 const uint vertexIndex = path.getVertexIndex();
                 //const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
@@ -697,15 +686,26 @@ inline bool sss_sampling_disk_sample(
                 shadingData = bridgedData.shadingData;
                 bsdf = bridgedData.bsdf;
 
+                sssNearbyPosition = sssSample.position;
+                float dist = distance(sssNearbyPosition, shadingData.posW);
+
+                if (dist > 0.000001f)
+                {
+                    scatterResult.sssDistance = sssSample.position - shadingData.posW;
+                    scatterResult.sssPosition = sssNearbyPosition;
+                    scatterResult.position = shadingData.posW;
+                    scatterResult.IsSss = true;
+
+                    bsdf.data.sssPosition = sssNearbyPosition;
+                    bsdf.data.position = shadingData.posW;
+                    bsdf.data.bssrdfPDF = bssrdfPDF;
+                }
                 // test sssMfp is working
                 //bsdf.data.diffuse = bsdf.data.sssMfp;
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
                 
             }
         }
-
-        const PathState preScatterPath = path;
-        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
 
 
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
