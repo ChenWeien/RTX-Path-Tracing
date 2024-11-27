@@ -40,7 +40,7 @@ float4 main( in float4 pos : SV_Position, in float2 uv : UV ) : SV_Target0
 
 #include "ShaderResourceBindings.hlsli"
 #include "PathTracerBridgeDonut.hlsli"
-#include "PathTracer/PathTracer.hlsli"
+//#include "PathTracer/PathTracer.hlsli"
 #include "PathTracer/Utils.hlsli"
 
 [numthreads(NUM_COMPUTE_THREADS_PER_DIM, NUM_COMPUTE_THREADS_PER_DIM, 1)]
@@ -69,7 +69,7 @@ void main( uint3 dispatchThreadID : SV_DispatchThreadID )
 
 #include "ShaderResourceBindings.hlsli"
 #include "PathTracerBridgeDonut.hlsli"
-#include "PathTracer/PathTracer.hlsli"
+//#include "PathTracer/PathTracer.hlsli"
 #include "NRD/DenoiserNRD.hlsli"
 
 float ComputeNeighbourDisocclusionRelaxation(const StablePlanesContext stablePlanes, const int2 pixelPos, const int2 imageSize, const uint stablePlaneIndex, const float3 rayDirC, const int2 offset)

@@ -15,6 +15,7 @@
 
 #include "Scene/ShadingData.hlsli"
 
+#include "../DonutBindings.hlsli"
 
 // Global compile-time path tracer settings for debugging, performance or quality tweaks; could be in a separate file or Config.hlsli but it's convenient to have them in here where they're used.
 namespace PathTracer
@@ -367,6 +368,139 @@ namespace PathTracer
 #endif
     }
 
+
+inline bool sss_sampling_disk_sample(
+        const WorkingContext workingContext,
+        inout SampleGenerator sampleGenerator, 
+        in float3 sssPosition, 
+        in float3 origin, 
+        in float3 direction, 
+        in float tMin, 
+        in float tMax, 
+        out TriangleHit triangleHit,
+        out SSSSample sssSample, 
+        out float pdf) 
+{
+    uint chosenIntersection = 0;
+    uint numIntersections = 0;
+    
+    // Weighted reservoir sampling - choose an intersection with probability 1/numIntersections
+    float weightTotal = 0.0;
+    float weightNew = 1.0;
+    int wrsTriangleID = 0;
+    float2 wrsBarycentrics = float2(0, 0);
+    float wrsWeight = 0;
+    uint wrsObjectDescriptorId = 0;
+
+    // Create ray description
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = direction;
+    ray.TMin = tMin;
+    ray.TMax = tMax;
+
+    // Initialize ray query
+    RayQuery<RAY_FLAG_NONE> rayQuery;
+    rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_NONE, 0xff, ray);
+
+
+    // Traverse acceleration structure
+    while (rayQuery.Proceed()) {
+        const int nextTriangleID = rayQuery.CandidatePrimitiveIndex();
+        const float2 nextBarycentrics = rayQuery.CandidateTriangleBarycentrics();
+        
+        // Weighted reservoir sampling
+        if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal)) {
+            //wrsObjectDescriptorId = rayQuery.CandidateInstanceID();
+            wrsTriangleID = nextTriangleID;
+            wrsBarycentrics = nextBarycentrics;
+            chosenIntersection = numIntersections;
+            wrsWeight = weightNew;
+        }
+        
+        weightTotal += weightNew;
+        numIntersections++;
+        
+        ray.TMax = rayQuery.CommittedRayT();    // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
+        //triangleHit.instanceID      = GeometryInstanceID::make( rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex() );
+        //triangleHit.primitiveIndex  = rayQuery.CommittedPrimitiveIndex();
+        //triangleHit.barycentrics    = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
+        triangleHit = TriangleHit::make( rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex(), rayQuery.CommittedPrimitiveIndex(), rayQuery.CommittedTriangleBarycentrics() );
+
+        break; // force numIntersections = 1
+    }
+
+    // Process the selected intersection
+    if (numIntersections > 0) {
+        sssSample.objectDescriptorId = wrsObjectDescriptorId;
+        sssSample.triangleId = wrsTriangleID;
+        sssSample.barycentrics = wrsBarycentrics;
+
+        Bridge::loadSurfacePosNormOnly(sssSample.position, sssSample.geometricNormal, triangleHit, workingContext.debug);
+        sssSample.normal = sssSample.geometricNormal;
+
+        sssSample.intersection = chosenIntersection;
+        pdf = wrsWeight / weightTotal;
+        return true;
+    }
+
+    return false;
+}
+
+    
+    #if 1
+    bool sss_sampling_sample( const WorkingContext workingContext,
+                            inout SampleGenerator sampleGenerator, 
+                            in const BSDFFrame frame, 
+                             in const BSDFFrame projectionFrame, 
+                             in const SSSInfo sssInfo, 
+                             in const uint channel, 
+                             in const float xiRadius, 
+                             in const float xiAngle, 
+                             out TriangleHit triangleHit,
+                             out SSSSample sssSample, 
+                             out float pdf, 
+                             out float intersectionPDF )
+    {
+        const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
+
+        const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
+        const float radiusMax = sss_diffusion_profile_sample(0.999, sampledScatterDistance);
+        if (radius > radiusMax)
+        {
+            return false;
+        }
+
+        const float phi = xiAngle * M_2PI;
+
+        const float3 origin = sssInfo.position + radiusMax * projectionFrame.n + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
+        const float3 direction = -projectionFrame.n;
+        const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
+        const float tMin = radiusMax - sphereFraction;
+        const float tMax = radiusMax + sphereFraction;
+
+        if (sssInfo.intersection == INVALID_UINT_VALUE)
+        {
+            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            intersectionPDF = 1.0;
+            // RL TODO: add n-th intersection back
+            //if (!sss_sampling_disk_sample_nthIntersection(rngStateIntersection, sssInfo.position, origin, direction, tMin, tMax, sssInfo.objectDescriptorId, sssInfo.intersection, sssSample)) {
+                return false;
+            //}
+        }
+
+        pdf = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.geometricNormal, sssInfo.scatterDistance);
+
+        return true;
+    }
+    
+#endif
     // supports only TriangleHit for now; more to be added when needed
     inline void HandleHit(const uniform OptimizationHints optimizationHints, inout PathState path, const float3 rayOrigin, const float3 rayDir, const float rayTCurrent, const WorkingContext workingContext)
     {
@@ -496,97 +630,77 @@ namespace PathTracer
         ScatterResult scatterResult;
 
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
+        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
         bool isSssPixel = any(bsdf.data.sssMfp) > 0;
-        bool isValidSssSample = false;
+        bool isValidSssSample = true;
 
-        bool sssHitNearby = false;
         float3 sssNearbyPosition = 0;
-        float sssNearbyDistance = 0;
-        
         #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
-        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
         
         if ( isSssPixel )
         {
+            // sample surface candidate, // find nearby SSS sample point, 
+            // ref generateSampleBSSRDFWithLightSourceSampling(
+
             const uint axis = 0; //sampleNext1D(sampleGenerator);
-            
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
-            const float3 sssTangentFrame = shadingData.faceN; //pixelInfo.geometricNormal;
-            // find nearby SSS sample point
-            
-            // !sss_sampling_sample(frame, projectionFrame
-            
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            
-            float3 sampledScatterDistance = float3(0.46, 0.09, 0.04 );
 
-            const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance[axis]);
-            const float radiusMax = sss_diffusion_profile_sample(0.999, sampledScatterDistance[axis]);
-            if (radius > radiusMax) {
+            //float3 scatterDistance = bsdf.data.sssMfp / sss_diffusion_profile_scatterDistance(bsdf.data.diffuse);
+            float3 scatterDistance = float3(0.46, 0.09, 0.04 );
+
+
+            SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
+            BSDFFrame frame;
+            BSDFFrame projectionFrame;
+            frame.n = shadingData.faceN; // faceN
+            frame.t = shadingData.T;
+            frame.b = shadingData.B;
+            // sss_sampling_axis(axis, frame, projectionFrame);
+            projectionFrame.n = shadingData.faceN; // faceN
+            projectionFrame.t = shadingData.T;
+            projectionFrame.b = shadingData.B;
+
+            float3 sssSampleRaydir = -shadingData.faceN;
+            TriangleHit triangleHit;
+            
+            SSSSample sssSample;
+            float bssrdfPDF = 1;
+            float bssrdfIntersectionPDF = 1;
+            if (!sss_sampling_sample(workingContext, sampleGenerator, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
+            {
                 isValidSssSample = false;
             }
             else
             {
-                BSDFFrame projectionFrame;
-                projectionFrame.n = shadingData.faceN;
-                projectionFrame.t = shadingData.T;
-                projectionFrame.b = shadingData.B;
-                float phi = xiAngle * M_2PI;
-                //float radiusMax = MAX_SS_RADIUS;
-                //float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
-                //sss_sampling_sample
-                //float radius = xiRadius * radiusMax;
-                const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-                const float tMin = radiusMax - sphereFraction;
-                const float tMax = radiusMax + sphereFraction;
-                const float3 origin = shadingData.posW + radiusMax * shadingData.faceN + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
-        
+                sssNearbyPosition = sssSample.position;
+                float dist = distance(sssNearbyPosition, shadingData.posW);
 
-                
-                RayDesc ray;
-                ray.Origin = origin;
-                ray.Direction = -shadingData.faceN;
-                ray.TMin = tMin; //0
-                ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
-
-                RayQuery < RAY_FLAG_NONE > rayQuery;
-                PackedHitInfo packedHitInfo;
-                Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
-            // this outputs ray and rayQuery; if there was a hit, ray.TMax is rayQuery.ComittedRayT
-
-                if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+                if (dist > 0.000001f)
                 {
-                    sssHitNearby = true;
-                    sssNearbyPosition = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                    float dist = distance(sssNearbyPosition, shadingData.posW);
-
-                    if (dist > 0.000001f)
-                    {
-                        scatterResult.sssDistance = dist;
-                        scatterResult.sssPosition = sssNearbyPosition;
-                        scatterResult.position = shadingData.posW;
-                        scatterResult.IsSss = true;
+                    scatterResult.sssDistance = dist;
+                    scatterResult.sssPosition = sssNearbyPosition;
+                    scatterResult.position = shadingData.posW;
+                    scatterResult.IsSss = true;
                     
-                        bsdf.data.sssPosition = sssNearbyPosition;
-                        bsdf.data.position = shadingData.posW;
+                    bsdf.data.sssPosition = sssNearbyPosition;
+                    bsdf.data.position = shadingData.posW;
+                    bsdf.data.bssrdfPDF = bssrdfPDF;
+                }
 
-                        float pdf = sss_sampling_disk_pdf(bsdf.data.sssPosition - bsdf.data.position, projectionFrame, shadingData.faceN, sampledScatterDistance);
-                        bsdf.data.bssrdfPDF = pdf;
-                    }
+                const uint vertexIndex = path.getVertexIndex();
+                //const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+                SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
-                    const uint vertexIndex = path.getVertexIndex();
-                    const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
-                    SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-
-                    shadingData = bridgedData.shadingData;
-                    bsdf = bridgedData.bsdf;
+                shadingData = bridgedData.shadingData;
+                bsdf = bridgedData.bsdf;
 
                 // test sssMfp is working
                 //bsdf.data.diffuse = bsdf.data.sssMfp;
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
-                }
+                
             }
         }
 

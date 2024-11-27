@@ -105,6 +105,8 @@ struct DiffuseReflectionLambert // : IBxDF
 #define SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT 1.0 / 3.0
 #define SSS_SAMPLING_DISK_CHANNEL_2_WEIGHT 1.0 / 3.0
 
+#define INVALID_UINT_VALUE 0xFFFFFFFFu
+
 // Structures
 struct SSSInfo
 {
@@ -112,6 +114,15 @@ struct SSSInfo
     int objectDescriptorId;
     float3 scatterDistance;
     uint intersection;
+    static SSSInfo make( float3 p, int id, float3 dist, uint intersect)
+    {
+        SSSInfo ret;
+        ret.position = p;
+        ret.objectDescriptorId = id;
+        ret.scatterDistance = dist;
+        ret.intersection = intersect;
+        return ret;
+    }
 };
 
 struct SSSSample
@@ -119,7 +130,7 @@ struct SSSSample
     int objectDescriptorId;
     int triangleId;
     float2 barycentrics;
-    float3 position;
+    float3 position; // to check in world or local ?
     float3 geometricNormal;
     float3 normal;
     uint intersection;
@@ -144,12 +155,14 @@ float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const floa
 // https://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Subsurface_Reflection_Functions#SeparableBSSRDF::Pdf_Sp
 
 float sss_sampling_disk_pdf(
-    in float3 sssPositionDistance,
+    in float3 sssSampleDistance,
+    //in float3 position,
     in BSDFFrame frame,
+    //in float3 sssSamplePosition,
     in float3 sampleNormal,
     in float3 scatterDistance)
 {
-    float3 d = sssPositionDistance; //samplePosition - position;
+    float3 d = sssSampleDistance; //samplePosition - position;
     
     // Transform vector into local space using frame
     float3 dLocal = float3(
@@ -289,97 +302,6 @@ float4 GetSubsurfaceProfileMFPInCm(int SubsurfaceProfileInt)
 float sss_sampling_scatterDistance(in const uint channel, in const float3 scatterDistance) {
     return scatterDistance[channel];
 }
-
-// if numIntersections == 1, pdf = 1
-bool sss_sampling_disk_sample(
-    inout uint rngState,
-    in float3 sssPosition,
-    in float3 origin,
-    in float3 direction,
-    in float tMin,
-    in float tMax,
-    in int objectDescriptorId,
-    inout SSSSample sssSample,
-    out float pdf)
-{
-    pdf= 1.0f;
-    return true;
-}
-
-// Main sampling function
-bool sss_sampling_sample(
-    in BSDFFrame frame,
-    in BSDFFrame projectionFrame,
-    in SSSInfo sssInfo,
-    in uint channel,
-    in float xiRadius,
-    in float xiAngle,
-    inout uint rngStateIntersection,
-    out SSSSample sssSample,
-    out float pdf,
-    out float intersectionPDF)
-{
-    const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
-    const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
-    const float radiusMax = sss_diffusion_profile_sample(0.999f, sampledScatterDistance);
-    
-    if (radius > radiusMax)
-    {
-        return false;
-    }
-    
-    const float phi = xiAngle * M_2PI;
-    const float3 origin = sssInfo.position + radiusMax * projectionFrame.n + 
-                         cos(phi) * radius * projectionFrame.t + 
-                         sin(phi) * radius * projectionFrame.b;
-    const float3 direction = -projectionFrame.n;
-    const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-    const float tMin = radiusMax - sphereFraction;
-    const float tMax = radiusMax + sphereFraction;
-    
-    //if (sssInfo.intersection == INVALID_UINT_VALUE)
-    {
-        if (!sss_sampling_disk_sample(
-            rngStateIntersection,
-            sssInfo.position,
-            origin,
-            direction,
-            tMin,
-            tMax,
-            sssInfo.objectDescriptorId,
-            sssSample,
-            intersectionPDF))
-        {
-            return false;
-        }
-    }
-    //else
-    //{
-    //    intersectionPDF = 1.0f;
-    //    if (!sss_sampling_disk_sample_nthIntersection(
-    //        rngStateIntersection,
-    //        sssInfo.position,
-    //        origin,
-    //        direction,
-    //        tMin,
-    //        tMax,
-    //        sssInfo.objectDescriptorId,
-    //        sssInfo.intersection,
-    //        sssSample))
-    //    {
-    //        return false;
-    //    }
-    //}
-    
-    pdf = sss_sampling_disk_pdf(
-        sssSample.position - sssInfo.position,
-        frame,
-        sssSample.geometricNormal,
-        sssInfo.scatterDistance);
-        
-    return true;
-}
-
 
     float disney_schlickWeight(in const float a)
     {

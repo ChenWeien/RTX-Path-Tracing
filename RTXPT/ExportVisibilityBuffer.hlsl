@@ -13,7 +13,7 @@
 #include "ShaderResourceBindings.hlsli"
 
 #include "PathTracerBridgeDonut.hlsli"
-#include "PathTracer/PathTracer.hlsli"
+//#include "PathTracer/PathTracer.hlsli"
 #include "RTXDI/SurfaceData.hlsli"
 
 [numthreads(NUM_COMPUTE_THREADS_PER_DIM, NUM_COMPUTE_THREADS_PER_DIM, 1)]

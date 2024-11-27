@@ -14,7 +14,7 @@
 #define register
 
 #include "PathTracerBridgeNull.hlsli"
-#include "PathTracer/PathTracer.hlsli"
+//#include "PathTracer/PathTracer.hlsli"
 
 [shader("raygeneration")]
 void RayGen()
