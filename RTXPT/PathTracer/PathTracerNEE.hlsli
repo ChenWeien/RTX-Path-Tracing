@@ -114,6 +114,34 @@ namespace PathTracer
         float3 bsdfThpDiff, bsdfThpSpec;
         bsdf.eval(shadingData, lightSample.Direction, bsdfThpDiff, bsdfThpSpec);
         float3 bsdfThp = bsdfThpDiff + bsdfThpSpec;
+
+
+#if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
+        if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && preScatterPath.getVertexIndex() == 1 )
+        {
+            FalcorBSDF falcorBsdf = FalcorBSDF::make( shadingData, bsdf.data );
+            BssrdfDiffuseReflection bssrdfDiffuseReflection
+                = BssrdfDiffuseReflection::make( falcorBsdf.diffuseReflection.albedo,
+                                                 falcorBsdf.sssMfp,
+                                                 falcorBsdf._N,
+                                                 falcorBsdf._T,
+                                                 falcorBsdf._B );
+            float3 wiLocal = shadingData.toLocal( shadingData.V );
+            float3 woLocal = shadingData.toLocal( lightSample.Direction );
+            float3 diffuseReflectionEval = bssrdfDiffuseReflection.eval( wiLocal, woLocal );
+            switch ( g_Const.debug.debugViewType )
+            {
+                case ( ( int )DebugViewType::FirstHitNeeLightSampleBsdfThp ): workingContext.debug.DrawDebugViz( float4( bsdfThp, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitFalcorDiffusePdf ):      workingContext.debug.DrawDebugViz( float4( falcorBsdf.pDiffuseReflection.xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitIsSss ):                 workingContext.debug.DrawDebugViz( float4( falcorBsdf.isSss().xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitDiffuseReflectionEval ): workingContext.debug.DrawDebugViz( float4( diffuseReflectionEval, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssView ):            //workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.V ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssAlbedo ):          //workingContext.debug.DrawDebugViz( float4( bsdf.data.diffuse, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNearbyDistance ):     break;
+                default: break;
+            }
+        }
+#endif
         
         float lum = luminance(bsdfThp*lightSample.Li);
 

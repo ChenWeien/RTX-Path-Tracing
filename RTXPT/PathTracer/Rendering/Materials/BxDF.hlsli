@@ -916,7 +916,7 @@ struct StandardBSDFData
 
     float3 sssPosition; ///< nearby position within SSS radius
     float3 position;
-    float3 bssrdfPDF;
+    float bssrdfPDF;
     //float sssDistance;  ///< distance(position, sssPosition)
 
     static StandardBSDFData make() 

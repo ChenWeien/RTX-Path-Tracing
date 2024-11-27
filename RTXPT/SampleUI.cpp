@@ -1228,8 +1228,8 @@ void SampleUI::buildUI(void)
 #if ENABLE_DEBUG_VIZUALISATION
         if( ImGui::Combo( "Debug view", (int*)&m_ui.DebugView,
             "Disabled\0"
-            "FirstHitSssColor\0FirstHitSssContribute\0FirstHitBssrdf\0FirstHitPreThp\0FirstHitNeeDiffuseRadiance\0"
-            "FirstHitSssNormal\0FirstHitSssView\0FirstHitSssAlbedo\0FirstHitNearbyDistance\0"
+            "FirstHitSssColor\0FirstHitNeeValid\0FirstHitNeeLightSampleBsdfThp\0FirstHitFalcorDiffusePdf\0FirstHitIsSss\0"
+            "FirstHitDiffuseReflectionEval\0FirstHitSssView\0FirstHitSssAlbedo\0FirstHitNearbyDistance\0"
             "ImagePlaneRayLength\0DominantStablePlaneIndex\0"
             "StablePlaneVirtualRayLength\0StablePlaneMotionVectors\0"
             "StablePlaneNormals\0StablePlaneRoughness\0StablePlaneDiffBSDFEstimate\0StablePlaneDiffRadiance\0StablePlaneDiffHitDist\0StablePlaneSpecBSDFEstimate\0StablePlaneSpecRadiance\0StablePlaneSpecHitDist\0"

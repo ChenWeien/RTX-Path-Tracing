@@ -429,7 +429,7 @@ inline bool sss_sampling_disk_sample(
 
         break; // force numIntersections = 1
     }
-
+    pdf = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
         sssSample.objectDescriptorId = wrsObjectDescriptorId;
@@ -731,12 +731,24 @@ inline bool sss_sampling_disk_sample(
 #else
             float3 neeContribution = neeResult.DiffuseRadiance + neeResult.SpecularRadiance;
             
-
-                path.L += max(0.xxx, preScatterPath.thp * neeContribution); // add to path contribution!
-
+            float3 pathContribute = max( 0.xxx, preScatterPath.thp * neeContribution );
+            path.L += pathContribute; // add to path contribution!
 #endif
         }
-        
+
+#if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
+        if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
+        {
+            //DebugContext debug = workingContext.debug;
+            switch ( g_Const.debug.debugViewType )
+            {
+                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( bsdf.data.sssMfp, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.xxx, 1.0 ) ); break;
+                default: break;
+            }
+        }
+#endif
+
         if (!scatterResult.Valid)
         {
             path.terminate();
