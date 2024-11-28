@@ -637,10 +637,12 @@ inline bool sss_sampling_disk_sample(
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
         bool isSssPixel = any(bsdf.data.sssMfp) > 0;
-        bool isValidSssSample = true;
 
         float3 sssNearbyPosition = 0;
-        #define MAX_SS_RADIUS 2.0 // TODO get Max radius from material SS profile
+        float3 sssDistance = float3(0,0,0);
+        float3 originalPosition = shadingData.posW;
+
+        #define MAX_SS_RADIUS 10.0 // TODO get Max radius from material SS profile
         
         if ( isSssPixel )
         {
@@ -655,8 +657,6 @@ inline bool sss_sampling_disk_sample(
             float3 scatterDistance = bsdf.data.sssMfp / sss_diffusion_profile_scatterDistance(bsdf.data.diffuse);
             //float3 scatterDistance = float3(0.46, 0.09, 0.04 );
 
-
-            SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
             BSDFFrame frame;
             BSDFFrame projectionFrame;
             frame.n = shadingData.faceN; // faceN
@@ -669,9 +669,64 @@ inline bool sss_sampling_disk_sample(
 
             float3 sssSampleRaydir = -shadingData.faceN;
             TriangleHit triangleHit;
-            
-            SSSSample sssSample;
+            //SSSSample sssSample;
             float bssrdfPDF = 1;
+            
+            float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
+            float phi = M_2PI * xiAngle;
+            //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+            const float3 origin = shadingData.posW + projectionFrame.n * MAX_SS_RADIUS + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
+            
+            RayDesc ray;
+            ray.Origin = origin;
+            ray.Direction = -shadingData.faceN;
+            ray.TMin = 0;
+            //ray.TMax = FLT_MAX;
+            ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
+
+            RayQuery < RAY_FLAG_NONE > rayQuery;
+            PackedHitInfo packedHitInfo;
+            Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+            if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+            {
+                BuiltInTriangleIntersectionAttributes attrib;
+                attrib.barycentrics = rayQuery.CommittedTriangleBarycentrics();
+                const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+
+                // load X2 position
+                const uint vertexIndex = path.getVertexIndex();
+                SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+                
+                shadingData = bridgedData.shadingData;
+                bsdf = bridgedData.bsdf;
+
+                sssNearbyPosition = shadingData.posW; // = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
+                sssDistance = sssNearbyPosition - originalPosition;
+                sssNearbyPosition = sssNearbyPosition;
+                
+                scatterResult.sssPosition = sssNearbyPosition;
+                scatterResult.sssDistance = sssNearbyPosition - originalPosition;
+                scatterResult.position = originalPosition;
+                scatterResult.IsSss = true;
+            //
+                bsdf.data.sssPosition = sssNearbyPosition;
+                bsdf.data.position = originalPosition;
+                bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
+                
+            }
+       #if 0 // need to check what's wrong, didn't find sssNearbyPosition
+            SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
+            BSDFFrame frame;
+            BSDFFrame projectionFrame;
+            frame.n = shadingData.faceN; // faceN
+            frame.t = shadingData.T;
+            frame.b = shadingData.B;
+            // sss_sampling_axis(axis, frame, projectionFrame);
+            projectionFrame.n = shadingData.faceN; // faceN
+            projectionFrame.t = shadingData.T;
+            projectionFrame.b = shadingData.B;
+            
+
             float bssrdfIntersectionPDF = 1;
             if (!sss_sampling_sample(workingContext, sampleGenerator, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
@@ -682,22 +737,25 @@ inline bool sss_sampling_disk_sample(
                 const uint vertexIndex = path.getVertexIndex();
                 //const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
-
+            
                 shadingData = bridgedData.shadingData;
                 bsdf = bridgedData.bsdf;
-
+            
                 sssNearbyPosition = sssSample.position;
                 float dist = distance(sssNearbyPosition, shadingData.posW);
-
-                if (dist > 0.000001f)
+            
+                //if (dist > 0.000001f)
                 {
-                    scatterResult.sssDistance = sssSample.position - shadingData.posW;
+                    sssNearbyPosition = sssSample.position;
+                    sssDistance = sssSample.position - originalPosition;
+                    
+                    scatterResult.sssDistance = sssSample.position - originalPosition;
                     scatterResult.sssPosition = sssNearbyPosition;
                     scatterResult.position = shadingData.posW;
                     scatterResult.IsSss = true;
-
+            
                     bsdf.data.sssPosition = sssNearbyPosition;
-                    bsdf.data.position = shadingData.posW;
+                    bsdf.data.position = originalPosition;
                     bsdf.data.bssrdfPDF = bssrdfPDF;
                 }
                 // test sssMfp is working
@@ -705,6 +763,7 @@ inline bool sss_sampling_disk_sample(
                 //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
                 
             }
+       #endif
         }
 
 
@@ -739,11 +798,14 @@ inline bool sss_sampling_disk_sample(
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
         {
+            float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
             //DebugContext debug = workingContext.debug;
             switch ( g_Const.debug.debugViewType )
             {
-                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( bsdf.data.sssMfp, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.xxx, 1.0 ) ); break;
+                //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( visualizeDistance ); break;
+                //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
                 default: break;
             }
         }
