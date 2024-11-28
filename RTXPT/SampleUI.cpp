@@ -393,6 +393,8 @@ void SampleUI::buildUI(void)
         ImGui::Unindent(indent);
     }
 
+    const auto& lights = m_app.GetScene()->GetSceneGraph()->GetLights();
+
     if (ImGui::CollapsingHeader("Lighting", 0/*ImGuiTreeNodeFlags_DefaultOpen*/))
     {
         RAII_SCOPE(ImGui::Indent(indent);, ImGui::Unindent(indent););
@@ -404,10 +406,33 @@ void SampleUI::buildUI(void)
                 m_ui.ResetAccumulation |= m_app.GetEnvMapBaker()->DebugGUI(indent);
         }
 
-        if (ImGui::CollapsingHeader("Local", ImGuiTreeNodeFlags_DefaultOpen))
+        if ( !lights.empty() && ImGui::CollapsingHeader("Local", ImGuiTreeNodeFlags_DefaultOpen))
         {
             RAII_SCOPE(ImGui::Indent(indent);, ImGui::Unindent(indent););
             // local lighting UI
+
+            if ( ImGui::BeginCombo( "Select Light", m_SelectedLight ? m_SelectedLight->GetName().c_str() : "(None)" ) )
+            {
+                for ( const auto& light : lights )
+                {
+                    bool selected = m_SelectedLight == light;
+                    ImGui::Selectable( light->GetName().c_str(), &selected );
+                    if ( selected )
+                    {
+                        m_SelectedLight = light;
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if ( m_SelectedLight )
+            {
+                if ( donut::app::LightEditor( *m_SelectedLight ) )
+                {
+                    m_ui.ResetAccumulation = true;
+                }
+            }
         }
     }
 
