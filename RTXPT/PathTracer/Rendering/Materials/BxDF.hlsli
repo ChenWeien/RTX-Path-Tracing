@@ -385,9 +385,7 @@ struct BssrdfDiffuseReflection
         d.sssMfp = sssMfp_;
         d.sssMfpScale = 1;
         d.albedo = albedo_;
-        // todo: check this term
         d.scatterDistance = d.sssMfpScale * d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
-        d.scatterDistance = float3( 0.5, 0.1, 0.04 );
         d.sssDistance = sssDistance;
         // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
         return d;
