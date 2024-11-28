@@ -375,8 +375,8 @@ struct BssrdfDiffuseReflection
                                          float3 sssMfp_,
                                          float3 N,
                                          float3 T,
-                                         float3 B
-    )
+                                         float3 B,
+                                         float3 sssDistance )
     {
         BssrdfDiffuseReflection d;
         d.frame.n = N;
@@ -388,6 +388,7 @@ struct BssrdfDiffuseReflection
         // todo: check this term
         d.scatterDistance = d.sssMfpScale * d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
         d.scatterDistance = float3( 0.5, 0.1, 0.04 );
+        d.sssDistance = sssDistance;
         // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
         return d;
     }
@@ -1013,10 +1014,14 @@ struct FalcorBSDF // : IBxDF
     void __init(
         const MaterialHeader mtl,
         float3 N,
+        float3 T,
+        float3 B,
         float3 V,
         const StandardBSDFData data)
     {
         _N = N;
+        _T = T;
+        _B = B;
         bssrdfPDF = data.bssrdfPDF;
         sssMfp = data.sssMfp;
         sssDistance = data.sssPosition - data.position;
@@ -1091,9 +1096,7 @@ struct FalcorBSDF // : IBxDF
 */
     void __init(const ShadingData shadingData, const StandardBSDFData data)
     {
-        __init(shadingData.mtl, shadingData.V, shadingData.N, data);
-        _T = shadingData.T;
-        _B = shadingData.B;
+        __init(shadingData.mtl, shadingData.N, shadingData.T, shadingData.B, shadingData.V, data);
     }
 
     static FalcorBSDF make( const ShadingData shadingData, const StandardBSDFData data )     { FalcorBSDF ret; ret.__init(shadingData, data); return ret; }
@@ -1101,11 +1104,13 @@ struct FalcorBSDF // : IBxDF
     static FalcorBSDF make(
         const MaterialHeader mtl,
         float3 N,
+        float3 T,
+        float3 B,
         float3 V, 
         const StandardBSDFData data) 
     { 
         FalcorBSDF ret;
-        ret.__init(mtl, N, V, data); 
+        ret.__init(mtl, N, T, B, V, data); 
         return ret;
     }
 
@@ -1146,11 +1151,12 @@ struct FalcorBSDF // : IBxDF
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection 
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
-                        sssMfp,
-                        _N,
-                        _T,
-                        _B );
-                diffuseReflectionEval = bssrdfDiffuseReflection.eval(wi, wo);;
+                                                     sssMfp,
+                                                     _N,
+                                                     _T,
+                                                     _B,
+                                                     sssDistance );
+                diffuseReflectionEval = bssrdfDiffuseReflection.eval(wi, wo);
             }
             else
             {
@@ -1172,8 +1178,23 @@ struct FalcorBSDF // : IBxDF
     {
         float3 result = 0.f;
         if (pDiffuseReflection > 0.f) {
-            result += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflection.eval(wi, wo);
-    result += float3(1,0,0);
+            float3 diffuseReflectionEval = 0;
+            if ( isSss() )
+            {
+                BssrdfDiffuseReflection bssrdfDiffuseReflection
+                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     sssMfp,
+                                                     _N,
+                                                     _T,
+                                                     _B,
+                                                     sssDistance );
+                diffuseReflectionEval = bssrdfDiffuseReflection.eval( wi, wo );
+            }
+            else
+            {
+                diffuseReflectionEval = diffuseReflection.eval( wi, wo );
+            }
+            result += ( 1.f - specTrans ) * ( 1.f - diffTrans ) * diffuseReflectionEval;
         }
         if (pDiffuseTransmission > 0.f) result += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) result += (1.f - specTrans) * specularReflection.eval(wi, wo);

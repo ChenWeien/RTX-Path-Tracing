@@ -119,32 +119,21 @@ namespace PathTracer
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && preScatterPath.getVertexIndex() == 1 )
         {
-            FalcorBSDF falcorBsdf = FalcorBSDF::make( shadingData, bsdf.data );
-            BssrdfDiffuseReflection bssrdfDiffuseReflection
-                = BssrdfDiffuseReflection::make( falcorBsdf.diffuseReflection.albedo,
-                                                 falcorBsdf.sssMfp,
-                                                 falcorBsdf._N,
-                                                 falcorBsdf._T,
-                                                 falcorBsdf._B );
-            float3 sssPosition = bsdf.data.sssPosition;
-            float3 position = bsdf.data.position;
-            bssrdfDiffuseReflection.sssDistance = sssPosition - position;
             float3 wiLocal = shadingData.toLocal( shadingData.V );
             float3 woLocal = shadingData.toLocal( lightSample.Direction );
-            DiffuseReflectionDisney brdfDisney;
-            brdfDisney.albedo = falcorBsdf.diffuseReflection.albedo;
-            brdfDisney.roughness = 0.8;
-            float3 brdfEval = brdfDisney.eval( wiLocal, woLocal );
-            float3 diffuseReflectionEval = bssrdfDiffuseReflection.eval( wiLocal, woLocal );
+            float3 diffuseReflectionEval;
+            float3 specularReflectionEval;
+            //bsdf.falcorBsdf.eval( wiLocal, woLocal, diffuseReflectionEval, specularReflectionEval );
             switch ( g_Const.debug.debugViewType )
             {
                 case ( ( int )DebugViewType::FirstHitNeeLightSampleBsdfThp ): workingContext.debug.DrawDebugViz( float4( bsdfThp, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitFalcorDiffusePdf ):      workingContext.debug.DrawDebugViz( float4( falcorBsdf.pDiffuseReflection.xxx, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitIsSss ):                 workingContext.debug.DrawDebugViz( float4( abs(bssrdfDiffuseReflection.sssDistance), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitDiffuseReflectionEval ): workingContext.debug.DrawDebugViz( float4( diffuseReflectionEval, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssView ):            workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.T ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( shadingData.B ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNearbyDistance ):     break;
+                case ( ( int )DebugViewType::FirstHitFalcorDiffusePdf ):      //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf.pDiffuseReflection.xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitFalcorDiffuseTrans ):    workingContext.debug.DrawDebugViz( float4( bsdfThpDiff, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitFalcorSpecularTrans ):   workingContext.debug.DrawDebugViz( float4( bsdfThpSpec, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitIsSss ):                 //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf._isSss.xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitDiffuseReflectionEval ): //workingContext.debug.DrawDebugViz( float4( diffuseReflectionEval, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssView ):            workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( wiLocal ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( woLocal ) ), 1.0 ) ); break;
                 default: break;
             }
         }
