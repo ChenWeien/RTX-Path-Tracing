@@ -248,10 +248,6 @@ float sss_diffusion_profile_sample(in const float xi, in const float scatterDist
     return sampleBurleyDiffusionProfileAnalytical(xi, scatterDistance);
 }
 
-
-
-// scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance(bsdfMaterial.baseColor);
-
 float3 sss_diffusion_profile_scatterDistance(in const float3 surfaceAlbedo) {
     const float3 a = surfaceAlbedo - (float3)(0.8);
     return (float3)1.9 - surfaceAlbedo + 3.5 * a * a;
@@ -387,29 +383,32 @@ struct BssrdfDiffuseReflection
         d.albedo = albedo_;
         d.scatterDistance = d.sssMfpScale * d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
         d.sssDistance = sssDistance;
-        // bsdfMaterial.scatterDistance = material.subsurface * material.meanFreePath / sss_diffusion_profile_scatterDistance
         return d;
     }
     
     float3 eval(const float3 wi, const float3 wo)
     {
-        //scatterDistance = float3( 0.46, 0.09, 0.04 );
-        float3 bssrdf = sssMfp;
-        float bssrdfPDF = 1; //sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
-        
-        float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
-        const float3 diffusionProfile = albedo * sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
+        // need to fix bssrdfPDF, should used both normal vector of x1, x2
+        float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
 
-        bssrdf = diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
-        //bssrdf = sssMfp;
-        
+        const float3 diffusionProfile = sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
+
+        float3 bssrdf = albedo * diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
+
         if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
-        float3 bsdf = wo.z;
-        return diffusionProfile;
-        return  bssrdfPDF;
-        //return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
+        float3 bsdf = wo.z; //wo.z is dot(N,L)
+
+        return M_1_PI * (bssrdf * bsdf / bssrdfPDF);
+        
+        // RD note:
+        // ref  bssrdf * bsdf * cosAtSurface * lightEmission / (bssrdfPDF * bssrdfIntersectionPDF * lightPDF);
+        // 1) float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
+        // 2) lightEmission / lightPDF is multiplied outside of the function
+        // 
+        // simplify to
+        // bssrdf * bsdf * cosAtSurface / bssrdfPDF
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)

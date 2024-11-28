@@ -659,7 +659,6 @@ inline bool sss_sampling_disk_sample(
             float xiRadius = sampleNext1D(sampleGenerator);
             sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
             scatterDistance = bsdf.data.sssMfp / sssDiffusionProfile;
-            //float3 scatterDistance = float3(0.46, 0.09, 0.04 );
 
             BSDFFrame frame;
             BSDFFrame projectionFrame;
