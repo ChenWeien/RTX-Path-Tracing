@@ -271,6 +271,8 @@ void MaterialPatch::Patch(Material& mat)
     MAT_VALUE_OR(ior);
     MAT_VALUE_OR(transmissionFactor);
     MAT_VALUE_OR(sssMfp);
+    mat.sssMfpColor = mat.sssMfp;
+    mat.sssMfpDistance = 1;
     MAT_VALUE_OR(diffuseTransmissionFactor);
     MAT_VALUE_OR(nestedPriority);
     MAT_VALUE_OR(doubleSided);

@@ -215,7 +215,22 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::TextColored(filenameColor, "%s", getShortTexturePath(material->emissiveTexture->path).c_str());
     }
     
-    update |= ImGui::ColorEdit3( "sssMfp",         material->sssMfp.data(), ImGuiColorEditFlags_Float);
+    if ( ImGui::Checkbox( "Is SSS", &material->isSss ) )
+    {
+        material->sssMfp = material->isSss ? material->sssMfpColor * material->sssMfpDistance : float3(0.f);
+        update = true;
+    }
+    else if ( ImGui::ColorEdit3( "sssMfpColor", material->sssMfpColor.data(), ImGuiColorEditFlags_Float ) )
+    {
+        material->sssMfp = material->sssMfpColor * material->sssMfpDistance;
+        update = true;
+    }
+    else if ( ImGui::SliderFloat( "sssMfpDistance (cm)", &material->sssMfpDistance, 0.1f, 20.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
+    {
+        material->sssMfp = material->sssMfpColor * material->sssMfpDistance;
+        update = true;
+    }
+
     update |= ImGui::ColorEdit3( "Emissive Color", material->emissiveColor.data(), ImGuiColorEditFlags_Float );
     update |= ImGui::SliderFloat("Emissive Intensity", &material->emissiveIntensity, 0.f, 100000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
 
