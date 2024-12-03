@@ -941,6 +941,7 @@ struct StandardBSDFData
     float3 sssPosition; ///< nearby position within SSS radius
     float3 position;
     float bssrdfPDF;
+    float intersectionPDF;
     //float sssDistance;  ///< distance(position, sssPosition)
 
     static StandardBSDFData make() 
@@ -958,6 +959,7 @@ struct StandardBSDFData
         d.sssPosition = 0;
         d.position = 0;
         d.bssrdfPDF = 1;
+        d.intersectionPDF = 1;
         //d.sssDistance = 0;
         return d;
     }

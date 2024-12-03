@@ -693,8 +693,8 @@ inline bool sss_sampling_disk_sample(
                 const float3 origin = shadingData.posW + projectionFrame.n * radiusMax + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
             
                 const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-                const float tMin = radiusMax - sphereFraction;
-                const float tMax = radiusMax + sphereFraction;
+                const float tMin = 0; //radiusMax - sphereFraction;
+                const float tMax = 2 * radiusMax; // + sphereFraction;
 
                 
                 RayDesc ray;
@@ -760,6 +760,7 @@ inline bool sss_sampling_disk_sample(
                     scatterResult.position = originalPosition;
                     scatterResult.IsSss = true;
             //
+                    float intersectionPDF = 1.f / numIntersections;
                     bsdf.data.sssPosition = sssNearbyPosition;
                     bsdf.data.position = originalPosition;
                     bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
