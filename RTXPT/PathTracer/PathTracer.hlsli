@@ -655,7 +655,7 @@ inline bool sss_sampling_disk_sample(
             // sample surface candidate, // find nearby SSS sample point, 
             // ref generateSampleBSSRDFWithLightSourceSampling(
 
-            const uint axis = 0; //sss_sampling_axis_index( sampleNext1D(sampleGenerator) );
+            const uint axis = sss_sampling_axis_index( sampleNext1D(sampleGenerator) );
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
@@ -680,83 +680,102 @@ inline bool sss_sampling_disk_sample(
             //#define USE_sss_sampling_sample_CODEPATH
             
          #ifndef USE_sss_sampling_sample_CODEPATH
-            float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
-            float phi = M_2PI * xiAngle;
-            //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
-            const float3 origin = shadingData.posW + projectionFrame.n * MAX_SS_RADIUS + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
-            
-            RayDesc ray;
-            ray.Origin = origin;
-            ray.Direction = -projectionFrame.n;
-            ray.TMin = 0;
-            //ray.TMax = FLT_MAX;
-            ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
+            //float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
 
-            RayQuery < RAY_FLAG_FORCE_NON_OPAQUE > rayQuery; // RAY_FLAG_NONE > rayQuery;
+            const float sampledScatterDistance = sss_sampling_scatterDistance(channel, scatterDistance);
+
+            const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
+            const float radiusMax = sss_diffusion_profile_sample(0.999, sampledScatterDistance);
+            if (radius <= radiusMax)
+            {
+                float phi = M_2PI * xiAngle;
+            //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
+                const float3 origin = shadingData.posW + projectionFrame.n * radiusMax + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
+            
+                const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
+                const float tMin = radiusMax - sphereFraction;
+                const float tMax = radiusMax + sphereFraction;
+
+                
+                RayDesc ray;
+                ray.Origin = origin;
+                ray.Direction = -projectionFrame.n;
+                ray.TMin = tMin; //0;
+            //ray.TMax = FLT_MAX;
+                ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
+
+                RayQuery < RAY_FLAG_FORCE_NON_OPAQUE > rayQuery; // RAY_FLAG_NONE > rayQuery;
             //PackedHitInfo packedHitInfo = PACKED_HIT_INFO_ZERO;
             
             // reservoir sampling
-            uint chosenIntersection = 0;
-            numIntersections = 0;
-            weightTotal = 0;
-            float weightNew = 1.f; // intersect : 1, else 0
-            float reservoirWeight = 0;
-            float reservoirRayT = FLT_MAX;
+                uint chosenIntersection = 0;
+                numIntersections = 0;
+                weightTotal = 0;
+                float weightNew = 1.f; // intersect : 1, else 0
+                float reservoirWeight = 0;
+                float reservoirRayT = FLT_MAX;
 
-            rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, ray);
-            while (rayQuery.Proceed())
-            {
-                if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
+                rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, ray);
+                while (rayQuery.Proceed())
                 {
-                    numIntersections += 1;
-                    if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
+                    if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
                     {
-                        reservoirRayT = rayQuery.CandidateTriangleRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
-                        triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
-                        triangleHit.primitiveIndex = rayQuery.CandidatePrimitiveIndex();
-                        triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
-                        reservoirWeight = weightNew;
-                        chosenIntersection = numIntersections;
+                        numIntersections += 1;
+                        if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
+                        {
+                            reservoirRayT = rayQuery.CandidateTriangleRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
+                            triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
+                            triangleHit.primitiveIndex = rayQuery.CandidatePrimitiveIndex();
+                            triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
+                            reservoirWeight = weightNew;
+                            chosenIntersection = numIntersections;
 
                         //rayQuery.CommitNonOpaqueTriangleHit();
 
+                        }
+                        weightTotal += weightNew; // must after the above if
                     }
-                    weightTotal += weightNew; // must after the above if
                 }
-            }
 
             //Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
             //if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-            if ( numIntersections > 0 )
-            {
-                BuiltInTriangleIntersectionAttributes attrib;
-                attrib.barycentrics = triangleHit.barycentrics;
+                if (numIntersections > 0)
+                {
+                    BuiltInTriangleIntersectionAttributes attrib;
+                    attrib.barycentrics = triangleHit.barycentrics;
 
                 // load X2 position
-                const uint vertexIndex = path.getVertexIndex();
-                SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+                    const uint vertexIndex = path.getVertexIndex();
+                    SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
                 
-                shadingData = bridgedData.shadingData;
-                bsdf = bridgedData.bsdf;
+                    shadingData = bridgedData.shadingData;
+                    bsdf = bridgedData.bsdf;
 
-                sssNearbyPosition = shadingData.posW; // = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                sssDistance = sssNearbyPosition - originalPosition;
-                sssNearbyPosition = sssNearbyPosition;
+                    sssNearbyPosition = shadingData.posW; // = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
+                    sssDistance = sssNearbyPosition - originalPosition;
+                    sssNearbyPosition = sssNearbyPosition;
                 
-                scatterResult.sssPosition = sssNearbyPosition;
-                scatterResult.sssDistance = sssNearbyPosition - originalPosition;
-                scatterResult.position = originalPosition;
-                scatterResult.IsSss = true;
+                    scatterResult.sssPosition = sssNearbyPosition;
+                    scatterResult.sssDistance = sssNearbyPosition - originalPosition;
+                    scatterResult.position = originalPosition;
+                    scatterResult.IsSss = true;
             //
-                bsdf.data.sssPosition = sssNearbyPosition;
-                bsdf.data.position = originalPosition;
-                bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
+                    bsdf.data.sssPosition = sssNearbyPosition;
+                    bsdf.data.position = originalPosition;
+                    bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
+                }
+                else
+                {
+                    bsdf.data.sssMfp = float3(0, 0, 0);
+                    bsdf.data.sssPosition = bsdf.data.position;
+                    bsdf.data.bssrdfPDF = 1;
+                }
             }
             else
             {
-                bsdf.data.sssMfp = float3(0,0,0);
-                bsdf.data.sssPosition = bsdf.data.position;
-                bsdf.data.bssrdfPDF = 1;
+                bsdf.data.sssMfp = float3(0, 0, 0);
+                    bsdf.data.sssPosition = bsdf.data.position;
+                    bsdf.data.bssrdfPDF = 1;
             }
        #else 
         // need to check what's wrong, didn't find sssNearbyPosition
