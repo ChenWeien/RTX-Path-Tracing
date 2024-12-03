@@ -648,6 +648,8 @@ inline bool sss_sampling_disk_sample(
 
         #define MAX_SS_RADIUS 10.0 // TODO get Max radius from material SS profile
         uint numIntersections = 0;
+        float weightTotal = 0.f;
+
         if ( isSssPixel )
         {
             // sample surface candidate, // find nearby SSS sample point, 
@@ -671,10 +673,10 @@ inline bool sss_sampling_disk_sample(
             //projectionFrame.b = frame.b;
 
             float3 sssSampleRaydir = -projectionFrame.n;
-            TriangleHit triangleHit;
+            TriangleHit triangleHit; // reservoir sample
             //SSSSample sssSample;
             float bssrdfPDF = 1;
-            
+
             float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
             float phi = M_2PI * xiAngle;
             //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
@@ -687,74 +689,46 @@ inline bool sss_sampling_disk_sample(
             //ray.TMax = FLT_MAX;
             ray.TMax = MAX_SS_RADIUS * MAX_SS_RADIUS;
 
-            RayQuery < RAY_FLAG_NONE > rayQuery;
-            PackedHitInfo packedHitInfo = PACKED_HIT_INFO_ZERO;
+            RayQuery < RAY_FLAG_FORCE_NON_OPAQUE > rayQuery; // RAY_FLAG_NONE > rayQuery;
+            //PackedHitInfo packedHitInfo = PACKED_HIT_INFO_ZERO;
             
             // reservoir sampling
-            
-            
             uint chosenIntersection = 0;
-
-            float weightTotal = 0.f;
-            const float weightNew = 1.f; // intersect : 1, else 0
-            
-            float2 reservoirBarycentrics = float2(0, 0);
+            numIntersections = 0;
+            weightTotal = 0;
+            float weightNew = 1.f; // intersect : 1, else 0
             float reservoirWeight = 0;
-            uint reservoirPrimitiveIndex = 0;
-            uint reservoirInstanceIndex = 0;
-            uint reservoirGeometryIndex = 0;
             float reservoirRayT = FLT_MAX;
+
             rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_NONE, 0xff, ray);
             while (rayQuery.Proceed())
             {
                 if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
                 {
-                    
-                    weightTotal += weightNew;
-                    numIntersections++;
+                    rayQuery.CommitNonOpaqueTriangleHit();
+                }
+                if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+                {
+                    numIntersections += 1;
                     if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
                     {
-                        reservoirInstanceIndex = rayQuery.CandidateInstanceIndex();
-                        reservoirPrimitiveIndex = rayQuery.CandidatePrimitiveIndex();
-                        reservoirGeometryIndex = rayQuery.CandidateGeometryIndex();
-                        reservoirRayT = rayQuery.CandidateTriangleRayT();
-                        reservoirBarycentrics = rayQuery.CandidateTriangleBarycentrics();
-                        //rayQuery.CandidateTriangleFrontFace();
+                        reservoirRayT = rayQuery.CommittedRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
+                        triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex());
+                        triangleHit.primitiveIndex = rayQuery.CommittedPrimitiveIndex();
+                        triangleHit.barycentrics = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
                         reservoirWeight = weightNew;
                         chosenIntersection = numIntersections;
-                        
-                        rayQuery.CommitNonOpaqueTriangleHit();
                     }
+                    weightTotal += weightNew; // must after the above if
                 }
             }
-            if (numIntersections > 0)
-            {
-                ray.TMax = reservoirRayT;
-            
-                TriangleHit triangleHit;
-                triangleHit.instanceID = GeometryInstanceID::make(reservoirInstanceIndex, reservoirGeometryIndex);
-                triangleHit.primitiveIndex = reservoirPrimitiveIndex;
-                triangleHit.barycentrics = reservoirBarycentrics;
-                packedHitInfo = triangleHit.pack();
-            }
-                if (0) //if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-                {
-                    ray.TMax = rayQuery.CommittedRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
-            
-                    TriangleHit triangleHit;
-                    triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex());
-                    triangleHit.primitiveIndex = rayQuery.CommittedPrimitiveIndex();
-                    triangleHit.barycentrics = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
-                    packedHitInfo = triangleHit.pack();
-                }
-            
+
             //Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
             //if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
             if ( numIntersections > 0 )
             {
                 BuiltInTriangleIntersectionAttributes attrib;
-                attrib.barycentrics = reservoirBarycentrics;//rayQuery.CommittedTriangleBarycentrics();
-                const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
+                attrib.barycentrics = triangleHit.barycentrics;
 
                 // load X2 position
                 const uint vertexIndex = path.getVertexIndex();
@@ -775,7 +749,6 @@ inline bool sss_sampling_disk_sample(
                 bsdf.data.sssPosition = sssNearbyPosition;
                 bsdf.data.position = originalPosition;
                 bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
-                
             }
        #if 0 // need to check what's wrong, didn't find sssNearbyPosition
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
@@ -859,7 +832,14 @@ inline bool sss_sampling_disk_sample(
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
         {
-            float3 showNumIntersection = numIntersections > 0 ? float3(1.f/numIntersections,1.f/numIntersections,0) : float3(0,0,1);
+            float3 showNumIntersection = float3(0,0,0);
+            if ( numIntersections >= 3 )
+                showNumIntersection = float3( 0,1,0);
+            else if ( numIntersections >= 2 )
+                showNumIntersection = float3( 1,0,0);
+            else if ( numIntersections == 1 )
+                showNumIntersection = float3( 0,0,1);
+
             float oneOverNumIntersection = 1.f / numIntersections;
             float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
             //DebugContext debug = workingContext.debug;
