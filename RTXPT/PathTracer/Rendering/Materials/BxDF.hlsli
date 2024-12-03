@@ -151,6 +151,30 @@ float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const floa
     return (exp(-rd) + exp(-rd / 3.0)) / max(float3(0.000001,0.000001,0.000001), (8.0 * M_PI * scatterDistance * radius));// divide by r to convert from polar to cartesian
 }
 
+uint sss_sampling_axis_index(in const float xiAxis) {
+    if (xiAxis < SSS_SAMPLING_DISK_AXIS_0_WEIGHT) {
+        return 0;
+    } else if (xiAxis < (SSS_SAMPLING_DISK_AXIS_0_WEIGHT + SSS_SAMPLING_DISK_AXIS_1_WEIGHT)) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+void sss_sampling_axis(in const uint axis, in const BSDFFrame frame, out BSDFFrame projectionFrame) {
+    if (axis == 0) {
+        projectionFrame.t = frame.t;
+        projectionFrame.b = frame.b;
+        projectionFrame.n = frame.n;
+    } else if (axis == 1) {
+        projectionFrame.t = frame.b;
+        projectionFrame.b = frame.n;
+        projectionFrame.n = frame.t;
+    } else {
+        projectionFrame.t = frame.n;
+        projectionFrame.b = frame.t;
+        projectionFrame.n = frame.b;
+    }
+}
 // https://blogs.autodesk.com/media-and-entertainment/wp-content/uploads/sites/162/s2013_bssrdf_slides.pdf
 // https://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Subsurface_Reflection_Functions#SeparableBSSRDF::Pdf_Sp
 
