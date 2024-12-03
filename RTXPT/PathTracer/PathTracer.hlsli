@@ -676,7 +676,10 @@ inline bool sss_sampling_disk_sample(
             TriangleHit triangleHit; // reservoir sample
             //SSSSample sssSample;
             float bssrdfPDF = 1;
-         #if 0
+            
+            //#define USE_sss_sampling_sample_CODEPATH
+            
+         #ifndef USE_sss_sampling_sample_CODEPATH
             float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
             float phi = M_2PI * xiAngle;
             //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
@@ -703,25 +706,6 @@ inline bool sss_sampling_disk_sample(
             rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, ray);
             while (rayQuery.Proceed())
             {
-                #if 0
-                if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
-                {
-                    //rayQuery.CommitNonOpaqueTriangleHit();
-                    numIntersections += 1;
-                    if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
-                    {
-                        reservoirRayT = rayQuery.CandidateTriangleRayT();
-                        triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
-                        triangleHit.primitiveIndex = rayQuery.CandidateInstanceIndex();
-                        triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
-                        reservoirWeight = weightNew;
-                        chosenIntersection = numIntersections;
-                    }
-                    weightTotal += weightNew; // must after the above if
-                }
-                #else
-                
-                
                 if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
                 {
                     numIntersections += 1;
@@ -733,29 +717,12 @@ inline bool sss_sampling_disk_sample(
                         triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
                         reservoirWeight = weightNew;
                         chosenIntersection = numIntersections;
-                        
-                        rayQuery.CommitNonOpaqueTriangleHit();
+
+                        //rayQuery.CommitNonOpaqueTriangleHit();
+
                     }
                     weightTotal += weightNew; // must after the above if
-                    
-                    
-                    
                 }
-                //if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-                //{
-                //    numIntersections += 1;
-                //    if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
-                //    {
-                //        reservoirRayT = rayQuery.CommittedRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
-                //        triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex());
-                //        triangleHit.primitiveIndex = rayQuery.CommittedPrimitiveIndex();
-                //        triangleHit.barycentrics = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
-                //        reservoirWeight = weightNew;
-                //        chosenIntersection = numIntersections;
-                //    }
-                //    weightTotal += weightNew; // must after the above if
-                //}
-                #endif
             }
 
             //Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
