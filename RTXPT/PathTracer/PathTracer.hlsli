@@ -649,7 +649,7 @@ inline bool sss_sampling_disk_sample(
         #define MAX_SS_RADIUS 10.0 // TODO get Max radius from material SS profile
         uint numIntersections = 0;
         float weightTotal = 0.f;
-
+        
         if ( isSssPixel )
         {
             // sample surface candidate, // find nearby SSS sample point, 
@@ -750,6 +750,12 @@ inline bool sss_sampling_disk_sample(
                 bsdf.data.position = originalPosition;
                 bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
             }
+            else
+            {
+                bsdf.data.sssMfp = float3(0,0,0);
+                bsdf.data.sssPosition = bsdf.data.position;
+                bsdf.data.bssrdfPDF = 1;
+            }
        #if 0 // need to check what's wrong, didn't find sssNearbyPosition
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
             BSDFFrame frame;
@@ -761,11 +767,12 @@ inline bool sss_sampling_disk_sample(
             projectionFrame.n = shadingData.faceN; // faceN
             projectionFrame.t = shadingData.T;
             projectionFrame.b = shadingData.B;
-            
+
 
             float bssrdfIntersectionPDF = 1;
             if (!sss_sampling_sample(workingContext, sampleGenerator, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
+                bsdf.data.sssMfp = float3(0,0,0);
                 isValidSssSample = false;
             }
             else
