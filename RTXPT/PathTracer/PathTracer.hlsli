@@ -664,7 +664,7 @@ inline bool sss_sampling_disk_sample(
 
             BSDFFrame frame;
             BSDFFrame projectionFrame;
-            frame.n = shadingData.faceN; // faceN, vertexN
+            frame.n = shadingData.N; // faceN, vertexN
             frame.t = shadingData.T;
             frame.b = shadingData.B;
             sss_sampling_axis(axis, frame, projectionFrame);
@@ -689,7 +689,6 @@ inline bool sss_sampling_disk_sample(
             if (radius <= radiusMax)
             {
                 float phi = M_2PI * xiAngle;
-            //const float3 origin = shadingData.posW + shadingData.faceN * MAX_SS_RADIUS + cos(phi) * radius * shadingData.T + sin(phi) * radius * shadingData.B;
                 const float3 origin = shadingData.posW + projectionFrame.n * radiusMax + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
             
                 const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
@@ -765,7 +764,8 @@ inline bool sss_sampling_disk_sample(
 
                     float intersectionPDF = 1.f / numIntersections;
                     bsdf.data.intersectionPDF = intersectionPDF;
-                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, bsdf.data.sssMfp);
+                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.N, bsdf.data.sssMfp);
+                    //bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, bsdf.data.sssMfp);
                     bsdf.data.bssrdfPDF = bssrdfPDF;
                 }
                 else // numIntersections == 0
