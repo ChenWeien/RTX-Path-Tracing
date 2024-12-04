@@ -143,10 +143,12 @@ namespace PathTracer
             float3 sssDistance = bsdf.data.sssPosition - bsdf.data.position;
             BssrdfDiffuseReflection bssrdfDiffuseReflection = BssrdfDiffuseReflection::make( bsdf.data.diffuse,
                                                                                              bsdf.data.sssMfp,
+                                                                                             bsdf.data.pixelNormal,
                                                                                              shadingData.N,
-                                                                                             shadingData.T,
-                                                                                             shadingData.B,
-                                                                                             sssDistance );
+                                                                                             sssDistance,
+                                                                                             bsdf.data.bssrdfPDF,
+                                                                                             bsdf.data.intersectionPDF
+            );
             float3 wiLocal = shadingData.toLocal( shadingData.V );
             float3 woLocal = shadingData.toLocal( lightSample.Direction );
             float3 diffuseReflectionEval = bssrdfDiffuseReflection.eval( wiLocal, woLocal );

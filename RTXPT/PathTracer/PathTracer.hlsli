@@ -638,7 +638,7 @@ inline bool sss_sampling_disk_sample(
 
         bool isSssPixel = any(bsdf.data.sssMfp) > 0;
         bool isValidSssSample = true;
-
+        float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
         float sssDistanceLength = 0;
         float3 scatterDistance = 0; 
@@ -646,7 +646,7 @@ inline bool sss_sampling_disk_sample(
         float3 sssDistance = float3(0,0,0);
         float3 originalPosition = shadingData.posW;
 
-        #define MAX_SS_RADIUS 10.0 // TODO get Max radius from material SS profile
+        //#define MAX_SS_RADIUS 10.0 // TODO get Max radius from material SS profile
         uint numIntersections = 0;
         float weightTotal = 0.f;
         
@@ -675,7 +675,7 @@ inline bool sss_sampling_disk_sample(
             float3 sssSampleRaydir = -projectionFrame.n;
             TriangleHit triangleHit; // reservoir sample
             //SSSSample sssSample;
-            float bssrdfPDF = 1;
+
             
             //#define USE_sss_sampling_sample_CODEPATH
             
@@ -693,8 +693,8 @@ inline bool sss_sampling_disk_sample(
                 const float3 origin = shadingData.posW + projectionFrame.n * radiusMax + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
             
                 const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-                const float tMin = 0; //radiusMax - sphereFraction;
-                const float tMax = 2 * radiusMax; // + sphereFraction;
+                const float tMin = radiusMax - sphereFraction;
+                const float tMax = radiusMax + sphereFraction;
 
                 
                 RayDesc ray;
@@ -760,23 +760,27 @@ inline bool sss_sampling_disk_sample(
                     scatterResult.position = originalPosition;
                     scatterResult.IsSss = true;
             //
-                    float intersectionPDF = 1.f / numIntersections;
                     bsdf.data.sssPosition = sssNearbyPosition;
                     bsdf.data.position = originalPosition;
-                    bsdf.data.bssrdfPDF = 1; //bssrdfPDF;
+
+                    float intersectionPDF = 1.f / numIntersections;
+                    bsdf.data.intersectionPDF = intersectionPDF;
+                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, bsdf.data.sssMfp);
+                    bsdf.data.bssrdfPDF = bssrdfPDF;
                 }
-                else
+                else // numIntersections == 0
                 {
-                    bsdf.data.sssMfp = float3(0, 0, 0);
+                    //bsdf.data.sssMfp = float3(0, 0, 0);
                     bsdf.data.sssPosition = bsdf.data.position;
-                    bsdf.data.bssrdfPDF = 1;
+                    bsdf.data.bssrdfPDF = FLT_MAX;
                 }
             }
-            else
+            else // radius > radiusMax
             {
-                bsdf.data.sssMfp = float3(0, 0, 0);
+                
+                    //bsdf.data.sssMfp = float3(0, 0, 0);
                     bsdf.data.sssPosition = bsdf.data.position;
-                    bsdf.data.bssrdfPDF = 1;
+                    bsdf.data.bssrdfPDF = FLT_MAX;
             }
        #else 
         // need to check what's wrong, didn't find sssNearbyPosition
@@ -876,9 +880,10 @@ inline bool sss_sampling_disk_sample(
             else if ( numIntersections == 1 )
                 showNumIntersection = float3( 0,0,1);
 
-            //float3(1.f/numIntersections,1.f/numIntersections,0) : float3(0,0,1);
-            float oneOverNumIntersection = 1.f / numIntersections;
-            float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
+            float bssrdfPDF = bsdf.data.bssrdfPDF;
+            float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(bssrdfPDF) );
+            //float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
+            
             //DebugContext debug = workingContext.debug;
             switch ( g_Const.debug.debugViewType )
             {
