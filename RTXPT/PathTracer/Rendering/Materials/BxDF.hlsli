@@ -419,23 +419,12 @@ struct BssrdfDiffuseReflection
 
         float3 bssrdf = albedo * diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
 
-        //const float cosAtSurface = max(0, dot(sssNnormal, -lightToSurfaceNormalized));
         float cosAtSurface = wo.z; // wo.z is dot(N,L)
         if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
 
-        //return (float3)(0.1) / ( intersectionPDF );
-        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
-        //return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
-        
-        // RD note:
-        // ref  bssrdf * bsdf * cosAtSurface * lightEmission / (bssrdfPDF * bssrdfIntersectionPDF * lightPDF);
-        // 1) float bssrdfIntersectionPDF = 1; // if rayquery count = 1;
-        // 2) lightEmission / lightPDF is multiplied outside of the function
-        // 
-        // simplify to
-        // bssrdf * bsdf * cosAtSurface / bssrdfPDF
+        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
