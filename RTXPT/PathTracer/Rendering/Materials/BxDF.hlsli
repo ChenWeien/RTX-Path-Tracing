@@ -425,7 +425,9 @@ struct BssrdfDiffuseReflection
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
 
-        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
+        //return (float3)(0.1) / ( intersectionPDF );
+        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
+        //return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
         
         // RD note:
         // ref  bssrdf * bsdf * cosAtSurface * lightEmission / (bssrdfPDF * bssrdfIntersectionPDF * lightPDF);

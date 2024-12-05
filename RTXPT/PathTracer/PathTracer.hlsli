@@ -880,6 +880,8 @@ inline bool sss_sampling_disk_sample(
             else if ( numIntersections == 1 )
                 showNumIntersection = float3( 0,0,1);
 
+            float intersectionPDF = bsdf.data.intersectionPDF;
+            float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;
             float bssrdfPDF = bsdf.data.bssrdfPDF;
             float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(bssrdfPDF) );
             //float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
@@ -888,7 +890,7 @@ inline bool sss_sampling_disk_sample(
             switch ( g_Const.debug.debugViewType )
             {
                 //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( visualizeDistance ); break;
+                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showIntersectionPDF.rrr, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( scatterResult.sssDistance ) ), 1.0 ) ); break;
