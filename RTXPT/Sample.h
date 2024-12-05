@@ -73,7 +73,7 @@ private:
     std::shared_ptr<donut::engine::ExtendedScene>   m_Scene;
     double                                      m_SceneTime = 0.;           // if m_ui.LoopLongestAnimation then it loops with longest animation
     uint                                        m_SelectedCameraIndex = 0;  // 0 is first person camera, the rest (if any) are scene cameras
-    uint m_SelectedCameraOperation = 0; // 0 - first person camera, 1 - third person camera
+    uint m_SelectedCameraOperation = 1; // 0 - first person camera, 1 - third person camera
     uint m_CurrentCameraOperation = 0;
 
 
