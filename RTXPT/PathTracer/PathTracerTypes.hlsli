@@ -239,12 +239,8 @@ namespace PathTracer
         bool    Valid;
         bool    IsDelta;
         bool    IsTransmission;
-        bool    IsSss;
         float   Pdf;
         float3  Dir;
-        float3  position;
-        float3  sssDistance;
-        float3  sssPosition;
         
         static ScatterResult empty() 
         { 
@@ -252,12 +248,8 @@ namespace PathTracer
             ret.Valid = false; 
             ret.IsDelta = false; 
             ret.IsTransmission = false; 
-            ret.IsSss = false;
             ret.Pdf = 0.0; 
             ret.Dir = float3(0,0,0); 
-            ret.position = float3(0,0,0);
-            ret.sssDistance = 0;
-            ret.sssPosition = float3(0,0,0);
             return ret; 
         }
     };

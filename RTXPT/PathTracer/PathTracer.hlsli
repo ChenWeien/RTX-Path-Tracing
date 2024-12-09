@@ -630,7 +630,6 @@ inline bool sss_sampling_disk_sample(
         ScatterResult scatterResult;
         const PathState preScatterPath = path;
         scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        scatterResult.position = shadingData.posW;
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
@@ -753,11 +752,6 @@ inline bool sss_sampling_disk_sample(
                     sssDistance = sssNearbyPosition - originalPosition;
                     sssNearbyPosition = sssNearbyPosition;
                 
-                    scatterResult.sssPosition = sssNearbyPosition;//TODO:remove
-                    scatterResult.sssDistance = sssNearbyPosition - originalPosition;//TODO:remove
-                    scatterResult.position = originalPosition;//TODO:remove
-                    scatterResult.IsSss = true;//TODO:remove
-            //
                     bsdf.data.sssPosition = sssNearbyPosition;
                     bsdf.data.position = originalPosition;
 
@@ -821,11 +815,6 @@ inline bool sss_sampling_disk_sample(
 
                 sssNearbyPosition = sssSample.position;
                 sssDistance = sssSample.position - originalPosition;
-                
-                scatterResult.sssDistance = sssSample.position - originalPosition; //TODO:remove
-                scatterResult.sssPosition = sssSample.position; //TODO:remove
-                scatterResult.position = shadingData.posW; //TODO:remove
-                scatterResult.IsSss = true; //TODO:remove
             
                 bsdf.data.sssPosition = sssSample.position;
                 bsdf.data.position = originalPosition;
@@ -891,10 +880,10 @@ inline bool sss_sampling_disk_sample(
                 case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showIntersectionPDF.rrr, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( scatterResult.sssDistance ) ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( scatterResult.position ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDistanceLength.rrr ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterResult.sssDistance ).xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( isValidSssSample.xxx, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDiffusionProfile ) ), 1.0 ) ); break;
