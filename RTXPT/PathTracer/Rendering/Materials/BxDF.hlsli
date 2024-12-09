@@ -127,13 +127,37 @@ struct SSSInfo
 
 struct SSSSample
 {
-    int objectDescriptorId;
+    uint objectDescriptorId;
     int triangleId;
     float2 barycentrics;
-    float3 position; // to check in world or local ?
+    float3 position; // in world
     float3 geometricNormal;
     float3 normal;
     uint intersection;
+    static SSSSample makeZero()
+    {
+        SSSSample ret;
+        ret.objectDescriptorId = INVALID_UINT_VALUE;
+        ret.triangleId = INVALID_UINT_VALUE;
+        ret.barycentrics = float2(0, 0);
+        ret.position = float3(0, 0, 0);
+        ret.geometricNormal = float3(0, 0, 0);
+        ret.normal = float3(0, 0, 0);
+        ret.intersection = INVALID_UINT_VALUE;
+        return ret;
+    }
+    static SSSSample make( float2 bary, float3 pos, float3 normal, float3 geometricNormal, uint instanceID, uint primitiveID, uint intersection )
+    {
+        SSSSample ret;
+        ret.objectDescriptorId = instanceID;
+        ret.triangleId = primitiveID;
+        ret.barycentrics = bary;
+        ret.position = pos;
+        ret.geometricNormal = geometricNormal;
+        ret.normal = normal;
+        ret.intersection = intersection;
+        return ret;
+    }
 };
 
 struct BSDFFrame
@@ -424,7 +448,11 @@ struct BssrdfDiffuseReflection
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
 
+    //*
         return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
+    /*/
+        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
+    //*/
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)

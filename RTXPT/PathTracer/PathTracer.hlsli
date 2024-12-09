@@ -371,14 +371,16 @@ namespace PathTracer
 
 inline bool sss_sampling_disk_sample(
         const WorkingContext workingContext,
-        inout SampleGenerator sampleGenerator, 
+        inout SampleGenerator sampleGenerator,
+        in const uniform OptimizationHints optimizationHints,
+        in const PathState path,
         in float3 sssPosition, 
         in float3 origin, 
         in float3 direction, 
         in float tMin, 
         in float tMax, 
         out TriangleHit triangleHit,
-        out SSSSample sssSample, 
+        inout SSSSample sssSample, 
         out float pdf) 
 {
     uint chosenIntersection = 0;
@@ -387,10 +389,8 @@ inline bool sss_sampling_disk_sample(
     // Weighted reservoir sampling - choose an intersection with probability 1/numIntersections
     float weightTotal = 0.0;
     float weightNew = 1.0;
-    int wrsTriangleID = 0;
-    float2 wrsBarycentrics = float2(0, 0);
+    //triangleHit contains wrsTriangleID, wrsBarycentrics, wrsObjectDescriptorId
     float wrsWeight = 0;
-    uint wrsObjectDescriptorId = 0;
 
     // Create ray description
     RayDesc ray;
@@ -405,42 +405,40 @@ inline bool sss_sampling_disk_sample(
 
 
     // Traverse acceleration structure
-    while (rayQuery.Proceed()) {
-        const int nextTriangleID = rayQuery.CandidatePrimitiveIndex();
-        const float2 nextBarycentrics = rayQuery.CandidateTriangleBarycentrics();
-        
-        // Weighted reservoir sampling
-        if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal)) {
-            //wrsObjectDescriptorId = rayQuery.CandidateInstanceID();
-            wrsTriangleID = nextTriangleID;
-            wrsBarycentrics = nextBarycentrics;
-            chosenIntersection = numIntersections;
-            wrsWeight = weightNew;
+    while (rayQuery.Proceed())
+    {
+        if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
+        {
+            numIntersections++;
+            // Weighted reservoir sampling
+            if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
+            {
+                triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
+                triangleHit.primitiveIndex = rayQuery.CandidatePrimitiveIndex();
+                triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics();
+                wrsWeight = weightNew;
+                chosenIntersection = numIntersections;
+            }
+            weightTotal += weightNew;
+            //break; // force numIntersections = 1
         }
-        
-        weightTotal += weightNew;
-        numIntersections++;
-        
-        ray.TMax = rayQuery.CandidateTriangleRayT();    // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
-        //triangleHit.instanceID      = GeometryInstanceID::make( rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex() );
-        //triangleHit.primitiveIndex  = rayQuery.CommittedPrimitiveIndex();
-        //triangleHit.barycentrics    = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
-        triangleHit = TriangleHit::make( rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex(), rayQuery.CandidatePrimitiveIndex(), rayQuery.CandidateTriangleBarycentrics() );
-
-        //break; // force numIntersections = 1
     }
     pdf = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
-        sssSample.objectDescriptorId = wrsObjectDescriptorId;
-        sssSample.triangleId = wrsTriangleID;
-        sssSample.barycentrics = wrsBarycentrics;
+        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
+            
+        sssSample = SSSSample::make( 
+            triangleHit.barycentrics,
+            bridgedData.shadingData.posW, 
+            bridgedData.shadingData.N,
+            bridgedData.shadingData.faceN,
+            triangleHit.instanceID.getInstanceIndex(),
+            triangleHit.primitiveIndex,
+            chosenIntersection );
 
-        Bridge::loadSurfacePosNormOnly(sssSample.position, sssSample.geometricNormal, triangleHit, workingContext.debug);
-        sssSample.normal = sssSample.geometricNormal;
-
-        sssSample.intersection = chosenIntersection;
-        pdf = wrsWeight / weightTotal;
+        //pdf = wrsWeight / weightTotal;
+        pdf = 1.f / numIntersections;
         return true;
     }
 
@@ -451,6 +449,8 @@ inline bool sss_sampling_disk_sample(
     #if 1
     bool sss_sampling_sample( const WorkingContext workingContext,
                             inout SampleGenerator sampleGenerator, 
+                            in const uniform OptimizationHints optimizationHints,
+                            in const PathState path,
                             in const BSDFFrame frame, 
                              in const BSDFFrame projectionFrame, 
                              in const SSSInfo sssInfo, 
@@ -483,7 +483,7 @@ inline bool sss_sampling_disk_sample(
 
         if (sssInfo.intersection == INVALID_UINT_VALUE)
         {
-            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
+            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, path, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
             {
                 return false;
             }
@@ -627,7 +627,6 @@ inline bool sss_sampling_disk_sample(
         return;
 #endif 
         
-        SSSSample sssSample;
         ScatterResult scatterResult;
         const PathState preScatterPath = path;
         scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
@@ -674,10 +673,10 @@ inline bool sss_sampling_disk_sample(
 
             float3 sssSampleRaydir = -projectionFrame.n;
             TriangleHit triangleHit; // reservoir sample
-            //SSSSample sssSample;
+            SSSSample sssSample = SSSSample::makeZero();
 
             
-            //#define USE_sss_sampling_sample_CODEPATH
+         #define USE_sss_sampling_sample_CODEPATH
             
          #ifndef USE_sss_sampling_sample_CODEPATH
             //float radius = sampleNext1D(sampleGenerator) * MAX_SS_RADIUS;
@@ -754,10 +753,10 @@ inline bool sss_sampling_disk_sample(
                     sssDistance = sssNearbyPosition - originalPosition;
                     sssNearbyPosition = sssNearbyPosition;
                 
-                    scatterResult.sssPosition = sssNearbyPosition;
-                    scatterResult.sssDistance = sssNearbyPosition - originalPosition;
-                    scatterResult.position = originalPosition;
-                    scatterResult.IsSss = true;
+                    scatterResult.sssPosition = sssNearbyPosition;//TODO:remove
+                    scatterResult.sssDistance = sssNearbyPosition - originalPosition;//TODO:remove
+                    scatterResult.position = originalPosition;//TODO:remove
+                    scatterResult.IsSss = true;//TODO:remove
             //
                     bsdf.data.sssPosition = sssNearbyPosition;
                     bsdf.data.position = originalPosition;
@@ -773,6 +772,7 @@ inline bool sss_sampling_disk_sample(
                     //bsdf.data.sssMfp = float3(0, 0, 0);
                     bsdf.data.sssPosition = bsdf.data.position;
                     bsdf.data.bssrdfPDF = FLT_MAX;
+                    isValidSssSample = false;
                 }
             }
             else // radius > radiusMax
@@ -781,15 +781,18 @@ inline bool sss_sampling_disk_sample(
                     //bsdf.data.sssMfp = float3(0, 0, 0);
                     bsdf.data.sssPosition = bsdf.data.position;
                     bsdf.data.bssrdfPDF = FLT_MAX;
+                    isValidSssSample = false;
             }
        #else 
-        // need to check what's wrong, didn't find sssNearbyPosition
+
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
 
             float bssrdfIntersectionPDF = 0;
-            if (!sss_sampling_sample(workingContext, sampleGenerator, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
+            if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
-                bsdf.data.sssMfp = float3(0,0,0);
+                //bsdf.data.sssMfp = float3(0,0,0);
+                bsdf.data.bssrdfPDF = FLT_MAX;
+                bsdf.data.sssPosition = bsdf.data.position;
                 isValidSssSample = false;
             }
             else
@@ -812,29 +815,24 @@ inline bool sss_sampling_disk_sample(
                 const uint vertexIndex = path.getVertexIndex();
                 //const TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
-                bsdf = bridgedData.bsdf;
-            
                 sssDistanceLength = distance( sssSample.position, originalPosition );
-            
-                //if ( sssDistanceLength > 0.000001f )
-                {
-                    sssNearbyPosition = sssSample.position;
-                    sssDistance = sssSample.position - originalPosition;
-                    
-                    scatterResult.sssDistance = sssSample.position - originalPosition;
-                    scatterResult.sssPosition = sssSample.position;
-                    scatterResult.position = shadingData.posW;
-                    scatterResult.IsSss = true;
-            
-                    bsdf.data.sssPosition = sssSample.position;
-                    bsdf.data.position = originalPosition;
-                    bsdf.data.bssrdfPDF = bssrdfPDF;
-                }
-                shadingData = bridgedData.shadingData;
-                // test sssMfp is working
-                //bsdf.data.diffuse = bsdf.data.sssMfp;
-                //bridgedData.bsdf.data.diffuse = bridgedData.bsdf.data.sssMfp;
                 
+                bsdf = bridgedData.bsdf;
+
+                sssNearbyPosition = sssSample.position;
+                sssDistance = sssSample.position - originalPosition;
+                
+                scatterResult.sssDistance = sssSample.position - originalPosition; //TODO:remove
+                scatterResult.sssPosition = sssSample.position; //TODO:remove
+                scatterResult.position = shadingData.posW; //TODO:remove
+                scatterResult.IsSss = true; //TODO:remove
+            
+                bsdf.data.sssPosition = sssSample.position;
+                bsdf.data.position = originalPosition;
+                bsdf.data.bssrdfPDF = bssrdfPDF;
+                bsdf.data.intersectionPDF = bssrdfIntersectionPDF;
+
+                shadingData = bridgedData.shadingData;
             }
        #endif
         }
