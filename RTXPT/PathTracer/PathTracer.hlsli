@@ -763,8 +763,8 @@ inline bool sss_sampling_disk_sample(
 
                     float intersectionPDF = 1.f / numIntersections;
                     bsdf.data.intersectionPDF = intersectionPDF;
-                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.N, bsdf.data.sssMfp);
-                    //bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, bsdf.data.sssMfp);
+                    //bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.N, scatterDistance);
+                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, scatterDistance);
                     bsdf.data.bssrdfPDF = bssrdfPDF;
                 }
                 else // numIntersections == 0
