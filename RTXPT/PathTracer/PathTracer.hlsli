@@ -720,7 +720,6 @@ inline bool sss_sampling_disk_sample(
                 weightTotal = 0;
                 float weightNew = 1.f; // intersect : 1, else 0
                 float reservoirWeight = 0;
-                float reservoirRayT = FLT_MAX;
 
                 rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, ray);
                 while (rayQuery.Proceed())
@@ -735,7 +734,6 @@ inline bool sss_sampling_disk_sample(
                         numIntersections += 1;
                         if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
                         {
-                            reservoirRayT = rayQuery.CandidateTriangleRayT(); // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
                             triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
                             triangleHit.primitiveIndex = rayQuery.CandidatePrimitiveIndex();
                             triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
