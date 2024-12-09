@@ -380,7 +380,7 @@ inline bool sss_sampling_disk_sample(
         in float tMin, 
         in float tMax, 
         out TriangleHit triangleHit,
-        inout SSSSample sssSample, 
+        out SSSSample sssSample, 
         out float pdf) 
 {
     uint chosenIntersection = 0;
