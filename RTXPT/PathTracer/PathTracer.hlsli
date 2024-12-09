@@ -374,6 +374,7 @@ inline bool sss_sampling_disk_sample(
         inout SampleGenerator sampleGenerator,
         in const uniform OptimizationHints optimizationHints,
         in const PathState path,
+        in const GeometryInstanceID geometryInstanceID,
         in float3 sssPosition, 
         in float3 origin, 
         in float3 direction, 
@@ -409,6 +410,10 @@ inline bool sss_sampling_disk_sample(
     {
         if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
         {
+            GeometryInstanceID nextID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
+            if ( geometryInstanceID.data != nextID.data ) {
+                continue; // hit a different geometry
+            }
             numIntersections++;
             // Weighted reservoir sampling
             if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
@@ -433,7 +438,7 @@ inline bool sss_sampling_disk_sample(
             bridgedData.shadingData.posW, 
             bridgedData.shadingData.N,
             bridgedData.shadingData.faceN,
-            triangleHit.instanceID.getInstanceIndex(),
+            triangleHit.instanceID.data,
             triangleHit.primitiveIndex,
             chosenIntersection );
 
@@ -453,7 +458,7 @@ inline bool sss_sampling_disk_sample(
                             in const PathState path,
                             in const BSDFFrame frame, 
                              in const BSDFFrame projectionFrame, 
-                             in const SSSInfo sssInfo, 
+                             in const SSSInfo sssInfo,
                              in const uint channel, 
                              in const float xiRadius, 
                              in const float xiAngle, 
@@ -483,7 +488,10 @@ inline bool sss_sampling_disk_sample(
 
         if (sssInfo.intersection == INVALID_UINT_VALUE)
         {
-            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, path, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
+            GeometryInstanceID geometryInstanceID;
+            geometryInstanceID.data = sssInfo.geometryInstanceID;
+
+            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, path, geometryInstanceID, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
             {
                 return false;
             }
@@ -531,6 +539,8 @@ inline bool sss_sampling_disk_sample(
         const uint vertexIndex = path.getVertexIndex();
 
         SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, rayDir, path.rayCone, path.getVertexIndex(), workingContext.debug);
+
+        const GeometryInstanceID pixelGeometryInstanceID = triangleHit.instanceID;
 
 #if PATH_TRACER_MODE==PATH_TRACER_MODE_FILL_STABLE_PLANES
         // an example of debugging RayCone data for the specific pixel selected in the UI, at the first bounce (vertex index 1)
@@ -717,6 +727,11 @@ inline bool sss_sampling_disk_sample(
                 {
                     if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
                     {
+                        GeometryInstanceID nextGeometryInstanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
+                        if ( pixelGeometryInstanceID.data != nextGeometryInstanceID.data )
+                        {
+                            continue;
+                        }
                         numIntersections += 1;
                         if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
                         {
@@ -779,7 +794,7 @@ inline bool sss_sampling_disk_sample(
             }
        #else 
 
-            SSSInfo sssInfo = SSSInfo::make(shadingData.posW, 0, scatterDistance, INVALID_UINT_VALUE);
+            SSSInfo sssInfo = SSSInfo::make(shadingData.posW, pixelGeometryInstanceID.data, scatterDistance, INVALID_UINT_VALUE);
 
             float bssrdfIntersectionPDF = 0;
             if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))

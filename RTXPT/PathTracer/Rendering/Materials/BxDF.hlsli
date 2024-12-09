@@ -111,14 +111,14 @@ struct DiffuseReflectionLambert // : IBxDF
 struct SSSInfo
 {
     float3 position;
-    int objectDescriptorId;
+    uint geometryInstanceID;
     float3 scatterDistance;
     uint intersection;
-    static SSSInfo make( float3 p, int id, float3 dist, uint intersect)
+    static SSSInfo make( float3 p, uint geometryInstanceID, float3 dist, uint intersect)
     {
         SSSInfo ret;
         ret.position = p;
-        ret.objectDescriptorId = id;
+        ret.geometryInstanceID = geometryInstanceID;
         ret.scatterDistance = dist;
         ret.intersection = intersect;
         return ret;
@@ -127,7 +127,7 @@ struct SSSInfo
 
 struct SSSSample
 {
-    uint objectDescriptorId;
+    uint geometryInstanceID;
     int triangleId;
     float2 barycentrics;
     float3 position; // in world
@@ -137,8 +137,8 @@ struct SSSSample
     static SSSSample makeZero()
     {
         SSSSample ret;
-        ret.objectDescriptorId = INVALID_UINT_VALUE;
-        ret.triangleId = INVALID_UINT_VALUE;
+        ret.geometryInstanceID = 0;
+        ret.triangleId = 0;
         ret.barycentrics = float2(0, 0);
         ret.position = float3(0, 0, 0);
         ret.geometricNormal = float3(0, 0, 0);
@@ -146,10 +146,10 @@ struct SSSSample
         ret.intersection = INVALID_UINT_VALUE;
         return ret;
     }
-    static SSSSample make( float2 bary, float3 pos, float3 normal, float3 geometricNormal, uint instanceID, uint primitiveID, uint intersection )
+    static SSSSample make( float2 bary, float3 pos, float3 normal, float3 geometricNormal, uint geometryInstanceID, uint primitiveID, uint intersection )
     {
         SSSSample ret;
-        ret.objectDescriptorId = instanceID;
+        ret.geometryInstanceID = geometryInstanceID;
         ret.triangleId = primitiveID;
         ret.barycentrics = bary;
         ret.position = pos;
