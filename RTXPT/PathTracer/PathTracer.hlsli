@@ -647,10 +647,9 @@ inline bool sss_sampling_disk_sample(
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
-        float sssDistanceLength = 0;
         float3 scatterDistance = 0; 
         float3 sssDiffusionProfile = 0;
-        float3 sssDistance = float3(0,0,0);
+        float3 sssDistanceVector = float3(0,0,0);
         float3 originalPosition = shadingData.posW;
 
         uint numIntersections = 0;
@@ -745,7 +744,7 @@ inline bool sss_sampling_disk_sample(
                     bsdf = bridgedData.bsdf;
 
                     sssNearbyPosition = shadingData.posW; // = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                    sssDistance = sssNearbyPosition - originalPosition;
+                    sssDistanceVector = sssNearbyPosition - originalPosition;
                     sssNearbyPosition = sssNearbyPosition;
                 
                     bsdf.data.sssPosition = sssNearbyPosition;
@@ -797,8 +796,7 @@ inline bool sss_sampling_disk_sample(
 
                 // set debug info
                 sssNearbyPosition = sssSample.position;
-                sssDistance = sssSample.position - originalPosition;
-                sssDistanceLength = length(sssDistance);
+                sssDistanceVector = sssSample.position - originalPosition;
 
                 if ( bssrdfIntersectionPDF == 0 ) {
                     numIntersections = 0;
@@ -856,6 +854,7 @@ inline bool sss_sampling_disk_sample(
             else if ( numIntersections == 1 )
                 showNumIntersection = float3( 0,0,1);
 
+            const float sssDistanceLength = length( sssDistanceVector );
             float intersectionPDF = bsdf.data.intersectionPDF;
             float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;
             float bssrdfPDF = bsdf.data.bssrdfPDF;
@@ -869,7 +868,7 @@ inline bool sss_sampling_disk_sample(
                 case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showIntersectionPDF.rrr, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDistanceLength.rrr ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( sssDistanceLength.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
