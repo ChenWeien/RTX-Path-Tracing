@@ -442,16 +442,16 @@ inline bool sss_sampling_disk_sample(
             triangleHit.primitiveIndex,
             chosenIntersection );
 
-        //pdf = wrsWeight / weightTotal;
-        pdf = 1.f / numIntersections;
+        pdf = wrsWeight / weightTotal;
+        //pdf = 1.f / numIntersections;
         return true;
     }
 
     return false;
 }
 
-    
-    #if 1
+
+
     bool sss_sampling_sample( const WorkingContext workingContext,
                             inout SampleGenerator sampleGenerator, 
                             in const uniform OptimizationHints optimizationHints,
@@ -509,8 +509,7 @@ inline bool sss_sampling_disk_sample(
 
         return true;
     }
-    
-#endif
+
     // supports only TriangleHit for now; more to be added when needed
     inline void HandleHit(const uniform OptimizationHints optimizationHints, inout PathState path, const float3 rayOrigin, const float3 rayDir, const float rayTCurrent, const WorkingContext workingContext)
     {
