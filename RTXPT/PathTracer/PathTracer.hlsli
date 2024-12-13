@@ -719,6 +719,9 @@ inline bool sss_sampling_disk_sample(
                         {
                             continue;
                         }
+                        if ( false == rayQuery.CandidateTriangleFrontFace() ) {
+                            continue;
+                        }
                         numIntersections += 1;
                         if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
                         {
