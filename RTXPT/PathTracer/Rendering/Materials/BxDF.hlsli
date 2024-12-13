@@ -176,6 +176,10 @@ float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const floa
 }
 
 uint sss_sampling_axis_index(in const float xiAxis) {
+    //*/
+    return 0;
+    /*/
+    faceting on CC head, https://app.asana.com/0/1208704467141427/1208971573306148
     if (xiAxis < SSS_SAMPLING_DISK_AXIS_0_WEIGHT) {
         return 0;
     } else if (xiAxis < (SSS_SAMPLING_DISK_AXIS_0_WEIGHT + SSS_SAMPLING_DISK_AXIS_1_WEIGHT)) {
@@ -183,6 +187,7 @@ uint sss_sampling_axis_index(in const float xiAxis) {
     } else {
         return 2;
     }
+    //*/
 }
 void sss_sampling_axis(in const uint axis, in const BSDFFrame frame, out BSDFFrame projectionFrame) {
     if (axis == 0) {
