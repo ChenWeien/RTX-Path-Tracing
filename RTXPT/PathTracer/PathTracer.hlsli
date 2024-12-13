@@ -414,6 +414,9 @@ inline bool sss_sampling_disk_sample(
             if ( geometryInstanceID.data != nextID.data ) {
                 continue; // hit a different geometry
             }
+            if ( false == rayQuery.CandidateTriangleFrontFace() ) {
+                continue; // skip back face
+            }
             numIntersections++;
             // Weighted reservoir sampling
             if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
@@ -865,9 +868,9 @@ inline bool sss_sampling_disk_sample(
             switch ( g_Const.debug.debugViewType )
             {
                 //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showIntersectionPDF.rrr, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( sssDistanceLength.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
