@@ -613,12 +613,12 @@ void Sample::SceneLoaded( )
             m_Scene->GetSceneGraph()->AttachLeafNode(m_Scene->GetSceneGraph()->GetRootNode(), envLight);
             m_Lights.push_back(envLight);
         }
-        m_envLight = envLight;
     }
+    m_envLight = envLight;
     if (m_envLight)
     {
         m_ui.EnvironmentMapParams.RotationXYZ.x = 0;
-        m_ui.EnvironmentMapParams.RotationXYZ.y = envLight->rotation;
+        m_ui.EnvironmentMapParams.RotationXYZ.y = m_envLight->rotation;
         m_ui.EnvironmentMapParams.RotationXYZ.z = 0;
     }
 
