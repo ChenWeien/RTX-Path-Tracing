@@ -102,6 +102,7 @@ private:
     std::string                                 m_EnvMapLocalPath;
     std::shared_ptr<EnvMapBaker>                m_EnvMapBaker;
     EnvMapSceneParams                           m_EnvMapSceneParams;
+    std::shared_ptr<donut::engine::EnvironmentLight> m_envLight;
 
 #if USE_PRECOMPUTED_SOBOL_BUFFER
     nvrhi::BufferHandle                         m_PrecomputedSobolBuffer;

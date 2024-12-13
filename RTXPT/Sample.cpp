@@ -613,6 +613,13 @@ void Sample::SceneLoaded( )
             m_Scene->GetSceneGraph()->AttachLeafNode(m_Scene->GetSceneGraph()->GetRootNode(), envLight);
             m_Lights.push_back(envLight);
         }
+        m_envLight = envLight;
+    }
+    if (m_envLight)
+    {
+        m_ui.EnvironmentMapParams.RotationXYZ.x = 0;
+        m_ui.EnvironmentMapParams.RotationXYZ.y = envLight->rotation;
+        m_ui.EnvironmentMapParams.RotationXYZ.z = 0;
     }
 
     // setup camera - just load the last from the scene if available
@@ -679,6 +686,31 @@ void Sample::SceneLoaded( )
 bool Sample::KeyboardUpdate(int key, int scancode, int action, int mods) 
 {
     m_pCamera->KeyboardUpdate(key, scancode, action, mods);
+
+    std::shared_ptr<EnvironmentLight> envLight = FindEnvironmentLight(m_Lights);
+    if (m_envLight != nullptr)
+    {
+        bool dirty = false;
+        if (key == GLFW_KEY_Z && action == GLFW_PRESS)
+        {
+            m_ui.EnvironmentMapParams.RotationXYZ.y = m_ui.EnvironmentMapParams.RotationXYZ.y + 5.0f;
+            m_ui.EnvironmentMapParams.RotationXYZ.y = (m_ui.EnvironmentMapParams.RotationXYZ.y > 180) ? m_ui.EnvironmentMapParams.RotationXYZ.y - 360 : m_ui.EnvironmentMapParams.RotationXYZ.y;
+
+            dirty = true;
+        }
+        if (key == GLFW_KEY_C && action == GLFW_PRESS)
+        {
+            m_ui.EnvironmentMapParams.RotationXYZ.y = m_ui.EnvironmentMapParams.RotationXYZ.y - 5.0f;
+            m_ui.EnvironmentMapParams.RotationXYZ.y = (m_ui.EnvironmentMapParams.RotationXYZ.y < -180) ? m_ui.EnvironmentMapParams.RotationXYZ.y + 360 : m_ui.EnvironmentMapParams.RotationXYZ.y;
+
+            dirty = true;
+        }
+        if (dirty)
+        {
+            m_Scene->GetSceneGraph()->GetRootNode()->InvalidateContent();
+            m_ui.ResetAccumulation = 1;
+        }
+    }
 
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
     {
