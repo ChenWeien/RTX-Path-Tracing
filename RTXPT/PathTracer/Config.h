@@ -46,7 +46,7 @@
 
 // there's a significant cost to enabling these; #ifdef _DEBUG unfortunately doesn't work because it's never defined for shaders :(
 #define ENABLE_DEBUG_VIZUALISATION              1       // added cost is over 5%, affects everything except debug lines
-#define ENABLE_DEBUG_LINES_VIZUALISATION        0       // separate switch for debug lines since they're rather costly - about 3% (requires ENABLE_DEBUG_VIZUALISATION)
+#define ENABLE_DEBUG_LINES_VIZUALISATION        1       // separate switch for debug lines since they're rather costly - about 3% (requires ENABLE_DEBUG_VIZUALISATION)
 #define ENABLE_DEBUG_DELTA_TREE_VIZUALISATION   0       // added cost can be over 10%; requires ENABLE_DEBUG_VIZUALISATION to be enabled < !!!! currently disabled because it's buggy - needs a refactor
 #define ENABLE_DEBUG_RTXDI_VIZUALISATION        0       // added cost is ~5%; requires ENABLE_DEBUG_VIZUALISATION to be enabled
 

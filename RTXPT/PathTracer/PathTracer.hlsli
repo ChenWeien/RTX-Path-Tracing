@@ -392,7 +392,7 @@ inline bool sss_sampling_disk_sample(
     float weightNew = 1.0;
     //triangleHit contains wrsTriangleID, wrsBarycentrics, wrsObjectDescriptorId
     float wrsWeight = 0;
-
+    float wrsT = 0;
     // Create ray description
     RayDesc ray;
     ray.Origin = origin;
@@ -426,6 +426,7 @@ inline bool sss_sampling_disk_sample(
                 triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics();
                 wrsWeight = weightNew;
                 chosenIntersection = numIntersections;
+                wrsT = rayQuery.CandidateTriangleRayT();
             }
             weightTotal += weightNew;
             //break; // force numIntersections = 1
@@ -434,6 +435,14 @@ inline bool sss_sampling_disk_sample(
     pdf = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
+            
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+        if( workingContext.debug.IsDebugPixel() ) {
+            workingContext.debug.DrawLine(origin, origin + direction * wrsT, float4(0, 1, 1, 1), float4(0, 0, 1, 1));
+        }
+#endif
+            
+            
         SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
             
         sssSample = SSSSample::make( 
@@ -507,7 +516,13 @@ inline bool sss_sampling_disk_sample(
                 return false;
             //}
         }
-
+        
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+        if( workingContext.debug.IsDebugPixel() ) {
+            workingContext.debug.DrawLine(sssInfo.position, sssSample.position, float4(1, 0, 0, 1), float4(1.0, 0, 0, 1));
+        }
+#endif
+        
         pdf = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.geometricNormal, sssInfo.scatterDistance);
 
         return true;
@@ -582,7 +597,7 @@ inline bool sss_sampling_disk_sample(
         ActiveBSDF bsdf   = bridgedData.bsdf;
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-        if (debugPath)
+        if (0) //(debugPath)
         {
             // IoR debugging - .x - "outside", .y - "interior", .z - frontFacing, .w - "eta" (eta is isFrontFace?outsideIoR/insideIoR:insideIoR/outsideIoR)
             // workingContext.debug.Print(path.getVertexIndex(), float4(shadingData.IoR, bridgedData.interiorIoR, shadingData.frontFacing, bsdf.data.eta) );
