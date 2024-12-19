@@ -659,6 +659,13 @@ inline bool sss_sampling_disk_sample(
         scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
+
+        bool canPerformSss = isPrimaryHit &&
+                               !path.wasScatterTransmission()
+                            && !path.wasScatterSpecular() 
+                            && !path.wasScatterDelta()
+                            && !path.isInsideDielectricVolume();
+
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
         bool isSssPixel = any(bsdf.data.sssMfp) > 0;
@@ -672,7 +679,14 @@ inline bool sss_sampling_disk_sample(
 
         uint numIntersections = 0;
         float weightTotal = 0.f;
-        if ( isSssPixel )
+        if ( isSssPixel && !canPerformSss )
+        {
+            bsdf.data.sssMfp = float3(0,0,0);
+            bsdf.data.bssrdfPDF = FLT_MAX;
+            bsdf.data.sssPosition = bsdf.data.position;
+            isValidSssSample = false;
+        }
+        if ( isSssPixel && canPerformSss )
         {
             // sample surface candidate, // find nearby SSS sample point, 
             // ref generateSampleBSSRDFWithLightSourceSampling(
