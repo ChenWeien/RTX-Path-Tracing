@@ -797,6 +797,7 @@ inline bool sss_sampling_disk_sample(
             float bssrdfIntersectionPDF = 0;
             if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
+                bsdf.data.sssMfp = float3(0,0,0);
                 bsdf.data.bssrdfPDF = FLT_MAX;
                 bsdf.data.sssPosition = bsdf.data.position;
                 isValidSssSample = false;
