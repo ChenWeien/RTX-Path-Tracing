@@ -311,6 +311,63 @@ float3 sss_diffusion_profile_scatterDistance(in const float3 surfaceAlbedo) {
     return (float3)1.9 - surfaceAlbedo + 3.5 * a * a;
 }
 
+float GetPerpendicularScalingFactor(float SurfaceAlbedo)
+{
+    // add abs() to match the formula in the original paper
+    return 1.85 - SurfaceAlbedo + 7 * pow(abs(SurfaceAlbedo - 0.8), 3);
+}
+
+float3 GetPerpendicularScalingFactor(float3 SurfaceAlbedo)
+{
+    return float3(
+        GetPerpendicularScalingFactor(SurfaceAlbedo.r),
+        GetPerpendicularScalingFactor(SurfaceAlbedo.g),
+        GetPerpendicularScalingFactor(SurfaceAlbedo.b)
+    );
+}
+
+// Method 2: Ideal diffuse transmission at the surface. More appropriate for rough surface.
+// Average relative error: 3.9% (reference to MC)
+float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
+{
+    return 1.9 - SurfaceAlbedo + 3.5 * pow(SurfaceAlbedo - 0.8, 2);
+}
+
+float3 GetDiffuseSurfaceScalingFactor(float3 SurfaceAlbedo)
+{
+    return float3(
+        GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.r),
+        GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.g),
+        GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.b)
+    );
+}
+
+// Method 3: The spectral of diffuse mean free path on the surface.
+// Average relative error: 7.7% (reference to MC)
+float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
+{
+    return 3.5 + 100 * pow(SurfaceAlbedo - 0.33, 4);
+}
+
+float3 GetSearchLightDiffuseScalingFactor(float3 SurfaceAlbedo)
+{
+    return float3(
+        GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.r),
+        GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.g),
+        GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.b)
+    );
+}
+
+float3 GetMeanFreePathFromDiffuseMeanFreePath(float3 SurfaceAlbedo, float3 DiffuseMeanFreePath)
+{
+    return DiffuseMeanFreePath * (GetPerpendicularScalingFactor(SurfaceAlbedo) / GetSearchLightDiffuseScalingFactor(SurfaceAlbedo));
+}
+
+float3 GetDiffuseMeanFreePathFromMeanFreePath(float3 SurfaceAlbedo, float3 MeanFreePath)
+{
+    return MeanFreePath * (GetSearchLightDiffuseScalingFactor(SurfaceAlbedo) / GetPerpendicularScalingFactor(SurfaceAlbedo));
+}
+
 float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
 	float3 Value = SurfaceAlbedo - 0.33;
@@ -322,6 +379,7 @@ float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
 	float3 Value = abs(SurfaceAlbedo - 0.8);
 	return 1.85 - SurfaceAlbedo + 7 * Value * Value * Value;
 }
+
 // Mathmatically matching based on diffusion coefficient instead of burley's approximation. However, it leads to incorrect result as 
 // we use burley's approximation (IOR=1.0) for screenspace diffuse scattering.
 //float3 Alpha = 1 - exp(-11.43 * SurfaceAlbedo + 15.38 * SurfaceAlbedo * SurfaceAlbedo - 13.91 * SurfaceAlbedo * SurfaceAlbedo * SurfaceAlbedo);
@@ -424,6 +482,7 @@ struct BssrdfDiffuseReflection
     float3 sssNormal;
     float3 sssDistance; // sssPosition - position
     float3 scatterDistance;
+    float3 DiffuseMeanFreePath;
     float bssrdfPDF;
     float intersectionPDF;
     
@@ -439,7 +498,15 @@ struct BssrdfDiffuseReflection
         d.pixelNormal = pixelNormal,
         d.sssMeanFreePath = sssMeanFreePath_;
         d.albedo = albedo_;
-        d.scatterDistance = d.sssMeanFreePath / sss_diffusion_profile_scatterDistance(d.albedo);
+        //d.scatterDistance = d.sssMeanFreePath / sss_diffusion_profile_scatterDistance(d.albedo);
+        
+        d.DiffuseMeanFreePath = GetDiffuseMeanFreePathFromMeanFreePath( albedo_, sssMeanFreePath_ );
+        float WorldUnitScale = 0.3f;
+        float3 SSSRadius = GetMFPFromDMFPApprox(albedo_, albedo_, WorldUnitScale * d.DiffuseMeanFreePath);
+        //sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
+        d.scatterDistance = SSSRadius; //bsdf.data.sssMeanFreePath / sssDiffusionProfile;
+        
+        
         d.sssDistance = sssDistance;
         return d;
     }

@@ -677,6 +677,8 @@ inline bool sss_sampling_disk_sample(
         float3 sssDistanceVector = float3(0,0,0);
         float3 originalPosition = shadingData.posW;
 
+        float3 DiffuseMeanFreePath = GetDiffuseMeanFreePathFromMeanFreePath( bsdf.data.diffuse, bsdf.data.sssMeanFreePath );
+        
         uint numIntersections = 0;
         float weightTotal = 0.f;
         if ( isSssPixel && !canPerformSss )
@@ -695,8 +697,19 @@ inline bool sss_sampling_disk_sample(
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
-            scatterDistance = bsdf.data.sssMeanFreePath / sssDiffusionProfile;
+            
+            
+            float3 SurfaceAlbedo = bsdf.data.diffuse;
+            float3 DiffuseColor = bsdf.data.diffuse;
+            
+            
+            
+            float WorldUnitScale = 0.3f; // RL SS profile default
+            float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor, WorldUnitScale * DiffuseMeanFreePath);
+            
+            
+            //sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
+            scatterDistance = SSSRadius; //bsdf.data.sssMeanFreePath / sssDiffusionProfile;
 
             BSDFFrame frame;
             BSDFFrame projectionFrame;
