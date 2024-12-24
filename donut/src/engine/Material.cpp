@@ -100,7 +100,7 @@ namespace donut::engine
         constants.occlusionStrength = occlusionStrength;
         constants.transmissionFactor = transmissionFactor;
         constants.diffuseTransmissionFactor = diffuseTransmissionFactor;
-        constants.sssMfp = sssMfp;
+        constants.sssMeanFreePath = sssMeanFreePath;
         switch (domain)  // NOLINT(clang-diagnostic-switch-enum)
         {
         case MaterialDomain::AlphaBlended:
@@ -166,7 +166,7 @@ namespace donut::engine
         FLOAT3_PROPERTY(baseOrDiffuseColor);
         FLOAT3_PROPERTY(specularColor);
         FLOAT3_PROPERTY(emissiveColor);
-        FLOAT3_PROPERTY(sssMfp);
+        FLOAT3_PROPERTY(sssMeanFreePath);
         FLOAT_PROPERTY(emissiveIntensity);
         FLOAT_PROPERTY(metalness);
         FLOAT_PROPERTY(roughness);

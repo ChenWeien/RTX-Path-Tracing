@@ -142,7 +142,7 @@ namespace PathTracer
         {
             float3 sssDistance = bsdf.data.sssPosition - bsdf.data.position;
             BssrdfDiffuseReflection bssrdfDiffuseReflection = BssrdfDiffuseReflection::make( bsdf.data.diffuse,
-                                                                                             bsdf.data.sssMfp,
+                                                                                             bsdf.data.sssMeanFreePath,
                                                                                              bsdf.data.pixelNormal,
                                                                                              shadingData.N,
                                                                                              sssDistance,
@@ -157,7 +157,7 @@ namespace PathTracer
             workingContext.debug.Print( 1, bsdfThpDiff );
             workingContext.debug.Print( 2, bsdfThpSpec );
             workingContext.debug.Print( 3, bsdf.data.diffuse );
-            workingContext.debug.Print( 4, bsdf.data.sssMfp );
+            workingContext.debug.Print( 4, bsdf.data.sssMeanFreePath );
             workingContext.debug.Print( 5, bssrdfDiffuseReflection.scatterDistance );
             workingContext.debug.Print( 6, sssDistance );
             workingContext.debug.Print( 7, length( sssDistance ) );

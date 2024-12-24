@@ -56,7 +56,8 @@ namespace donut::engine
         std::optional<float>        volumeAttenuationDistance;
         std::optional<dm::float3>   volumeAttenuationColor;
         std::optional<dm::float3>   baseOrDiffuseColor;
-        std::optional<dm::float3>   sssMfp;
+        std::optional<dm::float3>   sssMeanFreePathColor;
+        std::optional<float>        sssMeanFreePathDistance;
         std::optional<float>        ior;
         std::optional<float>        transmissionFactor;
         std::optional<float>        diffuseTransmissionFactor;

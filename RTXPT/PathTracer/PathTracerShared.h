@@ -20,8 +20,6 @@
 struct CPathPayloadCopy // same as PathPayload.hlsli
 {
     uint4   packed[ 6 ];
-    float3 sssMfp; // UE: sssMfp (mean free path)
-    uint isSssPath;
     float4 Lpbr;  ///< pbr bsdf in restirSSS
 };
 

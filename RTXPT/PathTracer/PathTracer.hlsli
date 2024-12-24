@@ -668,7 +668,7 @@ inline bool sss_sampling_disk_sample(
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
-        bool isSssPixel = any(bsdf.data.sssMfp) > 0;
+        bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
@@ -681,7 +681,7 @@ inline bool sss_sampling_disk_sample(
         float weightTotal = 0.f;
         if ( isSssPixel && !canPerformSss )
         {
-            bsdf.data.sssMfp = float3(0,0,0);
+            bsdf.data.sssMeanFreePath = float3(0,0,0);
             bsdf.data.bssrdfPDF = FLT_MAX;
             bsdf.data.sssPosition = bsdf.data.position;
             isValidSssSample = false;
@@ -696,7 +696,7 @@ inline bool sss_sampling_disk_sample(
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
             sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
-            scatterDistance = bsdf.data.sssMfp / sssDiffusionProfile;
+            scatterDistance = bsdf.data.sssMeanFreePath / sssDiffusionProfile;
 
             BSDFFrame frame;
             BSDFFrame projectionFrame;
@@ -811,7 +811,7 @@ inline bool sss_sampling_disk_sample(
             float bssrdfIntersectionPDF = 0;
             if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
-                bsdf.data.sssMfp = float3(0,0,0);
+                bsdf.data.sssMeanFreePath = float3(0,0,0);
                 bsdf.data.bssrdfPDF = FLT_MAX;
                 bsdf.data.sssPosition = bsdf.data.position;
                 isValidSssSample = false;

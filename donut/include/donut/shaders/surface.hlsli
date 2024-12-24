@@ -37,7 +37,7 @@ struct MaterialSample
     float metalness; // native in metal-rough, derived in spec-gloss
     float transmission;
     float diffuseTransmission;
-    float3 sssMfp;
+    float3 sssMeanFreePath;
     bool hasMetalRoughParams; // indicates that 'baseColor' and 'metalness' are valid
     float ior;
     float shadowNoLFadeout;
@@ -58,7 +58,7 @@ MaterialSample DefaultMaterialSample()
     result.metalness = 0;
     result.transmission = 0;
     result.diffuseTransmission = 0;
-    result.sssMfp = 0;
+    result.sssMeanFreePath = 0;
     result.hasMetalRoughParams = false;
     result.ior = 1.5;
     return result;
