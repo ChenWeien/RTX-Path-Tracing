@@ -116,6 +116,7 @@ namespace donut::engine
         std::shared_ptr<LoadedTexture> emissiveTexture;
         std::shared_ptr<LoadedTexture> occlusionTexture;
         std::shared_ptr<LoadedTexture> transmissionTexture; // see KHR_materials_transmission; undefined on specular-gloss materials
+        std::shared_ptr<LoadedTexture> scatterTexture; // see KHR_materials_scatter; undefined on non-SSS materials
         // std::shared_ptr<LoadedTexture> thicknessTexture; // see KHR_materials_volume (not implemented yet)
         nvrhi::BufferHandle materialConstants;
         dm::float3 baseOrDiffuseColor = 1.f; // metal-rough: base color, spec-gloss: diffuse color (if no texture present)
@@ -134,6 +135,7 @@ namespace donut::engine
         float diffuseTransmissionFactor = 0.f; // like specularTransmissionFactor, except using diffuse transmission lobe (roughness ignored)
         float normalTextureScale = 1.f;
         float occlusionStrength = 1.f;
+        float scatterStrength = 1.f;
         float ior = 1.5f; // index of refraction, see KHR_materials_ior
 
         // Toggle between two PBR models: metal-rough and specular-gloss.
@@ -147,6 +149,7 @@ namespace donut::engine
         bool enableEmissiveTexture = true;
         bool enableOcclusionTexture = true;
         bool enableTransmissionTexture = true;
+        bool enableScatterTexture = true;
 
         bool doubleSided = false;
 

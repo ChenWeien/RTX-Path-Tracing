@@ -353,6 +353,30 @@ bool GltfImporter::Load(
         return loadedTexture;
     };
 
+    auto load_scatter_texture = [this, &textureCache, executor, &fileName, objects, &vfsContext]( std::string origPath, bool sRGB )
+    {
+        std::shared_ptr<LoadedTexture> loadedTexture;
+
+        // Temp hack - for some reason something in cgltf replaces chars with %20 - revert it here but this should be fixed properly in the future
+        size_t index = 0; while ( true )
+        {
+            index = origPath.find( "%20", index ); if ( index == std::string::npos ) break;
+            origPath.replace( index, 3, " " ); index += 3;
+        }
+
+        std::filesystem::path filePath = fileName.parent_path() / origPath.c_str();
+        if ( m_fs->fileExists( filePath ) )
+        {
+#ifdef DONUT_WITH_TASKFLOW
+            if ( executor )
+                loadedTexture = textureCache.LoadTextureFromFileAsync( filePath, sRGB, *executor );
+            else
+#endif
+                loadedTexture = textureCache.LoadTextureFromFileDeferred( filePath, sRGB );
+        }
+        return loadedTexture;
+    };
+
     std::unordered_map<const cgltf_material*, std::shared_ptr<Material>> materials;
     
     for (size_t mat_idx = 0; mat_idx < objects->materials_count; mat_idx++)
@@ -439,6 +463,8 @@ bool GltfImporter::Load(
         matinfo->occlusionStrength = material.occlusion_texture.scale;
         matinfo->alphaCutoff = material.alpha_cutoff;
         matinfo->doubleSided = material.double_sided;
+
+        matinfo->scatterTexture = load_scatter_texture( "Face_Scatter map.jpg", true );
 
         switch (material.alpha_mode)
         {

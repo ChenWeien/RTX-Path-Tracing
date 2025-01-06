@@ -142,6 +142,7 @@ namespace PathTracer
         {
             float3 sssDistance = bsdf.data.sssPosition - bsdf.data.position;
             BssrdfDiffuseReflection bssrdfDiffuseReflection = BssrdfDiffuseReflection::make( bsdf.data.diffuse,
+                                                                                             bsdf.data.scatter,
                                                                                              bsdf.data.sssMfp,
                                                                                              bsdf.data.pixelNormal,
                                                                                              shadingData.N,

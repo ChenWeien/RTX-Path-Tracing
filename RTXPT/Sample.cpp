@@ -577,6 +577,7 @@ void Sample::SceneLoaded( )
         listUncompressedTextureIfNeeded( material->emissiveTexture, false );
         listUncompressedTextureIfNeeded( material->occlusionTexture, false );
         listUncompressedTextureIfNeeded( material->transmissionTexture, false );
+        listUncompressedTextureIfNeeded( material->scatterTexture, false );
     };
 
     // seem like sensible defaults
@@ -991,7 +992,8 @@ MaterialShadingProperties MaterialShadingProperties::Compute(const donut::engine
         && (!material.enableEmissiveTexture || material.emissiveTexture == nullptr)
         && (!material.enableNormalTexture || material.normalTexture == nullptr)
         && (!material.enableMetalRoughOrSpecularTexture || material.metalRoughOrSpecularTexture == nullptr)
-        && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr);
+        && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr)
+        && (!material.enableScatterTexture || material.scatterTexture == nullptr );
     static const float kMinGGXRoughness = 0.08f; // see BxDF.hlsli, kMinGGXAlpha constant: kMinGGXRoughness must match sqrt(kMinGGXAlpha)!
     props.OnlyDeltaLobes = ((props.HasTransmission && material.transmissionFactor == 1.0) || (material.metalness == 1)) && (material.roughness < kMinGGXRoughness) && !(material.enableMetalRoughOrSpecularTexture && material.metalRoughOrSpecularTexture != nullptr);
     //bool hasOnlyTransmission = (!material.enableTransmissionTexture || material.transmissionTexture == nullptr) && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
@@ -1135,7 +1137,8 @@ SubInstanceData ComputeSubInstanceData(const donut::engine::MeshInstance& meshIn
         && (!material.enableEmissiveTexture || material.emissiveTexture == nullptr)
         && (!material.enableNormalTexture || material.normalTexture == nullptr)
         && (!material.enableMetalRoughOrSpecularTexture || material.metalRoughOrSpecularTexture == nullptr)
-        && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr);
+        && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr)
+        && (!material.enableScatterTexture || material.scatterTexture == nullptr );
     bool hasNonDeltaLobes = (material.roughness > 0) || (material.enableMetalRoughOrSpecularTexture && material.metalRoughOrSpecularTexture != nullptr) || material.diffuseTransmissionFactor > 0;
     //bool hasOnlyTransmission = (!material.enableTransmissionTexture || material.transmissionTexture == nullptr) && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
 

@@ -41,6 +41,7 @@ struct MaterialTextureSample
     float4 emissive;
     float4 occlusion;
     float4 transmission;
+    float4 scatter;
 };
 
 MaterialTextureSample DefaultMaterialTextures()
@@ -52,6 +53,7 @@ MaterialTextureSample DefaultMaterialTextures()
     values.normal = float4(0.5, 0.5, 1.0, 0.0);
     values.occlusion = 1.0;
     values.transmission = 1.0;
+    values.scatter = 1.0;
     return values;
 }
 
@@ -207,7 +209,6 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
 
     result.transmission = material.transmissionFactor;
     result.diffuseTransmission = material.diffuseTransmissionFactor;
-    result.sssMfp = material.sssMfp;
     if (material.flags & MaterialFlags_UseTransmissionTexture)
     {
         result.transmission *= textures.transmission.r;
@@ -224,6 +225,13 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     result.ior = material.ior;
     
     result.shadowNoLFadeout = material.shadowNoLFadeout;
+
+    if ( material.flags & MaterialFlags_UseScatterTexture )
+    {
+        result.scatter = textures.scatter.xyz;
+    }
+    result.scatter = lerp( 0, result.scatter, material.scatterStrength );
+    result.sssMfp = material.sssMfp;
 
     return result;
 }

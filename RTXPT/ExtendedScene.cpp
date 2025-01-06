@@ -233,7 +233,7 @@ void MaterialPatch::Load(const Json::Value& node)
     node["IoR"] >> ior;
     node["specularTransmission"] >> transmissionFactor;
     node["diffuseTransmission"] >> diffuseTransmissionFactor;
-    node[ "sssMfp" ] >> sssMfp;
+    node["sssMfp"] >> sssMfp;
     node["nestedPriority"] >> nestedPriority;
     node["doubleSided"] >> doubleSided;
     node["thinSurface"] >> thinSurface;

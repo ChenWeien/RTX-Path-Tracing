@@ -262,6 +262,7 @@ std::shared_ptr<MaterialBindingCache> ForwardShadingPass::CreateMaterialBindingC
         { MaterialResource::EmissiveTexture, 3 },
         { MaterialResource::OcclusionTexture, 4 },
         { MaterialResource::TransmissionTexture, 5 },
+        { MaterialResource::ScatterTexture, 6 },
         { MaterialResource::Sampler, 0 },
     };
 

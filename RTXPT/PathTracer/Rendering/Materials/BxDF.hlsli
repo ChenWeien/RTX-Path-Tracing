@@ -417,6 +417,7 @@ void disney_bssrdf_evaluate(in const float3 normal,
 
 struct BssrdfDiffuseReflection
 {
+    float3 scatter;
     float3 sssMfp; ///< mean free path
     float3 albedo;  ///< Diffuse albedo.
     //BSDFFrame frame; ///< N, T, B
@@ -428,6 +429,7 @@ struct BssrdfDiffuseReflection
     float intersectionPDF;
     
     static BssrdfDiffuseReflection make( float3 albedo_,
+                                         float3 scatter_,
                                          float3 sssMfp_,
                                          float3 pixelNormal,
                                          float3 sssNormal,
@@ -436,7 +438,8 @@ struct BssrdfDiffuseReflection
         BssrdfDiffuseReflection d;
         d.bssrdfPDF = bssrdfPDF;
         d.intersectionPDF = intersectionPDF;
-        d.pixelNormal = pixelNormal,
+        d.pixelNormal = pixelNormal;
+        d.scatter = scatter_;
         d.sssMfp = sssMfp_;
         d.albedo = albedo_;
         d.scatterDistance = d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
@@ -461,7 +464,7 @@ struct BssrdfDiffuseReflection
     /*
         return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
     /*/
-        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
+        return scatter * M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
     //*/
     }
 
@@ -962,6 +965,7 @@ struct StandardBSDFData
     float3 specular;                ///< Specular albedo.
     float roughness;                ///< This is the original roughness, before remapping.
     float metallic;                 ///< Metallic parameter, blends between dielectric and conducting BSDFs.
+    float3 scatter;
     float3 sssMfp;                  ///< Subsurface scattering mean free path.
     float eta;                      ///< Relative index of refraction (incident IoR / transmissive IoR).
     float3 transmission;            ///< Transmission color.
@@ -983,6 +987,7 @@ struct StandardBSDFData
         d.roughness = 0;
         d.metallic = 0;
         d.eta = 0;
+        d.scatter = 1;
         d.sssMfp = 0;
         d.transmission = 0;
         d.diffuseTransmission = 0;
@@ -1058,6 +1063,7 @@ struct FalcorBSDF // : IBxDF
     //float3 _T;
     //float3 _B;
     float3 sssNormal; // sss sample point's normal vector
+    float3 scatter;
     float3 sssMfp;
     float3 sssDistance; // sssPosition - position
     float bssrdfPDF;
@@ -1087,6 +1093,7 @@ struct FalcorBSDF // : IBxDF
         //_B = B;
         sssNormal = sssSampleNormal;
         bssrdfPDF = data.bssrdfPDF;
+        scatter = data.scatter;
         sssMfp = data.sssMfp;
         sssDistance = data.sssPosition - data.position;
         intersectionPDF = data.intersectionPDF;
@@ -1212,8 +1219,9 @@ struct FalcorBSDF // : IBxDF
             float3 diffuseReflectionEval = 0;
             if ( isSss() )
             {
-                BssrdfDiffuseReflection bssrdfDiffuseReflection 
+                BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     scatter,
                                                      sssMfp,
                                                      _N,
                                                      sssNormal,
@@ -1247,6 +1255,7 @@ struct FalcorBSDF // : IBxDF
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     scatter,
                                                      sssMfp,
                                                      _N,
                                                      sssNormal,

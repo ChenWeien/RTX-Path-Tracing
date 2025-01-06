@@ -167,8 +167,9 @@ enum MaterialAttributes
     MatAttr_Normal       = 0x04,
     MatAttr_MetalRough   = 0x08,
     MatAttr_Transmission = 0x10,
+    MatAttr_Scatter      = 0x20,
 
-    MatAttr_All          = 0x1F
+    MatAttr_All          = 0x3F
 };
 
 float4 sampleTexture(uint textureIndexAndInfo, SamplerState samplerState, const ActiveTextureSampler textureSampler, float2 uv)
@@ -205,6 +206,9 @@ MaterialSample sampleGeometryMaterial(uniform PathTracer::OptimizationHints opti
             if ((attributes & MatAttr_Transmission) && (gs.material.flags & MaterialFlags_UseTransmissionTexture) != 0)
                 textures.transmission = sampleTexture(gs.material.transmissionTextureIndex, materialSampler, textureSampler, gs.texcoord);
         }
+
+        if ( ( attributes & MatAttr_Scatter ) && ( gs.material.flags & MaterialFlags_UseScatterTexture ) != 0 )
+            textures.scatter = sampleTexture( gs.material.scatterTextureIndex, materialSampler, textureSampler, gs.texcoord );
     }
 
     return EvaluateSceneMaterial(gs.geometryNormal, gs.tangent, gs.material, textures);
@@ -451,6 +455,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     d.specularTransmission = donutMaterial.transmission * (1 - donutMaterial.metalness);    // (1 - donutMaterial.metalness) is from https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md#transparent-metals
     d.diffuseTransmission = donutMaterial.diffuseTransmission * (1 - donutMaterial.metalness);    // (1 - donutMaterial.metalness) is from https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md#transparent-metals
     d.transmission = donutMaterial.baseColor;
+    d.scatter = donutMaterial.scatter;
     d.sssMfp = donutMaterial.sssMfp;
     /*LobeType*/ uint lobeType = (uint)LobeType::All;
 

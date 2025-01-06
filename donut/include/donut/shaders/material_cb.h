@@ -40,6 +40,7 @@ static const int MaterialFlags_UseOcclusionTexture              = 0x00000040;
 static const int MaterialFlags_UseTransmissionTexture           = 0x00000080;
 static const int MaterialFlags_ThinSurface                      = 0x00000100;
 static const int MaterialFlags_PSDExclude                       = 0x00000200;
+static const int MaterialFlags_UseScatterTexture                = 0x00000400;
 
 static const int MaterialFlags_NestedPriorityMask               = 0xF0000000;
 static const int MaterialFlags_NestedPriorityShift              = 28;
@@ -88,9 +89,13 @@ struct MaterialConstants
     float   diffuseTransmissionFactor;
 
     float   shadowNoLFadeout;
-    float3  sssMfp;
 
     VolumeConstants volume;
+
+    uint    scatterTextureIndex;
+    float3  scatter;
+    float   scatterStrength;
+    float3  sssMfp;
 };
 
 #endif // MATERIAL_CB_H

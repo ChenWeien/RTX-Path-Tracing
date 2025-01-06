@@ -132,6 +132,8 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     uint4 f = buffer.Load4(offset + 16 * 5);
     uint4 g = buffer.Load4(offset + 16 * 6);
     uint4 h = buffer.Load4(offset + 16 * 7);
+    uint4 i = buffer.Load4(offset + 16 * 8);
+    uint4 j = buffer.Load4(offset + 16 * 9);
 
     MaterialConstants ret;
     ret.baseOrDiffuseColor = asfloat(a.xyz);
@@ -158,6 +160,10 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.diffuseTransmissionFactor = int(g.w);
     ret.volume.attenuationColor = asfloat(h.xyz);
     ret.volume.attenuationDistance = asfloat(h.w);
+    ret.scatterTextureIndex = int( i.x );
+    ret.scatter = asfloat( i.yzw );
+    ret.scatterStrength = asfloat( j.x );
+    ret.sssMfp = asfloat( j.yzw );
 
     return ret;   
 }

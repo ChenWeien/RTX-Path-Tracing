@@ -78,6 +78,9 @@ namespace donut::engine
         if (transmissionTexture && enableTransmissionTexture)
             constants.flags |= MaterialFlags_UseTransmissionTexture;
 
+        if ( scatterTexture && enableScatterTexture )
+            constants.flags |= MaterialFlags_UseScatterTexture;
+
         if (doubleSided)
             constants.flags |= MaterialFlags_DoubleSided;
 
@@ -100,6 +103,7 @@ namespace donut::engine
         constants.occlusionStrength = occlusionStrength;
         constants.transmissionFactor = transmissionFactor;
         constants.diffuseTransmissionFactor = diffuseTransmissionFactor;
+        constants.scatterStrength = scatterStrength;
         constants.sssMfp = sssMfp;
         switch (domain)  // NOLINT(clang-diagnostic-switch-enum)
         {
@@ -150,6 +154,7 @@ namespace donut::engine
         GetBindlessTextureIndex(normalTexture, constants.normalTextureIndex, constants.flags, MaterialFlags_UseNormalTexture );
         GetBindlessTextureIndex(occlusionTexture, constants.occlusionTextureIndex, constants.flags, MaterialFlags_UseOcclusionTexture );
         GetBindlessTextureIndex(transmissionTexture, constants.transmissionTextureIndex, constants.flags, MaterialFlags_UseTransmissionTexture );
+        GetBindlessTextureIndex(scatterTexture, constants.scatterTextureIndex, constants.flags, MaterialFlags_UseScatterTexture );
 
         constants.flags |= (uint)(min(nestedPriority, kMaterialMaxNestedPriority)) << MaterialFlags_NestedPriorityShift;
         constants.flags |= (uint)(clamp(psdDominantDeltaLobe+1, 0, 7)) << MaterialFlags_PSDDominantDeltaLobeP1Shift;
@@ -176,6 +181,7 @@ namespace donut::engine
         FLOAT_PROPERTY(diffuseTransmissionFactor);
         FLOAT_PROPERTY(normalTextureScale);
         FLOAT_PROPERTY(occlusionStrength);
+        FLOAT_PROPERTY(scatterStrength);
         FLOAT_PROPERTY(ior);
         BOOL_PROPERTY(enableBaseOrDiffuseTexture);
         BOOL_PROPERTY(enableMetalRoughOrSpecularTexture);
@@ -183,6 +189,7 @@ namespace donut::engine
         BOOL_PROPERTY(enableEmissiveTexture);
         BOOL_PROPERTY(enableOcclusionTexture);
         BOOL_PROPERTY(enableTransmissionTexture);
+        BOOL_PROPERTY(enableScatterTexture);
 #undef FLOAT3_PROPERTY
 #undef FLOAT_PROPERTY
 #undef BOOL_PROPERTY
