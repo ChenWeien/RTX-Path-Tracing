@@ -163,7 +163,7 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.scatterTextureIndex = int( i.x );
     ret.scatter = asfloat( i.yzw );
     ret.scatterStrength = asfloat( j.x );
-    ret.sssMfp = asfloat( j.yzw );
+    ret.sssMeanFreePath = asfloat( j.yzw );
 
     return ret;   
 }
