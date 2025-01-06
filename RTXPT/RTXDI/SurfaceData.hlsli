@@ -404,7 +404,7 @@ PackedPathTracerSurfaceData RunCompress(PathTracerSurfaceData d)
 	c._roughnessMetallicEta = Encode_R11G11B10_FLOAT(float3(d._data.roughness, d._data.metallic, d._data.eta));
 	c._transmission = Encode_R11G11B10_FLOAT(d._data.transmission);
 	c._diffuseSpecularTransmission = Fp32ToFp16(float2(d._data.diffuseTransmission, d._data.specularTransmission));
-	c._sssMfp = Encode_R11G11B10_FLOAT(d._data.sssMfp);
+	c._sssMeanFreePath = Encode_R11G11B10_FLOAT(d._data.sssMeanFreePath);
 	return c;
 }
 
@@ -439,7 +439,7 @@ PathTracerSurfaceData RunDecompress(PackedPathTracerSurfaceData c)
 	d._data.metallic = roughnessMetallicEta.y;
 	d._data.eta = roughnessMetallicEta.z;
 	d._data.transmission = Decode_R11G11B10_FLOAT(c._transmission);
-	d._data.sssMfp       = Decode_R11G11B10_FLOAT(c._sssMfp);
+	d._data.sssMeanFreePath  = Decode_R11G11B10_FLOAT(c._sssMeanFreePath);
 	const float2 diffuseSpeculartransmission = Fp16ToFp32(c._diffuseSpecularTransmission);
 
 	d._data.diffuseTransmission = diffuseSpeculartransmission.x;

@@ -122,9 +122,9 @@ namespace donut::engine
         dm::float3 baseOrDiffuseColor = 1.f; // metal-rough: base color, spec-gloss: diffuse color (if no texture present)
         dm::float3 specularColor = 0.f; // spec-gloss: specular color
         dm::float3 emissiveColor = 0.f;
-        dm::float3 sssMfp = 0.f; // mean free path for subsurface scattering
-        dm::float3 sssMfpColor = 0.5; // mean free path Color UI, mfp = mfp Color * mfp distance
-        float sssMfpDistance = 0.1; // in cm
+        dm::float3 sssMeanFreePath = 0.f; // mean free path for subsurface scattering
+        dm::float3 sssMeanFreePathColor = 0.5; // mean free path Color UI, mfp = mfp Color * mfp distance
+        float sssMeanFreePathDistance = 0.1; // in cm
         bool isSss = true; // enable subsurface scattering
         float emissiveIntensity = 1.f; // additional multiplier for emissiveColor
         float metalness = 0.f; // metal-rough only

@@ -41,7 +41,7 @@ struct MaterialSample
     float ior;
     float shadowNoLFadeout;
     float3 scatter;
-    float3 sssMfp;
+    float3 sssMeanFreePath;
 };
 
 MaterialSample DefaultMaterialSample()
@@ -60,7 +60,7 @@ MaterialSample DefaultMaterialSample()
     result.transmission = 0;
     result.diffuseTransmission = 0;
     result.scatter = 1;
-    result.sssMfp = 0;
+    result.sssMeanFreePath = 0;
     result.hasMetalRoughParams = false;
     result.ior = 1.5;
     return result;

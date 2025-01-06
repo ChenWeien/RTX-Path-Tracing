@@ -418,7 +418,7 @@ void disney_bssrdf_evaluate(in const float3 normal,
 struct BssrdfDiffuseReflection
 {
     float3 scatter;
-    float3 sssMfp; ///< mean free path
+    float3 sssMeanFreePath; ///< mean free path
     float3 albedo;  ///< Diffuse albedo.
     //BSDFFrame frame; ///< N, T, B
     float3 pixelNormal;
@@ -430,7 +430,7 @@ struct BssrdfDiffuseReflection
     
     static BssrdfDiffuseReflection make( float3 albedo_,
                                          float3 scatter_,
-                                         float3 sssMfp_,
+                                         float3 sssMeanFreePath_,
                                          float3 pixelNormal,
                                          float3 sssNormal,
                                          float3 sssDistance, float bssrdfPDF, float intersectionPDF )
@@ -440,9 +440,9 @@ struct BssrdfDiffuseReflection
         d.intersectionPDF = intersectionPDF;
         d.pixelNormal = pixelNormal;
         d.scatter = scatter_;
-        d.sssMfp = sssMfp_;
+        d.sssMeanFreePath = sssMeanFreePath_;
         d.albedo = albedo_;
-        d.scatterDistance = d.sssMfp / sss_diffusion_profile_scatterDistance(d.albedo);
+        d.scatterDistance = d.sssMeanFreePath / sss_diffusion_profile_scatterDistance(d.albedo);
         d.sssDistance = sssDistance;
         return d;
     }
@@ -966,7 +966,7 @@ struct StandardBSDFData
     float roughness;                ///< This is the original roughness, before remapping.
     float metallic;                 ///< Metallic parameter, blends between dielectric and conducting BSDFs.
     float3 scatter;
-    float3 sssMfp;                  ///< Subsurface scattering mean free path.
+    float3 sssMeanFreePath;         ///< Subsurface scattering mean free path.
     float eta;                      ///< Relative index of refraction (incident IoR / transmissive IoR).
     float3 transmission;            ///< Transmission color.
     float diffuseTransmission;      ///< Diffuse transmission, blends between diffuse reflection and transmission lobes.
@@ -988,7 +988,7 @@ struct StandardBSDFData
         d.metallic = 0;
         d.eta = 0;
         d.scatter = 1;
-        d.sssMfp = 0;
+        d.sssMeanFreePath = 0;
         d.transmission = 0;
         d.diffuseTransmission = 0;
         d.specularTransmission = 0;
@@ -1064,7 +1064,7 @@ struct FalcorBSDF // : IBxDF
     //float3 _B;
     float3 sssNormal; // sss sample point's normal vector
     float3 scatter;
-    float3 sssMfp;
+    float3 sssMeanFreePath;
     float3 sssDistance; // sssPosition - position
     float bssrdfPDF;
     float intersectionPDF; // ~= 1.f/numInersections
@@ -1094,10 +1094,10 @@ struct FalcorBSDF // : IBxDF
         sssNormal = sssSampleNormal;
         bssrdfPDF = data.bssrdfPDF;
         scatter = data.scatter;
-        sssMfp = data.sssMfp;
+        sssMeanFreePath = data.sssMeanFreePath;
         sssDistance = data.sssPosition - data.position;
         intersectionPDF = data.intersectionPDF;
-        _isSss = any(sssMfp > 0.f);
+        _isSss = any(sssMeanFreePath > 0.f);
 
         // TODO: Currently specular reflection and transmission lobes are not properly separated.
         // This leads to incorrect behaviour if only the specular reflection or transmission lobe is selected.
@@ -1222,7 +1222,7 @@ struct FalcorBSDF // : IBxDF
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
                                                      scatter,
-                                                     sssMfp,
+                                                     sssMeanFreePath,
                                                      _N,
                                                      sssNormal,
                                                      //_T,
@@ -1237,7 +1237,7 @@ struct FalcorBSDF // : IBxDF
             diffuse += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflectionEval;
             //if ( _isSss )
             //{
-            //    diffuse = sssMfp;
+            //    diffuse = sssMeanFreePath;
             //}
 
         }
@@ -1256,7 +1256,7 @@ struct FalcorBSDF // : IBxDF
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
                                                      scatter,
-                                                     sssMfp,
+                                                     sssMeanFreePath,
                                                      _N,
                                                      sssNormal,
                                                      //_T,

@@ -82,7 +82,7 @@ struct BSDFProperties
     // The diffuse reflectance is approximated as a Lambertian given by the diffuse albedo above.
     float3  specularReflectance;            ///< Specular reflectance at normal incidence (F0). This is in the range [0,1].
 
-    float3 sssMfp;
+    float3 sssMeanFreePath;
 
     uint    flags;                          ///< Flags storing additional properties.
 

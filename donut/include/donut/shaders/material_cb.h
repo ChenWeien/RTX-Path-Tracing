@@ -95,7 +95,7 @@ struct MaterialConstants
     uint    scatterTextureIndex;
     float3  scatter;
     float   scatterStrength;
-    float3  sssMfp;
+    float3  sssMeanFreePath;
 };
 
 #endif // MATERIAL_CB_H

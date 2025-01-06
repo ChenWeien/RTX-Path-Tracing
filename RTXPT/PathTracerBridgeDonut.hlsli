@@ -456,7 +456,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     d.diffuseTransmission = donutMaterial.diffuseTransmission * (1 - donutMaterial.metalness);    // (1 - donutMaterial.metalness) is from https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md#transparent-metals
     d.transmission = donutMaterial.baseColor;
     d.scatter = donutMaterial.scatter;
-    d.sssMfp = donutMaterial.sssMfp;
+    d.sssMeanFreePath = donutMaterial.sssMeanFreePath;
     /*LobeType*/ uint lobeType = (uint)LobeType::All;
 
     if (optimizationHints.NoTransmission)

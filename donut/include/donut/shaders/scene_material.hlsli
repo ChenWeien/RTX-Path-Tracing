@@ -231,7 +231,7 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
         result.scatter = textures.scatter.xyz;
     }
     result.scatter = lerp( 0, result.scatter, material.scatterStrength );
-    result.sssMfp = material.sssMfp;
+    result.sssMeanFreePath = material.sssMeanFreePath;
 
     return result;
 }
