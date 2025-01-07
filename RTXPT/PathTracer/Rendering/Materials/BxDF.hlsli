@@ -117,6 +117,65 @@ struct DiffuseReflectionLambert // : IBxDF
 
 #define INVALID_UINT_VALUE 0xFFFFFFFFu
 
+struct FBxDFEnergyTermsRGB
+{
+    float3 W;
+    float3 E;
+};
+
+float3 GetF0F90RGB(float3 InF0)
+{
+    return InF0;
+}
+
+FBxDFEnergyTermsRGB ComputeGGXSpecEnergyTermsRGB(float Roughness, float NoV, float3 F0, float3 F90)
+{
+    FBxDFEnergyTermsRGB Out;
+	{
+        Out.W = 1.0f;
+        Out.E = GetF0F90RGB(F0);
+    }
+
+    return Out;
+}
+
+FBxDFEnergyTermsRGB ComputeGGXSpecEnergyTermsRGB(float Roughness, float NoV, float3 F0)
+{
+    const float F90 = saturate(50.0 * F0.g);
+    return ComputeGGXSpecEnergyTermsRGB(Roughness, NoV, F0, F90);
+}
+
+float LobeColorToWeight(float3 C)
+{
+    return C.x + C.y + C.z;
+}
+
+float MISWeightBalanced(float Pdf, float OtherPdf)
+{
+    if (Pdf == OtherPdf)
+    {
+        return 0.5f;
+    }
+    if (OtherPdf < Pdf)
+    {
+        float x = OtherPdf / Pdf;
+        return 1.0 / (1.0 + x);
+    }
+    else
+    {
+        float x = Pdf / OtherPdf;
+        return 1.0 - 1.0 / (1.0 + x);
+    }
+}
+
+float LobeSelectionProb(float3 A, float3 B)
+{
+    const float Aw = LobeColorToWeight(A);
+    const float Bw = LobeColorToWeight(B);
+    return MISWeightBalanced(Aw, Bw);
+}
+
+
 // Structures
 struct SSSInfo
 {

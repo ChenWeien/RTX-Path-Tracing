@@ -668,6 +668,31 @@ inline bool sss_sampling_disk_sample(
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
+        float Prob = 1;
+        if(1){
+            float3 DiffuseColor = bsdf.data.diffuse;
+            float3 SubsurfaceColor = bsdf.data.diffuse;
+            float3 SpecularColor = bsdf.data.specular;
+            float NoV = saturate( dot(shadingData.N, shadingData.V) );
+            float3 SpecE = ComputeGGXSpecEnergyTermsRGB(bsdf.data.roughness, NoV, SpecularColor).E;
+            const float3 SSSLobeAlbedo = (1 - SpecE) * SubsurfaceColor;
+            const float3 DiffLobeAlbedo = (1 - SpecE) * DiffuseColor;
+            const float3 SpecLobeAlbedo = SpecE;
+            Prob = LobeSelectionProb(SSSLobeAlbedo, DiffLobeAlbedo + SpecLobeAlbedo);
+            Prob = saturate(Prob);
+        }
+        
+        float RandSample = sampleNext1D(sampleGenerator);
+        if ( RandSample < Prob )
+        {
+            //path.thp *= SSS.Weight / Prob;
+        }
+        else
+        {
+            //path.thp *= 1 / (1 - Prob);
+            canPerformSss = false;
+        }
+        
         bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
@@ -895,6 +920,8 @@ inline bool sss_sampling_disk_sample(
             float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;
             float bssrdfPDF = bsdf.data.bssrdfPDF;
             float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(bssrdfPDF) );
+            float3 visualizeSssProb = lerp( float3(0,0,1), float3(1,0,0), Prob );
+            
             //float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
             
             //DebugContext debug = workingContext.debug;
@@ -908,7 +935,7 @@ inline bool sss_sampling_disk_sample(
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( isValidSssSample.xxx, 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( Prob.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDiffusionProfile ) ), 1.0 ) ); break;
                 default: break;
