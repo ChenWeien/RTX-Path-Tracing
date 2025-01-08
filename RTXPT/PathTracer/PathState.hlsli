@@ -45,7 +45,7 @@ enum class PathFlags
 
     insideDielectricVolume          = (1<<5),   ///< Path vertex is inside a dielectric volume.
     //<removed, empty space>          = (1<<6),   ///<
-    //<removed, empty space>          = (1<<7),   ///<
+    sssPath                         = (1<<7),   ///< Scatter ray went through a sss event
 
     diffusePrimaryHit               = (1<<8),   ///< Scatter ray went through a diffuse event on primary hit.
     specularPrimaryHit              = (1<<9),   ///< Scatter ray went through a specular event on primary hit.
@@ -107,16 +107,12 @@ struct PathState
     float3      thp;                    ///< Path throughput.
 #if PATH_TRACER_MODE!=PATH_TRACER_MODE_FILL_STABLE_PLANES // nothing to accumulate in this case - all goes to denoiser
     float3      L;                      ///< Accumulated path contribution.
-    float4      Lpbr;                   ///< pbr bsdf in restirSSS, float4.a is unused
 #else
     float4      denoiserDiffRadianceHitDist;
     float4      denoiserSpecRadianceHitDist;
     float3      secondaryL;             ///< Radiance reflected and emitted by the secondary surface
     float       denoiserSampleHitTFromPlane;
 #endif
-
-    float3 sssMfp; // UE: sssMfp (mean free path)
-    uint isSssPath; // no time to check if PathFlags still have bits left, it share 32bits with vertex index
 
 #if 0 // disabled for now
     GuideData   guideData;              ///< Denoiser guide data.
@@ -129,9 +125,6 @@ struct PathState
 #endif
 
     // Accessors
-    void setSss( bool isSss ) { isSssPath = 0; }
-    bool isSss() { return isSssPath > 0; }
-
     bool isTerminated() { return !isActive(); }
     bool isActive() { return hasFlag(PathFlags::active); }
     bool isHit() { return hasFlag(PathFlags::hit); }
@@ -140,6 +133,7 @@ struct PathState
     bool wasScatterDelta() { return hasFlag(PathFlags::delta); }                                    ///< Get flag indicating that last scatter ray went through a delta event.
     bool isInsideDielectricVolume() { return hasFlag(PathFlags::insideDielectricVolume); }
 
+    bool isSssPath()           { return hasFlag(PathFlags::sssPath); }
     bool isDiffusePrimaryHit() { return hasFlag(PathFlags::diffusePrimaryHit); }
     bool isSpecularPrimaryHit() { return hasFlag(PathFlags::specularPrimaryHit); }
     bool isDeltaTransmissionPath() { return hasFlag(PathFlags::deltaTransmissionPath); }
@@ -161,6 +155,7 @@ struct PathState
     void setScatterSpecular(bool value = true) { setFlag(PathFlags::specular, value); }                    ///< Set flag indicating that scatter ray went through a specular event.
     void setScatterDelta(bool value = true) { setFlag(PathFlags::delta, value); }                          ///< Set flag indicating that scatter ray went through a delta event.
     void setInsideDielectricVolume(bool value = true) { setFlag(PathFlags::insideDielectricVolume, value); }
+    void setSssPath(bool value = true)           { setFlag(PathFlags::sssPath, value); }
     void setDiffusePrimaryHit(bool value = true) { setFlag(PathFlags::diffusePrimaryHit, value); }
     void setSpecularPrimaryHit(bool value = true) { setFlag(PathFlags::specularPrimaryHit, value); }
     void setDeltaTransmissionPath(bool value = true) { setFlag(PathFlags::deltaTransmissionPath, value); }

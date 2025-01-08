@@ -20,7 +20,7 @@
 struct CPathPayloadCopy // same as PathPayload.hlsli
 {
     uint4   packed[ 6 ];
-    float4 Lpbr;  ///< pbr bsdf in restirSSS
+    // add member variable here so that MAX_PAYLOAD_SIZE are correct
 };
 
 //#define PATH_TRACER_MAX_PAYLOAD_SIZE     4*4*6    // PathPayload is 96 at the moment

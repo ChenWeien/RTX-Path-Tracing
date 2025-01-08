@@ -844,7 +844,7 @@ inline bool sss_sampling_disk_sample(
             else
             {
                 const uint vertexIndex = path.getVertexIndex();
-
+                path.setSssPath();
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
                 bsdf = bridgedData.bsdf;
