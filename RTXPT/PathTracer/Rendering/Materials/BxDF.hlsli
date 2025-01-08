@@ -523,7 +523,7 @@ struct BssrdfDiffuseReflection
     /*
         return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
     /*/
-        return scatter * M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
+        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
     //*/
     }
 
