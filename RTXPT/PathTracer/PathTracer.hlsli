@@ -465,19 +465,19 @@ inline bool sss_sampling_disk_sample(
 
 
     bool sss_sampling_sample( const WorkingContext workingContext,
-                            inout SampleGenerator sampleGenerator, 
-                            in const uniform OptimizationHints optimizationHints,
-                            in const PathState path,
-                            in const BSDFFrame frame, 
-                             in const BSDFFrame projectionFrame, 
-                             in const SSSInfo sssInfo,
-                             in const uint channel, 
-                             in const float xiRadius, 
-                             in const float xiAngle, 
-                             out TriangleHit triangleHit,
-                             out SSSSample sssSample, 
-                             out float pdf, 
-                             out float intersectionPDF )
+                              inout SampleGenerator sampleGenerator, 
+                              in const uniform OptimizationHints optimizationHints,
+                              in const PathState path,
+                              in const BSDFFrame frame, 
+                              in const BSDFFrame projectionFrame, 
+                              in const SSSInfo sssInfo,
+                              in const uint channel, 
+                              in const float xiRadius, 
+                              in const float xiAngle, 
+                              out TriangleHit triangleHit,
+                              out SSSSample sssSample, 
+                              out float pdf, 
+                              out float intersectionPDF )
     {
         pdf = 0;
         intersectionPDF = 0;
@@ -735,103 +735,6 @@ inline bool sss_sampling_disk_sample(
             TriangleHit triangleHit; // reservoir sample
             SSSSample sssSample = SSSSample::makeZero();
 
-         #define USE_sss_sampling_sample_CODEPATH
-
-         #ifndef USE_sss_sampling_sample_CODEPATH
-            const float sampledScatterDistance = sss_sampling_scatterDistance(channel, scatterDistance);
-            const float radius = sss_diffusion_profile_sample(xiRadius, sampledScatterDistance);
-            const float radiusMax = sss_diffusion_profile_sample(0.999, sampledScatterDistance);
-            if (radius <= radiusMax)
-            {
-                float phi = M_2PI * xiAngle;
-                const float3 origin = shadingData.posW + projectionFrame.n * radiusMax + cos(phi) * radius * projectionFrame.t + sin(phi) * radius * projectionFrame.b;
-            
-                const float sphereFraction = sqrt(radiusMax * radiusMax - radius * radius);
-                const float tMin = radiusMax - sphereFraction;
-                const float tMax = radiusMax + sphereFraction;
-
-                RayDesc ray;
-                ray.Origin = origin;
-                ray.Direction = -projectionFrame.n;
-                ray.TMin = tMin; //0;
-                ray.TMax = tMax; //MAX_SS_RADIUS * MAX_SS_RADIUS;
-                RayQuery < RAY_FLAG_FORCE_NON_OPAQUE > rayQuery; // RAY_FLAG_NONE > rayQuery;
-            
-            // reservoir sampling
-                uint chosenIntersection = 0;
-                numIntersections = 0;
-                weightTotal = 0;
-                float weightNew = 1.f; // intersect : 1, else 0
-                float reservoirWeight = 0;
-
-                rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, ray);
-                while (rayQuery.Proceed())
-                {
-                    if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
-                    {
-                        GeometryInstanceID nextGeometryInstanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
-                        if ( pixelGeometryInstanceID.data != nextGeometryInstanceID.data )
-                        {
-                            continue;
-                        }
-                        if ( false == rayQuery.CandidateTriangleFrontFace() ) {
-                            continue;
-                        }
-                        numIntersections += 1;
-                        if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
-                        {
-                            triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CandidateInstanceIndex(), rayQuery.CandidateGeometryIndex());
-                            triangleHit.primitiveIndex = rayQuery.CandidatePrimitiveIndex();
-                            triangleHit.barycentrics = rayQuery.CandidateTriangleBarycentrics(); // attrib.barycentrics;
-                            reservoirWeight = weightNew;
-                            chosenIntersection = numIntersections;
-                        }
-                        weightTotal += weightNew; // must after the above if
-                    }
-                }
-
-            //Bridge::traceSssProfileRadiusRay(ray, rayQuery, packedHitInfo, workingContext.debug);
-            //if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-                if (numIntersections > 0)
-                {
-                    BuiltInTriangleIntersectionAttributes attrib;
-                    attrib.barycentrics = triangleHit.barycentrics;
-
-                // load X2 position
-                    const uint vertexIndex = path.getVertexIndex();
-                    SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-                
-                    shadingData = bridgedData.shadingData;
-                    bsdf = bridgedData.bsdf;
-
-                    sssNearbyPosition = shadingData.posW; // = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
-                    sssDistanceVector = sssNearbyPosition - originalPosition;
-                    sssNearbyPosition = sssNearbyPosition;
-                
-                    bsdf.data.sssPosition = sssNearbyPosition;
-                    bsdf.data.position = originalPosition;
-
-                    float intersectionPDF = 1.f / numIntersections;
-                    bsdf.data.intersectionPDF = intersectionPDF;
-                    //bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.N, scatterDistance);
-                    bssrdfPDF = sss_sampling_disk_pdf(sssNearbyPosition - originalPosition, frame, shadingData.faceN, scatterDistance);
-                    bsdf.data.bssrdfPDF = bssrdfPDF;
-                }
-                else // numIntersections == 0
-                {
-                    bsdf.data.sssPosition = bsdf.data.position;
-                    bsdf.data.bssrdfPDF = FLT_MAX;
-                    isValidSssSample = false;
-                }
-            }
-            else // radius > radiusMax
-            {
-                    bsdf.data.sssPosition = bsdf.data.position;
-                    bsdf.data.bssrdfPDF = FLT_MAX;
-                    isValidSssSample = false;
-            }
-       #else 
-
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, pixelGeometryInstanceID.data, scatterDistance, INVALID_UINT_VALUE);
 
             float bssrdfIntersectionPDF = 0;
@@ -872,7 +775,6 @@ inline bool sss_sampling_disk_sample(
                         numIntersections = 1;
                 }
             }
-       #endif
         }
 
 
