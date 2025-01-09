@@ -1,0 +1,70 @@
+{
+  "models": [
+    "cc/ccYup.gltf"
+  ],
+  "graph": [
+    {
+      "name": "Head",
+      "model": 0,
+      "translation": [ 0, 0, 0 ],
+      "euler": [ 0, -1.57, 0 ],
+      "scaling": 10.0
+    },
+    {
+      "name": "Lights",
+      "children": [
+        {
+          "name": "Sky",
+          "type": "EnvironmentLight",
+          "radianceScale": [ 1, 1, 1 ],
+          "textureIndex": [ 0 ],
+          "rotation": -125,
+          "path": "cc/HDRI.exr"
+        },
+		{
+          "name": "Point",
+          "type": "PointLight",
+          "translation": [20, 20, 50],
+          "color": [ 1, 1, 1 ],
+          "intensity": 50234
+        }
+		
+      ]
+    },
+    {
+      "name": "Cameras",
+      "children": [
+        {
+          "name": "Default",
+          "type": "PerspectiveCameraEx",
+          "translation": [ -15.2879696, 4.01690054, 2.73888302 ],
+          "euler": [ 0, -1.38, 0 ],
+          "verticalFov": 0.2,
+          "zNear": 0.100000,
+          "enableAutoExposure": false,
+          "exposureCompensation": 1.700000,
+          "exposureValue": 0.000000
+        }
+      ]
+    },
+    {
+      "name": "MaterialPatches",
+      "children": [
+        {
+          "name": "Head",
+          "type": "MaterialPatch",
+          "volumeAttenuationDistance": 0.6,
+          "thinSurface": false,
+          "doubleSided": false,
+          "metalness": 0.0,
+          "roughness": 0.85,
+          "sssMeanFreePathColor": [ 0.4, 0.1, 0.01 ],
+		  "sssMfpDistance": 0.1,
+          "baseOrDiffuseColor": [ 0.45, 0.45, 0.45 ]
+        }
+      ]
+    }
+  ]
+}
+
+
