@@ -501,7 +501,7 @@ struct BssrdfDiffuseReflection
         d.scatter = scatter_;
         d.sssMeanFreePath = sssMeanFreePath_;
         d.albedo = albedo_;
-        d.scatterDistance = d.sssMeanFreePath / sss_diffusion_profile_scatterDistance(d.albedo);
+        d.scatterDistance = scatter_ * d.sssMeanFreePath / GetPerpendicularScalingFactor3D( d.albedo );// sss_diffusion_profile_scatterDistance( d.albedo );
         d.sssDistance = sssDistance;
         return d;
     }

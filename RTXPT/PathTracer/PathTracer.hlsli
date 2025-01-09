@@ -720,9 +720,10 @@ inline bool sss_sampling_disk_sample(
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            sssDiffusionProfile = sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
-            scatterDistance = bsdf.data.scatter * bsdf.data.sssMeanFreePath / sssDiffusionProfile;
-
+            sssDiffusionProfile = GetPerpendicularScalingFactor3D( bsdf.data.diffuse );// sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
+            //scatterDistance = bsdf.data.scatter * bsdf.data.sssMeanFreePath / sssDiffusionProfile;
+            scatterDistance = bsdf.data.scatter * GetDMFPFromMFPApprox( bsdf.data.diffuse, bsdf.data.sssMeanFreePath );
+            
             BSDFFrame frame;
             BSDFFrame projectionFrame;
             frame.n = shadingData.N; // faceN, vertexN
