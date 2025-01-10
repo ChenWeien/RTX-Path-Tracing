@@ -697,8 +697,7 @@ inline bool sss_sampling_disk_sample(
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
-        float3 scatterDistance = 0; 
-        float3 sssDiffusionProfile = 0;
+        float3 scatterDistance = 0;
         float3 sssDistanceVector = float3(0,0,0);
         float3 originalPosition = shadingData.posW;
 
@@ -720,9 +719,10 @@ inline bool sss_sampling_disk_sample(
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            sssDiffusionProfile = GetPerpendicularScalingFactor3D( bsdf.data.diffuse );// sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
-            //scatterDistance = bsdf.data.scatter * bsdf.data.sssMeanFreePath / sssDiffusionProfile;
-            scatterDistance = bsdf.data.scatter * GetDMFPFromMFPApprox( bsdf.data.diffuse, bsdf.data.sssMeanFreePath );
+
+            //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
+            //scatterDistance == d in equation (2)
+            scatterDistance = bsdf.data.sssMeanFreePath / GetPerpendicularScalingFactor3D( bsdf.data.diffuse );
             
             BSDFFrame frame;
             BSDFFrame projectionFrame;
@@ -831,16 +831,16 @@ inline bool sss_sampling_disk_sample(
             switch ( g_Const.debug.debugViewType )
             {
                 //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssColor ):            workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNeeValid ):            workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( sssDistanceLength.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( Prob.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDiffusionProfile ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): break;
                 default: break;
             }
         }

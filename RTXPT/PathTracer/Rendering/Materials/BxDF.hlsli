@@ -416,48 +416,47 @@ float sss_sampling_scatterDistance(in const uint channel, in const float3 scatte
     return scatterDistance[channel];
 }
 
-    float disney_schlickWeight(in const float a)
-    {
-        const float b = clamp(1.0 - a, 0.0, 1.0);
-        const float bb = b * b;
-        return bb * bb * b;
-    }
+float disney_schlickWeight(in const float a)
+{
+    const float b = clamp(1.0 - a, 0.0, 1.0);
+    const float bb = b * b;
+    return bb * bb * b;
+}
 
-    float disney_diffuseLambertWeight(in const float fv, in const float fl)
-    {
-        return (1.0 - 0.5 * fl) * (1.0 - 0.5 * fv);
-    }
+float disney_diffuseLambertWeight(in const float fv, in const float fl)
+{
+    return (1.0 - 0.5 * fl) * (1.0 - 0.5 * fv);
+}
 
-    float disney_diffuseLambertWeightSingle(in const float f)
-    {
-        return 1.0 - 0.5 * f;
-    }
-    
-    
-    float3 sss_diffusion_profile_evaluate(in const float radius, in const float3 scatterDistance)
-    {
-        if (radius <= 0)
-        {
-            return (float3)(0.25 / M_PI) / max((float3)0.000001, scatterDistance);
-        }
-        const float3 rd = radius / scatterDistance;
-        return (exp(-rd) + exp(-rd / 3.0)) / max((float3)0.000001, (8.0 * M_PI * scatterDistance * radius));
-    }
-    
-    float3 disney_bssrdf_fresnel_evaluate(in const float3 normal, in const float3 direction)
-    {
-        const float dotND = dot(normal, direction);
-        const float schlick = disney_schlickWeight(dotND);
-        const float lambertWeight = disney_diffuseLambertWeightSingle(schlick);
-        return (float3)lambertWeight;
-    }
-    
-    void disney_bssrdf_evaluate(in const float3 normal, in const float3 v, in const float distance, in const float3 scatterDistance, in const float3 surfaceAlbedo, out float3 bssrdf)
-    {
-        const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
+float disney_diffuseLambertWeightSingle(in const float f)
+{
+    return 1.0 - 0.5 * f;
+}
 
-        bssrdf = diffusionProfile / M_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+float3 sss_diffusion_profile_evaluate(in const float radius, in const float3 scatterDistance)
+{
+    if (radius <= 0)
+    {
+        return (float3)(0.25 / M_PI) / max((float3)0.000001, scatterDistance);
     }
+    const float3 rd = radius / scatterDistance;
+    return (exp(-rd) + exp(-rd / 3.0)) / max((float3)0.000001, (8.0 * M_PI * scatterDistance * radius));
+}
+
+float3 disney_bssrdf_fresnel_evaluate(in const float3 normal, in const float3 direction)
+{
+    const float dotND = dot(normal, direction);
+    const float schlick = disney_schlickWeight(dotND);
+    const float lambertWeight = disney_diffuseLambertWeightSingle(schlick);
+    return (float3)lambertWeight;
+}
+
+void disney_bssrdf_evaluate(in const float3 normal, in const float3 v, in const float distance, in const float3 scatterDistance, in const float3 surfaceAlbedo, out float3 bssrdf)
+{
+    const float3 diffusionProfile = surfaceAlbedo * sss_diffusion_profile_evaluate(distance, scatterDistance);
+
+    bssrdf = diffusionProfile / M_PI * disney_bssrdf_fresnel_evaluate(normal, v);
+}
 
 void disney_bssrdf_evaluate(in const float3 normal, 
                             in const float3 v, 
@@ -483,7 +482,6 @@ struct BssrdfDiffuseReflection
     float3 pixelNormal;
     float3 sssNormal;
     float3 sssDistance; // sssPosition - position
-    float3 scatterDistance;
     float bssrdfPDF;
     float intersectionPDF;
     
@@ -501,7 +499,6 @@ struct BssrdfDiffuseReflection
         d.scatter = scatter_;
         d.sssMeanFreePath = sssMeanFreePath_;
         d.albedo = albedo_;
-        d.scatterDistance = scatter_ * d.sssMeanFreePath / GetPerpendicularScalingFactor3D( d.albedo );// sss_diffusion_profile_scatterDistance( d.albedo );
         d.sssDistance = sssDistance;
         return d;
     }
@@ -511,9 +508,12 @@ struct BssrdfDiffuseReflection
         // need to fix bssrdfPDF, should used both normal vector of x1, x2
         //float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
 
-        const float3 diffusionProfile = sss_diffusion_profile_evaluate(length(sssDistance), scatterDistance);
+        //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
+        float r = max( length( sssDistance ), 0.000001 );
+        float3 d = sssMeanFreePath / GetPerpendicularScalingFactor3D( albedo );
+        const float3 diffusionProfile = sss_diffusion_profile_evaluate( r, d );
 
-        float3 bssrdf = albedo * diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
+        float3 bssrdf = scatter * albedo * diffusionProfile; // * disney_bssrdf_fresnel_evaluate(normal, v);
 
         float cosAtSurface = wo.z; // wo.z is dot(N,L)
         if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
