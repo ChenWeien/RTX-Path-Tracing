@@ -528,6 +528,180 @@ inline bool sss_sampling_disk_sample(
         return true;
     }
 
+    
+float Pow2( float x )
+{
+	return x*x;
+}
+    
+float3x3 GetTangentBasis( float3 TangentZ )
+{
+	const float Sign = TangentZ.z >= 0 ? 1 : -1;
+	const float a = -rcp( Sign + TangentZ.z );
+	const float b = TangentZ.x * TangentZ.y * a;
+	float3 TangentX = { 1 + Sign * a * Pow2( TangentZ.x ), Sign * b, -Sign * TangentZ.x };
+	float3 TangentY = { b,  Sign + a * Pow2( TangentZ.y ), -TangentZ.y };
+	return float3x3( TangentX, TangentY, TangentZ );
+}
+
+float3 TangentToWorld( float3 Vec, float3 TangentZ )
+{
+	return mul( Vec, GetTangentBasis( TangentZ ) );
+}
+
+void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal)
+{
+	const float RefValue = max(max(abs(Ray.Origin.x), abs(Ray.Origin.y)), max(abs(Ray.Origin.z), HitT));
+	const uint UlpRadius = 16; 
+	const float RelativeOffset = asfloat(asuint(RefValue) + UlpRadius) - RefValue;
+	const float BaseOffset = 0.001; 
+	Ray.Origin += max(BaseOffset, RelativeOffset) * Normal;
+}
+
+FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf )
+{
+	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
+	Result.Color = bsdf.data.diffuse;
+	Result.Radius = bsdf.data.sssMeanFreePath;
+	Result.Weight = 0;
+	Result.Prob = 0;
+	Result.G = 0;
+	if (any(bsdf.data.sssMeanFreePath) > 0)
+	{
+        float3 DiffuseColor = bsdf.data.diffuse;
+        float3 SubsurfaceColor = bsdf.data.diffuse;
+        float3 SpecularColor = bsdf.data.specular;
+        float3 WorldNormal = shadingData.N;
+        float3 V_World = shadingData.V;
+        float Roughness = bsdf.data.roughness;
+		const float NoV = saturate(dot(WorldNormal, V_World));
+		float3 SpecE = 0;
+		//if (Payload.ShadingModelID == 5)
+		//{
+		//	const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
+		//	const float3 SpecE0 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.x, NoV, Payload.SpecularColor).E;
+		//	const float3 SpecE1 = ComputeGGXSpecEnergyTermsRGB(DualRoughnessData.y, NoV, Payload.SpecularColor).E;
+		//	SpecE = lerp(SpecE0, SpecE1, DualRoughnessData.z);
+		//}
+		//else
+		{
+			SpecE = ComputeGGXSpecEnergyTermsRGB(Roughness, NoV, SpecularColor).E;
+		}
+		const float3 SSSLobeAlbedo = (1 - SpecE) * SubsurfaceColor;
+		const float3 DiffLobeAlbedo = (1 - SpecE) * DiffuseColor;
+		const float3 SpecLobeAlbedo = SpecE;
+		Result.Prob = LobeSelectionProb(SSSLobeAlbedo, DiffLobeAlbedo + SpecLobeAlbedo);
+		Result.Weight = bsdf.data.scatter * (1 - SpecE); // scatter = Payload.BSDFOpacity
+	}
+	return Result;
+}
+
+float3 ComputeDwivediScale(float3 Albedo)
+{
+	const float3 ClampedAlbedo = clamp(Albedo, 0.001, 0.999); 
+	return rsqrt(1.0 - pow(ClampedAlbedo, 2.44294 - 0.0215813 * ClampedAlbedo + 0.578637 / ClampedAlbedo));
+}
+    
+    bool ProcessSubsurfaceRandomWalk(const uniform OptimizationHints optimizationHints
+                                   , SampleGenerator sampleGenerator
+                                   , inout PathState path
+                                    , bool isPrimaryHit
+                                    , ShadingData shadingData
+                                    , ActiveBSDF bsdf
+                                   , const float3 rayOrigin, const float3 RayDirection, const float rayTCurrent
+                                   , bool SimplifySSS
+                                   , const WorkingContext workingContext )
+    {
+        
+        bool canPerformSss = isPrimaryHit
+                            && !path.wasScatterTransmission()
+                            && !path.wasScatterSpecular() 
+                            && !path.wasScatterDelta()
+                            && !path.isInsideDielectricVolume();
+        if (!canPerformSss)
+        {
+            return true;
+        }
+        bool isSssMaterial = any(bsdf.data.sssMeanFreePath) > 0;
+        if (!isSssMaterial)
+        {
+            return true;
+        }
+
+        sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
+
+        FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
+        float RandSample = sampleNext1D(sampleGenerator);
+        if ( RandSample < SSS.Prob )
+        {
+            //path.thp *= SSS.Weight / Prob;
+        }
+        else
+        {
+            //path.thp *= 1 / (1 - Prob);
+            return true;
+        }
+
+        float2 RandSamplexy = sampleNext2D(sampleGenerator);
+        SSS.Radius = bsdf.data.sssMeanFreePath;
+        SSS.Color = bsdf.data.diffuse;
+        SSS.G = 0;
+
+        RayDesc Ray;
+        Ray.Origin = shadingData.posW;
+        Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSamplexy).xyz, shadingData.N);
+        Ray.TMin = 0;
+        ApplyRayBias(Ray, rayTCurrent, -shadingData.vertexN);
+
+        SSS.Radius = max(SSS.Radius, 0.0009);
+        SSS.Color = bsdf.data.diffuse;
+        int InterfaceCounter = shadingData.frontFacing ? +1 : -1;
+        float3 Albedo = 1 - exp(SSS.Color * (-11.43 + SSS.Color * (15.38 - 13.91 * SSS.Color)));
+        float G = SSS.G;
+        Albedo = Albedo / (1 - G * (1 - Albedo));
+        
+        const int MaxSSSBounces = 10;
+        const float SSSGuidingRatio = 1;
+        
+        const float3 DwivediScale = ComputeDwivediScale(Albedo);
+        float3 DwivediSlabNormal = shadingData.N; //WorldSmoothNormal;
+        float3 DwivediSlabOrigin = shadingData.posW;
+        const float GuidedRatio = SSSGuidingRatio * (1.0 - pow(saturate(abs(G * 4)), 0.0625));
+        bool bDoSlabSearch = GuidedRatio > 0;
+        float SlabThickness = -1.0;
+        const int MAX_SSS_BOUNCES = MaxSSSBounces;
+        const float3 SigmaT = rcp(SSS.Radius);
+        const float3 SigmaS = Albedo * SigmaT;
+        for (int i = 0; i < MAX_SSS_BOUNCES; i++)
+        {
+            float3 ColorChannelPdf = path.thp * Albedo;
+            float SlabCosine = dot(Ray.Direction, DwivediSlabNormal);
+            if (bDoSlabSearch)
+            {
+                RayDesc ProbeRay;
+                ProbeRay.Origin = Ray.Origin;
+                ProbeRay.Direction = -DwivediSlabNormal;
+                ProbeRay.TMin = 0.0;
+                ProbeRay.TMax = 10 * max3(SSS.Radius.x, SSS.Radius.y, SSS.Radius.z);
+                int ProbeInterfaceCounter = InterfaceCounter;
+                //FProbeResult Result = TraceSSSProbeRay(ProbeRay, ProbeInterfaceCounter);
+                FProbeResult Result;
+                if (Result.IsMiss())
+                {
+                    SlabThickness = -1.0;
+                }
+                else
+                {
+                    SlabThickness = Result.HitT;
+                }
+                bDoSlabSearch = false;
+            }
+            
+            
+        }
+        return false;
+    }
+    
     // supports only TriangleHit for now; more to be added when needed
     inline void HandleHit(const uniform OptimizationHints optimizationHints, inout PathState path, const float3 rayOrigin, const float3 rayDir, const float rayTCurrent, const WorkingContext workingContext)
     {
@@ -654,8 +828,37 @@ inline bool sss_sampling_disk_sample(
         return;
 #endif 
         
-        ScatterResult scatterResult;
         const PathState preScatterPath = path;
+        
+        const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
+
+        // random walk will move the shading point somewhere on the surface
+        bool isValidPoint = ProcessSubsurfaceRandomWalk(optimizationHints
+                                   , sampleGenerator
+                                   , path
+                                    , isPrimaryHit
+                                    , shadingData
+                                    , bsdf
+                                   , rayOrigin, rayDir, rayTCurrent
+                                   , SimplifySSS
+                                   , workingContext );
+        
+        ScatterResult scatterResult;
+        if ( !isValidPoint )
+        {
+            // random walk did not terminate at a valid point
+            path.terminate();
+            return;
+        }
+        
+        if (SimplifySSS || all(bsdf.data.sssMeanFreePath == 0) || all(bsdf.data.diffuse == 0) ) //|| MaxSSSBounces == 0)
+        {
+            //RemoveMaterialSSS(Payload);
+            bsdf.data.sssMeanFreePath = float3(0,0,0);
+            bsdf.data.bssrdfPDF = FLT_MAX;
+            bsdf.data.sssPosition = bsdf.data.position;
+        }
+        
         scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      

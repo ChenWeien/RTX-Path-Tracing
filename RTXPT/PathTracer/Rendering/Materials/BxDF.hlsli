@@ -59,6 +59,64 @@ static const float kMinGGXAlpha = 0.0064f;
 // projection sample and .z for lobe selection (if used).
 // For more info see https://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction/Stratified_Sampling
 
+struct FSSSRandomWalkInfo
+{
+	float3 Color;
+	float3 Radius;
+	float3 Weight;  
+	float  Prob;    
+	float  G;
+};
+
+struct FProbeResult
+{
+	float HitT;
+	float3 WorldNormal;
+	float3 WorldSmoothNormal;
+	float3 WorldGeoNormal;
+	int FrontFace;
+	bool IsMiss() { return HitT <= 0; }
+};
+
+float max3(float a, float b, float c)
+{
+	return max(a, max(b, c));
+}
+
+float4 UniformSampleSphere( float2 E )
+{
+	float Phi = 2 * M_PI * E.x;
+	float CosTheta = 1 - 2 * E.y;
+	float SinTheta = sqrt( 1 - CosTheta * CosTheta );
+	float3 H;
+	H.x = SinTheta * cos( Phi );
+	H.y = SinTheta * sin( Phi );
+	H.z = CosTheta;
+	float PDF = 1.0 / (4 * M_PI);
+	return float4( H, PDF );
+}
+
+float4 CosineSampleHemisphere( float2 E, float3 N ) 
+{
+	float3 H = UniformSampleSphere( E ).xyz;
+	H = normalize( N + H );
+	float PDF = dot(H, N) * (1.0 /  M_PI);
+	return float4( H, PDF );
+}
+
+float4 CosineSampleHemisphere( float2 E )
+{
+	float Phi = 2 * M_PI * E.x;
+	float CosTheta = sqrt(E.y);
+	float SinTheta = sqrt(1 - CosTheta * CosTheta);
+	float3 H;
+	H.x = SinTheta * cos(Phi);
+	H.y = SinTheta * sin(Phi);
+	H.z = CosTheta;
+	float PDF = CosTheta * (1.0 / M_PI);
+	return float4(H, PDF);
+}
+
 /** Lambertian diffuse reflection.
     f_r(wi, wo) = albedo / pi
 */
