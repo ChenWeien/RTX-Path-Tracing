@@ -78,6 +78,239 @@ struct FProbeResult
 	bool IsMiss() { return HitT <= 0; }
 };
 
+
+float Pow2( float x )
+{
+	return x*x;
+}
+
+float Pow5( float x )
+{
+	float xx = x*x;
+	return xx * xx * x;
+}
+
+float3x3 GetTangentBasis( float3 TangentZ )
+{
+	const float Sign = TangentZ.z >= 0 ? 1 : -1;
+	const float a = -rcp( Sign + TangentZ.z );
+	const float b = TangentZ.x * TangentZ.y * a;
+	float3 TangentX = { 1 + Sign * a * Pow2( TangentZ.x ), Sign * b, -Sign * TangentZ.x };
+	float3 TangentY = { b,  Sign + a * Pow2( TangentZ.y ), -TangentZ.y };
+	return float3x3( TangentX, TangentY, TangentZ );
+}
+
+float3 TangentToWorld( float3 Vec, float3 TangentZ )
+{
+	return mul( Vec, GetTangentBasis( TangentZ ) );
+}
+
+float RescaleRandomNumber(float RandVal, float LowerBound, float UpperBound)
+{
+	const float OneMinusEpsilon = 0.99999994; 
+	return min((RandVal - LowerBound) / (UpperBound - LowerBound), OneMinusEpsilon);
+}
+
+float FresnelReflectance(float CosI, float Eta)
+{
+	float g2 = Eta * Eta - 1 + CosI * CosI;
+	if (g2 >= 0)
+	{
+		float c = abs(CosI);
+		float g = sqrt(g2);
+		float a2 = Pow2((g - c) / (g + c));
+		float b2 = Pow2((c * (g + c) - 1) / (c * (g - c) + 1));
+		return 0.5 * a2 * (1.0 + b2);
+	}
+	return 1.0;
+}
+
+float FresnelReflectance(float CosI, float Eta, float F0)
+{
+	float F90 = saturate(F0 * 50.0);
+	if (Eta >= 1.0)
+	{
+		return lerp(F0, F90, Pow5(1 - CosI));
+	}
+	float g2 = Eta * Eta - 1 + CosI * CosI;
+	if (g2 >= 0.0)
+	{
+		return lerp(F0, F90, Pow5(1.0 - sqrt(g2) * rcp(Eta)));
+	}
+	return 1.0;
+}
+
+float SampleGuidedSpectralTransmittance(float RandValue, float SlabCosine, float3 DwivediScale, float GuidingFactor, float3 Sigma, float3 ProbT, float3 ColorChannelPdf)
+{
+    float3 ColorChannelCdf = float3(
+	ColorChannelPdf.x,
+	ColorChannelPdf.x + ColorChannelPdf.y,
+	ColorChannelPdf.x + ColorChannelPdf.y + ColorChannelPdf.z);
+    if (ColorChannelCdf.z > 0)
+    {
+        if (RandValue < GuidingFactor)
+        {
+            RandValue = RescaleRandomNumber(RandValue, 0.0, GuidingFactor);
+        }
+        else
+        {
+            SlabCosine = 0;
+            RandValue = RescaleRandomNumber(RandValue, GuidingFactor, 1.0);
+        }
+        const float q = RandValue * ColorChannelCdf.z;
+        if (q < ColorChannelCdf.x)
+        {
+            const float RescaleRand1 = RescaleRandomNumber(q, 0.0, ColorChannelCdf.x);
+            const float RescaleRand2 = RescaleRand1 < ProbT.x ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.x) : RescaleRandomNumber(RescaleRand1, ProbT.x, 1.0);
+            SlabCosine *= RescaleRand1 < ProbT.x ? -1.0 : 1.0;
+            const float StretchedSigma = Sigma.x * (1 - SlabCosine / DwivediScale.x);
+            return -log(1 - RescaleRand2) / StretchedSigma;
+        }
+        else if (q < ColorChannelCdf.y)
+        {
+            const float RescaleRand1 = RescaleRandomNumber(q, ColorChannelCdf.x, ColorChannelCdf.y);
+            const float RescaleRand2 = RescaleRand1 < ProbT.y ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.y) : RescaleRandomNumber(RescaleRand1, ProbT.y, 1.0);
+            SlabCosine *= RescaleRand1 < ProbT.y ? -1.0 : 1.0;
+            const float StretchedSigma = Sigma.y * (1 - SlabCosine / DwivediScale.y);
+            return -log(1 - RescaleRand2) / StretchedSigma;
+        }
+        else
+        {
+            const float RescaleRand1 = RescaleRandomNumber(q, ColorChannelCdf.y, ColorChannelCdf.z);
+            const float RescaleRand2 = RescaleRand1 < ProbT.z ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.z) : RescaleRandomNumber(RescaleRand1, ProbT.z, 1.0);
+            SlabCosine *= RescaleRand1 < ProbT.z ? -1.0 : 1.0;
+            const float StretchedSigma = Sigma.z * (1 - SlabCosine / DwivediScale.z);
+            return -log(1 - RescaleRand2) / StretchedSigma;
+        }
+    }
+    return -1.0;
+}
+
+float4 EvaluateGuidedSpectralTransmittanceHit(float SampledT, float SlabCosine, float3 DwivediScale, float GuidingFactor, float3 Sigma, float3 ProbT, float3 ColorChannelPdf)
+{
+	ColorChannelPdf *= rcp(ColorChannelPdf.x + ColorChannelPdf.y + ColorChannelPdf.z);
+	float3 Transmittance = exp(-SampledT * Sigma);
+	float3 TransmittancePdf = Sigma * Transmittance;
+	float3 GuidedSigmaR = (1 - SlabCosine / DwivediScale) * Sigma;
+	float3 GuidedSigmaT = (1 + SlabCosine / DwivediScale) * Sigma;
+	float3 GuidedPdfR = GuidedSigmaR * exp(-SampledT * GuidedSigmaR);
+	float3 GuidedPdfT = GuidedSigmaT * exp(-SampledT * GuidedSigmaT);
+	float3 GuidedPdf = lerp(GuidedPdfR, GuidedPdfT, ProbT);
+	float MisPdf = dot(ColorChannelPdf, lerp(TransmittancePdf, GuidedPdf, GuidingFactor));
+	return MisPdf > 0 ? float4(Transmittance / MisPdf, MisPdf) : 0.0;
+}
+float4 EvaluateGuidedSpectralTransmittanceMiss(float MaxT, float SlabCosine, float3 DwivediScale, float GuidingFactor, float3 Sigma, float3 ProbT, float3 ColorChannelPdf)
+{
+	ColorChannelPdf *= rcp(ColorChannelPdf.x + ColorChannelPdf.y + ColorChannelPdf.z);
+	float3 Transmittance = exp(-MaxT * Sigma);
+	float3 TransmittancePdf = Transmittance; 
+	float3 GuidedSigmaR = (1 - SlabCosine / DwivediScale) * Sigma;
+	float3 GuidedSigmaT = (1 + SlabCosine / DwivediScale) * Sigma;
+	float3 GuidedPdfR = exp(-MaxT * GuidedSigmaR);
+	float3 GuidedPdfT = exp(-MaxT * GuidedSigmaT);
+	float3 GuidedPdf = lerp(GuidedPdfR, GuidedPdfT, ProbT);
+	float MisPdf = dot(ColorChannelPdf, lerp(TransmittancePdf, GuidedPdf, GuidingFactor));
+	return MisPdf > 0 ? float4(Transmittance / MisPdf, MisPdf) : 0.0;
+}
+
+float HenyeyGreensteinPhase(float G, float CosTheta)
+{
+	float Numer = 1.0f - G * G;
+	float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
+	return Numer / (4.0f * M_PI * Denom * sqrt(Denom));
+}
+float RayleighPhase(float CosTheta)
+{
+	float Factor = 3.0f / (16.0f * M_PI);
+	return Factor * (1.0f + CosTheta * CosTheta);
+}
+float HenyeyGreensteinPhaseInvertCDF(float E, float G)
+{
+	float t0 = (1.0 - G) + G * E;
+	float t1 = (1.0 - E) + E * E;
+	float t2 = t1 + (G * E) * t0;
+	float t3 = (2.0 * E - 1.0) - G * G;
+	float Num = t3 + (2.0 * G) * t2;
+	float Den = t0 + G * E;
+	return Num / (Den * Den);
+}
+float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
+{
+	float Phi = 2.0f * M_PI * E.x;
+	float CosTheta = HenyeyGreensteinPhaseInvertCDF(E.y, G);
+	float SinTheta = sqrt(max(0.0f, 1.0f - CosTheta * CosTheta));
+	float3 H = float3(SinTheta * sin(Phi), SinTheta * cos(Phi), CosTheta);
+	return float4(H, HenyeyGreensteinPhase(G, CosTheta));
+}
+
+float4 SampleDwivediPhaseFunction(float3 ColorChannelPdf, float3 DwivediScale, float GuidingFraction, float3 ProbT, float3 DwivediSlabNormal, float3 RayDirection, float G, float2 RandSample)
+{
+	float4 Result = 0;
+	float3 ColorChannelCdf = float3(
+		ColorChannelPdf.x,
+		ColorChannelPdf.x + ColorChannelPdf.y,
+		ColorChannelPdf.x + ColorChannelPdf.y + ColorChannelPdf.z);
+	if (ColorChannelCdf.z > 0)
+	{
+		const float3 PhaseLog = log((DwivediScale + 1.0) / (DwivediScale - 1.0));
+		const float OneMinusEpsilon = 0.99999994; 
+		if (RandSample.x < GuidingFraction)
+		{
+			RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, GuidingFraction);
+			const float q = RandSample.x * ColorChannelCdf.z;
+			float CosineZ = 0;
+			float Sign = 1;
+			if (q < ColorChannelCdf.x)
+			{
+				const float RescaleRand1 = RescaleRandomNumber(q, 0.0, ColorChannelCdf.x);
+				const float RescaleRand2 = RescaleRand1 < ProbT.x ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.x) : RescaleRandomNumber(RescaleRand1, ProbT.x, 1.0);
+				CosineZ = (DwivediScale.x - (DwivediScale.x + 1) * exp(-RescaleRand2 * PhaseLog.x));
+				Sign = RescaleRand1 < ProbT.x ? -1.0 : +1.0;
+			}
+			else if (q < ColorChannelCdf.y)
+			{
+				const float RescaleRand1 = RescaleRandomNumber(q, ColorChannelCdf.x, ColorChannelCdf.y);
+				const float RescaleRand2 = RescaleRand1 < ProbT.y ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.y) : RescaleRandomNumber(RescaleRand1, ProbT.y, 1.0);
+				CosineZ = (DwivediScale.y - (DwivediScale.y + 1) * exp(-RescaleRand2 * PhaseLog.y));
+				Sign = RescaleRand1 < ProbT.y ? -1.0 : +1.0;
+			}
+			else
+			{
+				const float RescaleRand1 = RescaleRandomNumber(q, ColorChannelCdf.y, ColorChannelCdf.z);
+				const float RescaleRand2 = RescaleRand1 < ProbT.z ? RescaleRandomNumber(RescaleRand1, 0.0, ProbT.z) : RescaleRandomNumber(RescaleRand1, ProbT.z, 1.0);
+				CosineZ = (DwivediScale.z - (DwivediScale.z + 1) * exp(-RescaleRand2 * PhaseLog.z));
+				Sign = RescaleRand1 < ProbT.z ? -1.0 : +1.0;
+			}
+			float3 PhasePdfR = rcp((DwivediScale - CosineZ) * PhaseLog * (2 * M_PI));
+			float3 PhasePdfT = rcp((DwivediScale + CosineZ) * PhaseLog * (2 * M_PI));
+			float3 PhasePdf = lerp(PhasePdfR, PhasePdfT, ProbT);
+			ColorChannelPdf *= rcp(ColorChannelCdf.z);
+			float MisPdf = dot(ColorChannelPdf, PhasePdf);
+			float SineZ = sqrt(saturate(1 - CosineZ * CosineZ));
+			float Phi = (2 * M_PI) * RandSample.y;
+			Result.xyz = normalize(TangentToWorld(float3(SineZ * cos(Phi), SineZ * sin(Phi), Sign * CosineZ), DwivediSlabNormal));
+			float PhaseCosine = -dot(RayDirection, Result.xyz);
+			float PhaseEval = HenyeyGreensteinPhase(G, PhaseCosine);
+			Result.w = PhaseEval / lerp(PhaseEval, MisPdf, GuidingFraction);
+		}
+		else
+		{
+			RandSample.x = RescaleRandomNumber(RandSample.x, GuidingFraction, 1.0);
+			float4 DirectionAndPhase = ImportanceSampleHenyeyGreensteinPhase(RandSample, G);
+			Result.xyz = normalize(TangentToWorld(DirectionAndPhase.xyz, RayDirection));
+			float CosineZ = dot(Result.xyz, DwivediSlabNormal);
+			float3 GuidedPhasePdfR = rcp((DwivediScale - CosineZ) * PhaseLog * (2 * M_PI));
+			float3 GuidedPhasePdfT = rcp((DwivediScale + CosineZ) * PhaseLog * (2 * M_PI));
+			float3 GuidedPhasePdf = lerp(GuidedPhasePdfR, GuidedPhasePdfT, ProbT);
+			ColorChannelPdf *= rcp(ColorChannelCdf.z);
+			float MisPdf = dot(ColorChannelPdf, GuidedPhasePdf);
+			float PhaseEval = DirectionAndPhase.w;
+			Result.w = PhaseEval / lerp(PhaseEval, MisPdf, GuidingFraction);
+		}
+	}
+	return Result;
+}
+
 float max3(float a, float b, float c)
 {
 	return max(a, max(b, c));
@@ -1146,6 +1379,13 @@ struct StandardBSDFData
         return d;
     }
 };
+
+void RemoveMaterialSss( inout StandardBSDFData data)
+{
+    data.sssMeanFreePath = float3(0,0,0);
+    data.bssrdfPDF = FLT_MAX;
+    data.sssPosition = data.position;
+}
 
 /** Mixed BSDF used for the standard material in Falcor.
 
