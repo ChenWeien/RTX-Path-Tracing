@@ -225,7 +225,7 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
         update = true;
     }
-    else if ( ImGui::SliderFloat( "sssMeanFreePathDistance (cm)", &material->sssMeanFreePathDistance, 0.1f, 20.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
+    else if ( ImGui::SliderFloat( "sssMeanFreePathDistance (cm)", &material->sssMeanFreePathDistance, 0.1f, 200.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
     {
         material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
         update = true;
