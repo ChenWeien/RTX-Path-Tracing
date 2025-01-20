@@ -382,7 +382,7 @@ inline bool sss_sampling_disk_sample(
         in float tMax, 
         out TriangleHit triangleHit,
         out SSSSample sssSample, 
-        out float pdf) 
+        out float intersectionPDF )
 {
     uint chosenIntersection = 0;
     uint numIntersections = 0;
@@ -404,7 +404,6 @@ inline bool sss_sampling_disk_sample(
     RayQuery<RAY_FLAG_FORCE_NON_OPAQUE  > rayQuery;
     rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE , 0xff, ray);
 
-
     // Traverse acceleration structure
     while (rayQuery.Proceed())
     {
@@ -414,9 +413,9 @@ inline bool sss_sampling_disk_sample(
             if ( geometryInstanceID.data != nextID.data ) {
                 continue; // hit a different geometry
             }
-            if ( false == rayQuery.CandidateTriangleFrontFace() ) {
-                continue; // skip back face
-            }
+            //if ( false == rayQuery.CandidateTriangleFrontFace() ) {
+            //    continue; // skip back face
+            //}
             numIntersections++;
             // Weighted reservoir sampling
             if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
@@ -432,7 +431,7 @@ inline bool sss_sampling_disk_sample(
             //break; // force numIntersections = 1
         }
     }
-    pdf = 0;
+    intersectionPDF = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
             
@@ -441,12 +440,10 @@ inline bool sss_sampling_disk_sample(
             workingContext.debug.DrawLine(origin, origin + direction * wrsT, float4(0, 1, 1, 1), float4(0, 0, 1, 1));
         }
 #endif
-            
-            
-        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-            
+        float3 viewRay = normalize( origin + direction * wrsT - sssPosition );
+        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, viewRay, path.rayCone, path.getVertexIndex(), workingContext.debug);
+
         sssSample = SSSSample::make( 
-            triangleHit.barycentrics,
             bridgedData.shadingData.posW, 
             bridgedData.shadingData.N,
             bridgedData.shadingData.faceN,
@@ -454,8 +451,8 @@ inline bool sss_sampling_disk_sample(
             triangleHit.primitiveIndex,
             chosenIntersection );
 
-        pdf = wrsWeight / weightTotal;
-        //pdf = 1.f / numIntersections;
+        intersectionPDF = wrsWeight / weightTotal;
+        //intersectionPDF = 1.f / numIntersections;
         return true;
     }
 
@@ -476,10 +473,10 @@ inline bool sss_sampling_disk_sample(
                               in const float xiAngle, 
                               out TriangleHit triangleHit,
                               out SSSSample sssSample, 
-                              out float pdf, 
+                              out float bssrdfPDF,
                               out float intersectionPDF )
     {
-        pdf = 0;
+        bssrdfPDF = 0;
         intersectionPDF = 0;
         const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
 
@@ -523,7 +520,7 @@ inline bool sss_sampling_disk_sample(
         }
 #endif
         
-        pdf = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.geometricNormal, sssInfo.scatterDistance);
+        bssrdfPDF = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.normal, sssInfo.scatterDistance);
 
         return true;
     }
@@ -660,7 +657,7 @@ inline bool sss_sampling_disk_sample(
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
-        bool canPerformSss = isPrimaryHit &&
+        bool canPerformSss = //isPrimaryHit &&
                                !path.wasScatterTransmission()
                             && !path.wasScatterSpecular() 
                             && !path.wasScatterDelta()
@@ -702,7 +699,6 @@ inline bool sss_sampling_disk_sample(
         float3 originalPosition = shadingData.posW;
 
         uint numIntersections = 0;
-        float weightTotal = 0.f;
         if ( isSssPixel && !canPerformSss )
         {
             bsdf.data.sssMeanFreePath = float3(0,0,0);
@@ -724,14 +720,19 @@ inline bool sss_sampling_disk_sample(
             //scatterDistance == d in equation (2)
             scatterDistance = bsdf.data.sssMeanFreePath / GetPerpendicularScalingFactor3D( bsdf.data.diffuse );
             
+            /* 
+            const float3 sssTangentFrame = shadingData.N;
+            BSDFFrame frame = coordinateSystem( sssTangentFrame );
+            /*/
             BSDFFrame frame;
-            BSDFFrame projectionFrame;
             frame.n = shadingData.N; // faceN, vertexN
             frame.t = shadingData.T;
             frame.b = shadingData.B;
+            //*/
+
+            BSDFFrame projectionFrame;
             sss_sampling_axis(axis, frame, projectionFrame);
 
-            float3 sssSampleRaydir = -projectionFrame.n;
             TriangleHit triangleHit; // reservoir sample
             SSSSample sssSample = SSSSample::makeZero();
 
@@ -749,6 +750,8 @@ inline bool sss_sampling_disk_sample(
             {
                 const uint vertexIndex = path.getVertexIndex();
                 path.setSssPath();
+
+                float3 sssSampleRaydir = normalize( sssSample.position - originalPosition );
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
                 bsdf = bridgedData.bsdf;
@@ -758,6 +761,7 @@ inline bool sss_sampling_disk_sample(
                 bsdf.data.intersectionPDF = bssrdfIntersectionPDF;
 
                 shadingData = bridgedData.shadingData;
+                shadingData.V = -sssSampleRaydir;
 
                 // set debug info
                 sssNearbyPosition = sssSample.position;
@@ -806,18 +810,21 @@ inline bool sss_sampling_disk_sample(
 #endif
         }
 
+        float3 showNumIntersection = float3( 0, 0, 0 );
+        if ( numIntersections >= 3 )
+            showNumIntersection = float3( 0, 1, 0 );
+        else if ( numIntersections >= 2 )
+            showNumIntersection = float3( 1, 0, 0 );
+        else if ( numIntersections == 1 )
+            showNumIntersection = float3( 0, 0, 1 );
+#if PATH_TRACER_MODE==PATH_TRACER_MODE_FILL_STABLE_PLANES // fill
+#else
+        //path.L = neeResult.Valid.rrr;//showNumIntersection;
+#endif
+
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
         {
-            float3 showWeightTotal = weightTotal > 0 ? float3(weightTotal,1.f/weightTotal,0) : float3(0,0,1);
-            float3 showNumIntersection = float3(0,0,0);
-            if ( numIntersections >= 3 )
-                showNumIntersection = float3( 0,1,0);
-            else if ( numIntersections >= 2 )
-                showNumIntersection = float3( 1,0,0);
-            else if ( numIntersections == 1 )
-                showNumIntersection = float3( 0,0,1);
-
             const float sssDistanceLength = length( sssDistanceVector );
             float intersectionPDF = bsdf.data.intersectionPDF;
             float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;

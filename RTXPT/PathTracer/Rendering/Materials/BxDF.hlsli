@@ -100,7 +100,7 @@ struct DiffuseReflectionLambert // : IBxDF
 
 
 
-/* 
+//* 
  //faceting on CC head, https://app.asana.com/0/1208704467141427/1208971573306148
 #define SSS_SAMPLING_DISK_AXIS_0_WEIGHT 0.5
 #define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0.25
@@ -198,7 +198,6 @@ struct SSSSample
 {
     uint geometryInstanceID;
     int triangleId;
-    float2 barycentrics;
     float3 position; // in world
     float3 geometricNormal;
     float3 normal;
@@ -208,19 +207,17 @@ struct SSSSample
         SSSSample ret;
         ret.geometryInstanceID = 0;
         ret.triangleId = 0;
-        ret.barycentrics = float2(0, 0);
         ret.position = float3(0, 0, 0);
         ret.geometricNormal = float3(0, 0, 0);
         ret.normal = float3(0, 0, 0);
         ret.intersection = INVALID_UINT_VALUE;
         return ret;
     }
-    static SSSSample make( float2 bary, float3 pos, float3 normal, float3 geometricNormal, uint geometryInstanceID, uint primitiveID, uint intersection )
+    static SSSSample make( float3 pos, float3 normal, float3 geometricNormal, uint geometryInstanceID, uint primitiveID, uint intersection )
     {
         SSSSample ret;
         ret.geometryInstanceID = geometryInstanceID;
         ret.triangleId = primitiveID;
-        ret.barycentrics = bary;
         ret.position = pos;
         ret.geometricNormal = geometricNormal;
         ret.normal = normal;
@@ -235,6 +232,30 @@ struct BSDFFrame
     float3 t;
     float3 b;
 };
+
+/// Given a vector n, outputs two vectors such that all three vectors are
+/// orthogonal to each other.
+/// The approach here is based on Frisvad's paper
+/// "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"
+/// https://backend.orbit.dtu.dk/ws/portalfiles/portal/126824972/onb_frisvad_jgt2012_v2.pdf
+BSDFFrame coordinateSystem( in const float3 n )
+{
+    BSDFFrame frame;
+    frame.n = n;
+    if ( n[ 2 ] < ( -1 + 1e-6 ) )
+    {
+        frame.t = float3( 0, -1, 0 );
+        frame.b = float3( -1, 0, 0 );
+    }
+    else
+    {
+        float a = 1 / ( 1 + n[ 2 ] );
+        float b = -n[ 0 ] * n[ 1 ] * a;
+        frame.t = float3( 1 - n[ 0 ] * n[ 0 ] * a, b, -n[ 0 ] );
+        frame.b = float3( b, 1 - n[ 1 ] * n[ 1 ] * a, -n[ 1 ] );
+    }
+    return frame;
+}
 
 float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const float3 scatterDistance) {
     if (radius <= 0) {
@@ -520,7 +541,7 @@ struct BssrdfDiffuseReflection
 
         //float bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
 
-    /*
+    //*
         return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
     /*/
         return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
