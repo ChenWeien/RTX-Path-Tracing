@@ -222,12 +222,12 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
     }
     else if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
     {
-        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
+        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
         update = true;
     }
     else if ( ImGui::SliderFloat( "sssMeanFreePathDistance (cm)", &material->sssMeanFreePathDistance, 0.1f, 20.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
     {
-        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
+        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
         update = true;
     }
 

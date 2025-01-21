@@ -657,11 +657,11 @@ inline bool sss_sampling_disk_sample(
         
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
-        bool canPerformSss = //isPrimaryHit &&
-                               !path.wasScatterTransmission()
-                            && !path.wasScatterSpecular() 
-                            && !path.wasScatterDelta()
-                            && !path.isInsideDielectricVolume();
+        bool canPerformSss = true;//isPrimaryHit &&
+                            //   !path.wasScatterTransmission()
+                            //&& !path.wasScatterSpecular() 
+                            //&& !path.wasScatterDelta()
+                            //&& !path.isInsideDielectricVolume();
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
