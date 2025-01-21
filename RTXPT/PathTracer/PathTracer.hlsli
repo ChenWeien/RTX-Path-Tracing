@@ -650,11 +650,9 @@ inline bool sss_sampling_disk_sample(
         // in build mode we've consumed emission and either updated or terminated path ourselves, so we must skip the rest of the function
         return;
 #endif 
-        
-        ScatterResult scatterResult;
+
         const PathState preScatterPath = path;
-        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        
+
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
         bool canPerformSss = true;//isPrimaryHit &&
@@ -781,6 +779,7 @@ inline bool sss_sampling_disk_sample(
             }
         }
 
+        ScatterResult scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
 
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 

@@ -1385,8 +1385,23 @@ struct FalcorBSDF // : IBxDF
 #if RecycleSelectSamples
             preGeneratedSample.z = clamp(uSelect / pDiffuseReflection, 0, OneMinusEpsilon); // note, this gets compiled out because bsdf below does not need .z, however it has been tested and can be used in case of a new bsdf that might require it
 #endif
-            
-            valid = diffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
+            if ( isSss() )
+            {
+                BssrdfDiffuseReflection bssrdfDiffuseReflection
+                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     scatter,
+                                                     sssMeanFreePath,
+                                                     _N,
+                                                     sssNormal,
+                                                     //_T,
+                                                     //_B,
+                                                     sssDistance, bssrdfPDF, intersectionPDF );
+                valid = bssrdfDiffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
+            }
+            else
+            {
+                valid = diffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
+            }
             weight /= pDiffuseReflection;
             weight *= (1.f - specTrans) * (1.f - diffTrans);
             pdf *= pDiffuseReflection;
