@@ -145,6 +145,7 @@ namespace PathTracer
                                                                                              bsdf.data.scatter,
                                                                                              bsdf.data.sssMeanFreePath,
                                                                                              bsdf.data.pixelNormal,
+                                                                                             bsdf.data.pixelView,
                                                                                              shadingData.N,
                                                                                              sssDistance,
                                                                                              bsdf.data.bssrdfPDF,

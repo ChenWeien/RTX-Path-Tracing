@@ -695,6 +695,8 @@ inline bool sss_sampling_disk_sample(
         float3 scatterDistance = 0;
         float3 sssDistanceVector = float3(0,0,0);
         float3 originalPosition = shadingData.posW;
+        float3 originalNormal = shadingData.N;
+        float3 originalView = shadingData.V;
 
         uint numIntersections = 0;
         if ( isSssPixel && !canPerformSss )
@@ -755,6 +757,8 @@ inline bool sss_sampling_disk_sample(
                 bsdf = bridgedData.bsdf;
                 bsdf.data.sssPosition = sssSample.position;
                 bsdf.data.position = originalPosition;
+                bsdf.data.pixelNormal = originalNormal;
+                bsdf.data.pixelView = originalView;
                 bsdf.data.bssrdfPDF = bssrdfPDF;
                 bsdf.data.intersectionPDF = bssrdfIntersectionPDF;
 
