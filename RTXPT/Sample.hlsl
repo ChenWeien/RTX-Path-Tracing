@@ -50,6 +50,7 @@ PathTracer::WorkingContext getWorkingContext(uint2 pixelPos)
 {
     PathTracer::WorkingContext ret;
     ret.ptConsts = g_Const.ptConsts;
+    ret.sssConsts = g_Const.sssConsts;
     ret.pixelPos = pixelPos;
     //ret.pixelStorageIndex = PixelCoordToIndex(pixelPos, g_Const.ptConsts.imageWidth);
     ret.debug.Init( pixelPos, g_Const.debug, u_FeedbackBuffer, u_DebugLinesBuffer, u_DebugDeltaPathTree, u_DeltaPathSearchStack, u_DebugVizOutput );

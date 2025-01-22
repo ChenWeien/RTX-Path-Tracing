@@ -124,7 +124,7 @@ namespace donut::engine
         dm::float3 emissiveColor = 0.f;
         dm::float3 sssMeanFreePath = 0.f; // mean free path for subsurface scattering
         dm::float3 sssMeanFreePathColor = 0.5; // mean free path Color UI, mfp = mfp Color * mfp distance
-        float sssMeanFreePathDistance = 0.1; // in cm
+        float sssMeanFreePathDistance = 0.1f; // in cm
         bool isSss = true; // enable subsurface scattering
         float emissiveIntensity = 1.f; // additional multiplier for emissiveColor
         float metalness = 0.f; // metal-rough only

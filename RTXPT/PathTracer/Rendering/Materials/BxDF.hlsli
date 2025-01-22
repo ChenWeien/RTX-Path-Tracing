@@ -25,6 +25,8 @@
 
 #include "../../StablePlanes.hlsli"
 
+#include "../../../ShaderResourceBindings.hlsli"
+
 // Minimum cos(theta) for the incident and outgoing vectors.
 // Some BSDF functions are not robust for cos(theta) == 0.0,
 // so using a small epsilon for consistency.
@@ -101,7 +103,7 @@ struct DiffuseReflectionLambert // : IBxDF
 
 
 //* 
- //faceting on CC head, https://app.asana.com/0/1208704467141427/1208971573306148
+//faceting on CC head, https://app.asana.com/0/1208704467141427/1208971573306148
 #define SSS_SAMPLING_DISK_AXIS_0_WEIGHT 0.5
 #define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0.25
 #define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 0.25
@@ -110,6 +112,13 @@ struct DiffuseReflectionLambert // : IBxDF
 #define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0
 #define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 0
 //*/
+
+float3 SamplingDiskAxisWeights()
+{
+    return g_Const.sssConsts.useMultipleIntersection
+        ? float3( SSS_SAMPLING_DISK_AXIS_0_WEIGHT, SSS_SAMPLING_DISK_AXIS_1_WEIGHT, SSS_SAMPLING_DISK_AXIS_2_WEIGHT )
+        : float3( 1, 0, 0 );
+}
 
 #define SSS_SAMPLING_DISK_CHANNEL_0_WEIGHT 1.0 / 3.0
 #define SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT 1.0 / 3.0
@@ -266,9 +275,10 @@ float3 sss_diffusion_profile_pdf_vectorized(in const float radius, in const floa
 }
 
 uint sss_sampling_axis_index(in const float xiAxis) {
-    if (xiAxis < SSS_SAMPLING_DISK_AXIS_0_WEIGHT) {
+    const float3 axisProb = SamplingDiskAxisWeights();
+    if ( xiAxis < axisProb[ 0 ] ) {
         return 0;
-    } else if (xiAxis < (SSS_SAMPLING_DISK_AXIS_0_WEIGHT + SSS_SAMPLING_DISK_AXIS_1_WEIGHT)) {
+    } else if ( xiAxis < ( axisProb[ 0 ] + axisProb[ 1 ] ) ) {
         return 1;
     } else {
         return 2;
@@ -324,9 +334,7 @@ float sss_sampling_disk_pdf(
     ));
     
     // Sampling weights for axes and channels
-    static const float3 axisProb = { SSS_SAMPLING_DISK_AXIS_0_WEIGHT,
-                                   SSS_SAMPLING_DISK_AXIS_1_WEIGHT,
-                                   SSS_SAMPLING_DISK_AXIS_2_WEIGHT };
+    const float3 axisProb = SamplingDiskAxisWeights();
     
     static const float3 channelProb = { SSS_SAMPLING_DISK_CHANNEL_0_WEIGHT,
                                       SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT,
@@ -402,6 +410,14 @@ float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
 	float3 Value = abs(SurfaceAlbedo - 0.8);
 	return 1.85 - SurfaceAlbedo + 7 * Value * Value * Value;
 }
+
+float3 GetSssScalingFactor3D( float3 SurfaceAlbedo )
+{
+    return g_Const.sssConsts.useUnrealScaleFactor
+        ? GetPerpendicularScalingFactor3D( SurfaceAlbedo )
+        : sss_diffusion_profile_scatterDistance( SurfaceAlbedo );
+}
+
 // Mathmatically matching based on diffusion coefficient instead of burley's approximation. However, it leads to incorrect result as 
 // we use burley's approximation (IOR=1.0) for screenspace diffuse scattering.
 //float3 Alpha = 1 - exp(-11.43 * SurfaceAlbedo + 15.38 * SurfaceAlbedo * SurfaceAlbedo - 13.91 * SurfaceAlbedo * SurfaceAlbedo * SurfaceAlbedo);
@@ -537,29 +553,36 @@ struct BssrdfDiffuseReflection
 
         //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
         float r = max( length( sssDistance ), 0.000001 );
-        float3 d = sssMeanFreePath / GetPerpendicularScalingFactor3D( albedo );
+        float3 d = sssMeanFreePath / GetSssScalingFactor3D( albedo );
         const float3 diffusionProfile = sss_diffusion_profile_evaluate( r, d );
 
         float3 bssrdf = scatter * albedo * diffusionProfile;// * disney_bssrdf_fresnel_evaluate( pixelNormal, pixelView );
 
-        float cosAtSurface = -wo.z; // wo.z is dot(N,L)
-        if (min(wi.z, -wo.z) < kMinCosTheta) return float3(0,0,0);
+        
+        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z; // wo.z is dot(N,L)
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta) return float3(0,0,0);
 
         //float bsdf = disney_bssrdf_fresnel_evaluate( sssNormal, wo );
 
-    //*
-        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
-    /*/
-        return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
-    //*/
+        if ( g_Const.sssConsts.useMultipleIntersection )
+        {
+            return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
+        }
+        else
+        {
+            return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
+        }
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
     {
         wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
-        lobe = (uint)LobeType::DiffuseTransmission;
+        lobe = g_Const.sssConsts.useTransmissionLobe
+             ? ( uint )LobeType::DiffuseTransmission
+             : ( uint )LobeType::DiffuseReflection;
 
-        if (min(wi.z, -wo.z) < kMinCosTheta)
+        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z;
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta)
         {
             weight = float3(0,0,0);
             lobeP = 0.0;
@@ -574,10 +597,11 @@ struct BssrdfDiffuseReflection
     float evalPdf(const float3 wi, const float3 wo)
     {
         // TODO:
-        
-        if (min(wi.z, -wo.z) < kMinCosTheta) return 0.f;
 
-        return M_1_PI * -wo.z;
+        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z;
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta) return 0.f;
+
+        return M_1_PI * cosAtSurface;
     }
 };
 
@@ -1407,7 +1431,7 @@ struct FalcorBSDF // : IBxDF
 #if RecycleSelectSamples
             preGeneratedSample.z = clamp(uSelect / pDiffuseReflection, 0, OneMinusEpsilon); // note, this gets compiled out because bsdf below does not need .z, however it has been tested and can be used in case of a new bsdf that might require it
 #endif
-            if ( isSss() )
+            if ( isSss() && g_Const.sssConsts.bssrdfSampleRay )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,

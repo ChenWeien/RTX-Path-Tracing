@@ -40,6 +40,7 @@ struct SampleConstants
     EnvMapSceneParams envMapSceneParams;
     EnvMapImportanceSamplingParams envMapImportanceSamplingParams;
     PathTracerConstants ptConsts;
+    SssConstants sssConsts;
     DebugConstants debug;
     float4 denoisingHitParamConsts;
 };

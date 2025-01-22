@@ -1696,6 +1696,18 @@ void Sample::UpdatePathTracerConstants( PathTracerConstants & constants, const P
     constants.NEEBoostSamplingOnDominantPlane   = m_ui.NEEBoostSamplingOnDominantPlane;
 }
 
+void Sample::UpdateSssConstants( SssConstants& constants )
+{
+    constants.useUnrealScaleFactor = m_ui.EnableUnrealScaleFactor;
+    constants.useMultipleIntersection = m_ui.EnableMultipleIntersection;
+    constants.useReStirAxisWeights = m_ui.EnableReStirAxisWeights;
+    constants.queryBackFace = m_ui.EnableQueryBackFace;
+    constants.correctViewRay = m_ui.EnableCorrectViewRay; 
+    constants.lateScatterRay = m_ui.EnableLateScatterRay;
+    constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay;
+    constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
+    constants.invertWoZ = m_ui.EnableInvertWoZ;
+}
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)
 {	
@@ -2041,6 +2053,7 @@ void Sample::Render(nvrhi::IFramebuffer* framebuffer)
         TransitionMeshBuffersToReadOnly(m_CommandList);
 
         UpdatePathTracerConstants(constants.ptConsts, cameraData);
+        UpdateSssConstants( constants.sssConsts );
         constants.ambientColor = float4(0.0f);
         constants.materialCount = (uint)m_Scene->GetSceneGraph()->GetMaterials().size();
         constants._padding1 = 0;

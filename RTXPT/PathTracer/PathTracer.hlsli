@@ -413,9 +413,12 @@ inline bool sss_sampling_disk_sample(
             if ( geometryInstanceID.data != nextID.data ) {
                 continue; // hit a different geometry
             }
-            //if ( false == rayQuery.CandidateTriangleFrontFace() ) {
-            //    continue; // skip back face
-            //}
+            if ( !g_Const.sssConsts.queryBackFace )
+            {
+                if ( false == rayQuery.CandidateTriangleFrontFace() ) {
+                    continue; // skip back face
+                }
+            }
             numIntersections++;
             // Weighted reservoir sampling
             if (sampleNext1D(sampleGenerator) <= weightNew / (weightNew + weightTotal))
@@ -434,7 +437,9 @@ inline bool sss_sampling_disk_sample(
     intersectionPDF = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
-        float3 viewRay = normalize( origin + direction * wrsT - sssPosition );
+        float3 viewRay = g_Const.sssConsts.correctViewRay
+                       ? normalize( origin + direction * wrsT - sssPosition )
+                       : ray.Direction;
         SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, viewRay, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
         sssSample = SSSSample::make( 
@@ -647,6 +652,12 @@ inline bool sss_sampling_disk_sample(
 
         const PathState preScatterPath = path;
 
+        ScatterResult scatterResult;
+        if ( !g_Const.sssConsts.lateScatterRay )
+        {
+            scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
+        }
+
     #if 1 //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
         bool canPerformSss = true;//isPrimaryHit &&
@@ -712,7 +723,7 @@ inline bool sss_sampling_disk_sample(
 
             //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
             //scatterDistance == d in equation (2)
-            scatterDistance = bsdf.data.sssMeanFreePath / GetPerpendicularScalingFactor3D( bsdf.data.diffuse );
+            scatterDistance = bsdf.data.sssMeanFreePath / GetSssScalingFactor3D( bsdf.data.diffuse );
             
             /* 
             const float3 sssTangentFrame = shadingData.N;
@@ -745,7 +756,9 @@ inline bool sss_sampling_disk_sample(
                 const uint vertexIndex = path.getVertexIndex();
                 path.setSssPath();
 
-                float3 sssSampleRaydir = normalize( sssSample.position - originalPosition );
+                float3 sssSampleRaydir = g_Const.sssConsts.correctViewRay
+                                       ? normalize( sssSample.position - originalPosition )
+                                       : -projectionFrame.n;
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
                 bsdf = bridgedData.bsdf;
@@ -757,7 +770,10 @@ inline bool sss_sampling_disk_sample(
                 bsdf.data.intersectionPDF = bssrdfIntersectionPDF;
 
                 shadingData = bridgedData.shadingData;
-                shadingData.V = -sssSampleRaydir;
+                if ( g_Const.sssConsts.correctViewRay )
+                {
+                    shadingData.V = -sssSampleRaydir;
+                }
 
                 // set debug info
                 sssNearbyPosition = sssSample.position;
@@ -776,8 +792,10 @@ inline bool sss_sampling_disk_sample(
                 }
             }
         }
-
-        ScatterResult scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
+        if ( g_Const.sssConsts.lateScatterRay )
+        {
+            scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
+        }
 
     #endif // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 

@@ -265,6 +265,21 @@ void SampleUI::buildUI(void)
     }
     ImGui::PopItemWidth();
 
+    if ( ImGui::CollapsingHeader( "Subsurface Scattering" ) ) //, ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Indent( indent ); 
+        if ( ImGui::Checkbox( "Unreal Scale Factor", &m_ui.EnableUnrealScaleFactor ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Multiple Intersection", &m_ui.EnableMultipleIntersection ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "ReSITR Axis Weights", &m_ui.EnableReStirAxisWeights ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Query Back Face", &m_ui.EnableQueryBackFace ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Correct View Ray", &m_ui.EnableCorrectViewRay ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Late Scatter Ray", &m_ui.EnableLateScatterRay ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Bssrdf Sample Ray", &m_ui.EnableBssrdfSampleRay ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Use Transmission Lobe", &m_ui.EnableUseTransmissionLobe ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true;
+        ImGui::Unindent( indent );
+    }
+
     if (ImGui::CollapsingHeader("Scene"/*, ImGuiTreeNodeFlags_DefaultOpen*/))
     {
         ImGui::Indent(indent);

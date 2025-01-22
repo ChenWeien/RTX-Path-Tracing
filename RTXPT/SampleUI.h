@@ -131,6 +131,17 @@ struct SampleUIData
     bool                                ShowConsole = false;
     bool                                EnableAnimations = false;
     bool                                EnableVsync = false;
+
+    bool                                EnableUnrealScaleFactor = true;
+    bool                                EnableMultipleIntersection = true;
+    bool                                EnableReStirAxisWeights = true;
+    bool                                EnableQueryBackFace = true;
+    bool                                EnableCorrectViewRay = true;
+    bool                                EnableLateScatterRay = true;
+    bool                                EnableBssrdfSampleRay = true;
+    bool                                EnableUseTransmissionLobe = true;
+    bool                                EnableInvertWoZ = true;
+
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;
     float                               ShaderReloadDelayedRequest = 0.0f;
