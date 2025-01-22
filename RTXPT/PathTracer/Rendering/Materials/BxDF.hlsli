@@ -1269,10 +1269,11 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
-        pDiffuseReflection = _isSss ? 1 : ( (activeLobes & (uint)LobeType::DiffuseReflection) ? diffuseWeight * dielectricBSDF * (1.f - diffTrans) : 0.f );
-        pDiffuseTransmission = _isSss ? 0 : ( (activeLobes & (uint)LobeType::DiffuseTransmission) ? diffuseWeight * dielectricBSDF * diffTrans : 0.f );
-        pSpecularReflection = _isSss ? 0 : ( (activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection)) ? specularWeight * (metallicBRDF + dielectricBSDF) : 0.f );
-        pSpecularReflectionTransmission = _isSss ? 0 : ((activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection | (uint)LobeType::SpecularTransmission | (uint)LobeType::DeltaTransmission)) ? specularBSDF : 0.f);
+        bool forceDiffRelect = _isSss && g_Const.sssConsts.onlyDiffuseReflection;
+        pDiffuseReflection = forceDiffRelect ? 1 : ( (activeLobes & (uint)LobeType::DiffuseReflection) ? diffuseWeight * dielectricBSDF * (1.f - diffTrans) : 0.f );
+        pDiffuseTransmission = forceDiffRelect ? 0 : ( (activeLobes & (uint)LobeType::DiffuseTransmission) ? diffuseWeight * dielectricBSDF * diffTrans : 0.f );
+        pSpecularReflection = forceDiffRelect ? 0 : ( (activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection)) ? specularWeight * (metallicBRDF + dielectricBSDF) : 0.f );
+        pSpecularReflectionTransmission = forceDiffRelect ? 0 : ((activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection | (uint)LobeType::SpecularTransmission | (uint)LobeType::DeltaTransmission)) ? specularBSDF : 0.f);
 
         float normFactor = pDiffuseReflection + pDiffuseTransmission + pSpecularReflection + pSpecularReflectionTransmission;
         if (normFactor > 0.f)

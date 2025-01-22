@@ -58,6 +58,7 @@ struct SssConstants
     uint bssrdfSampleRay;
     uint useTransmissionLobe;
     uint invertWoZ;
+    uint onlyDiffuseReflection;
 };
 
 // path tracer main constants

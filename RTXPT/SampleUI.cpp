@@ -277,6 +277,7 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Bssrdf Sample Ray", &m_ui.EnableBssrdfSampleRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Use Transmission Lobe", &m_ui.EnableUseTransmissionLobe ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Only Diffuse Reflection", &m_ui.EnableOnlyDiffuseReflection ) ) m_ui.ResetAccumulation = true;
         ImGui::Unindent( indent );
     }
 

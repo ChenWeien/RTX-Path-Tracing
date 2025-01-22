@@ -1707,6 +1707,7 @@ void Sample::UpdateSssConstants( SssConstants& constants )
     constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay;
     constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
     constants.invertWoZ = m_ui.EnableInvertWoZ;
+    constants.onlyDiffuseReflection = m_ui.EnableOnlyDiffuseReflection;
 }
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)
