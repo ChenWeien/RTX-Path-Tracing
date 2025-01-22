@@ -434,12 +434,6 @@ inline bool sss_sampling_disk_sample(
     intersectionPDF = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
-            
-#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-        if( workingContext.debug.IsDebugPixel() ) {
-            workingContext.debug.DrawLine(origin, origin + direction * wrsT, float4(0, 1, 1, 1), float4(0, 0, 1, 1));
-        }
-#endif
         float3 viewRay = normalize( origin + direction * wrsT - sssPosition );
         SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, viewRay, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
@@ -516,7 +510,7 @@ inline bool sss_sampling_disk_sample(
         
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if( workingContext.debug.IsDebugPixel() ) {
-            workingContext.debug.DrawLine(sssInfo.position, sssSample.position, float4(1, 0, 0, 1), float4(1.0, 0, 0, 1));
+            workingContext.debug.DrawLine(sssInfo.position, sssSample.position, float4(0, 1, 0, 0.5), float4(0, 1, 0, 1));
         }
 #endif
         
