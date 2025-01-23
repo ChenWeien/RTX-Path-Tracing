@@ -59,6 +59,8 @@ struct SssConstants
     uint useTransmissionLobe;
     uint invertWoZ;
     uint onlyDiffuseReflection;
+    uint traceAfterPrimaryHit;
+    uint performSssOnAllPathType;
 };
 
 // path tracer main constants

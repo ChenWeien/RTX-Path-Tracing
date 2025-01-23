@@ -1706,8 +1706,9 @@ void Sample::UpdateSssConstants( SssConstants& constants )
     constants.lateScatterRay = m_ui.EnableLateScatterRay;
     constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay;
     constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
-    constants.invertWoZ = m_ui.EnableInvertWoZ;
+    constants.invertWoZ = m_ui.EnableInvertWoZ; 
     constants.onlyDiffuseReflection = m_ui.EnableOnlyDiffuseReflection;
+    constants.performSssOnAllPathType = m_ui.EnablePerformSssOnAllPathType;
 }
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)

@@ -142,6 +142,8 @@ struct SampleUIData
     bool                                EnableUseTransmissionLobe = true;
     bool                                EnableInvertWoZ = true;
     bool                                EnableOnlyDiffuseReflection = true;
+    bool                                EnableTraceAfterPrimaryHit = true;
+    bool                                EnablePerformSssOnAllPathType = true;
 
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;
