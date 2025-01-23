@@ -693,12 +693,12 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
 
         
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-    float visible = rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+    float visible = !(rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
     if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
         ray.TMax = rayQuery.CommittedRayT();    // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
 
     if( debug.IsDebugPixel() )
-        debug.DrawLine(ray.Origin, ray.Origin+ray.Direction*ray.TMax, float4(visible.x, visible.x, 0.8, 0.2), float4(visible.x, visible.x, 0.8, 0.2));
+        debug.DrawLine(ray.Origin, ray.Origin+ray.Direction*ray.TMax, float4(visible.x, visible.x, 1-visible.x, 0.5), float4(visible.x, 1-visible.x, 1-visible.x, 0.8));
 #endif
 
     return !rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
