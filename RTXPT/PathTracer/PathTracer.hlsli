@@ -772,7 +772,8 @@ float3 ComputeDwivediScale(float3 Albedo)
                 shadingData.N = SignFlip * ProbeResult.WorldNormal;
                 shadingData.vertexN = SignFlip * ProbeResult.WorldSmoothNormal;
                 shadingData.faceN = SignFlip * ProbeResult.WorldGeoNormal;
-                
+                shadingData.V = shadingData.posW - rayOrigin;
+                const bool validTangentSpace = computeTangentSpace(shadingData, 1 );//ptVertex.tangentW);
                 // to check if any code call ::LoadSurface(  after RandomWalk and in NEE code?
                 
                 //Payload.WorldNormal = SignFlip * ProbeResult.WorldNormal;
@@ -789,11 +790,17 @@ float3 ComputeDwivediScale(float3 Albedo)
                 bsdf.data.transmission = 0;
                 //Payload.TransparencyColor = 0;
 
-                #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-                        if( workingContext.debug.IsDebugPixel() ) {
-                            workingContext.debug.DrawLine(originalPosW, shadingData.posW, float4(1, 0, 0, 1), float4(0, 1, 0, 1));
-                        }
-                #endif
+        #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+                if( workingContext.debug.IsDebugPixel() ) {
+                    workingContext.debug.DrawLine(originalPosW, shadingData.posW, float4(1, 1, 1, 1), float4(1, 1, 0, 1));
+                    
+                    // draw tangent space
+            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.T * workingContext.debug.LineScale(), float4(0.7, 0, 0, 0.5), float4(1.0, 0, 0, 0.5));
+            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.B * workingContext.debug.LineScale(), float4(0, 0.7, 0, 0.5), float4(0, 1.0, 0, 0.5));
+            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.N * workingContext.debug.LineScale(), float4(0, 0, 0.7, 0.5), float4(0, 0, 1.0, 0.5));
+                    
+                }
+        #endif
                 
                 return true;
             } // ProbeResult.IsMiss()
@@ -946,7 +953,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , workingContext );
         path.thp = PathThroughput;
 
-        ScatterResult scatterResult;
+
         if ( !isValidPoint )
         {
             // random walk did not terminate at a valid point
@@ -959,10 +966,10 @@ float3 ComputeDwivediScale(float3 Albedo)
             RemoveMaterialSss(bsdf.data);
         }
         
-        scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
+
         
-                float Prob = 1;
-                bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
+        float Prob = 1;
+        bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
@@ -973,6 +980,8 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         uint numIntersections = 0;
         float weightTotal = 0.f;
+        
+        ScatterResult  scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         
     //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
     if (0)
