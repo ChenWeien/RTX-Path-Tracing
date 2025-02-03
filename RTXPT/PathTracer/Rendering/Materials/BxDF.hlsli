@@ -450,7 +450,14 @@ float4 GetSubsurfaceProfileMFPInCm(int SubsurfaceProfileInt)
 #endif
 
 float sss_sampling_scatterDistance(in const uint channel, in const float3 scatterDistance) {
-    return scatterDistance[channel];
+    if ( g_Const.sssConsts.lengthInsteadOfChannel )
+    {
+        return length( scatterDistance );
+    }
+    else
+    {
+        return scatterDistance[ channel ];
+    }
 }
 
 float disney_schlickWeight(in const float a)
@@ -594,6 +601,10 @@ struct BssrdfDiffuseReflection
         if ( g_Const.sssConsts.invertWoZ )// && dot( wi, sssNormal ) < 0 )
         {
             cosAtSurface = -wo.z;
+            if ( g_Const.sssConsts.absoluteWoZ )
+            {
+                cosAtSurface = abs( wo.z );
+            }
         }
         return cosAtSurface;
     }
@@ -617,14 +628,17 @@ struct BssrdfDiffuseReflection
         //float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
 
         //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
-        float r = max( length( sssDistance ), 0.000001 );
+        float r = length( sssDistance );
         float3 d = sssMeanFreePath / GetSssScalingFactor3D( albedo );
         const float3 diffusionProfile = sss_diffusion_profile_evaluate( r, d );
 
         float3 bssrdfWeight = g_Const.sssConsts.bssrdfFresnel
                             ? disney_bssrdf_fresnel_evaluate( pixelNormal, pixelView )
                             : ( float3 )1.f;
-        float3 bssrdf = scatter * albedo * diffusionProfile * bssrdfWeight;
+
+        float3 scatterWeight = g_Const.sssConsts.scatterMapOnProbability ? (float3)1.f : scatter;
+
+        float3 bssrdf = scatterWeight * albedo * diffusionProfile * bssrdfWeight;
         float3 bsdf = g_Const.sssConsts.bsrdfFresnel ? disney_bssrdf_fresnel_evaluate( sssNormal, wo ) : ( float3 )1.f;
         return bssrdf * bsdf;
     }

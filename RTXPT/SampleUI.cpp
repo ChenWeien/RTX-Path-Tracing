@@ -285,12 +285,20 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Late Scatter Ray", &m_ui.EnableLateScatterRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Bssrdf Sample Ray", &m_ui.EnableBssrdfSampleRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Use Transmission Lobe", &m_ui.EnableUseTransmissionLobe ) ) m_ui.ResetAccumulation = true;
-        if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true;
+        {
+            UI_SCOPED_DISABLE( !m_ui.EnableInvertWoZ );
+            ImGui::Indent( indent );
+            if ( ImGui::Checkbox( "Absolute wo.z", &m_ui.EnableAbsoluteWoZ ) ) m_ui.ResetAccumulation = true;
+            ImGui::Unindent( indent );
+        }
         if ( ImGui::Checkbox( "Only Diffuse Reflection", &m_ui.EnableOnlyDiffuseReflection ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Trace After Primary Hit", &m_ui.EnableTraceAfterPrimaryHit ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Perform Sss On All Path Type", &m_ui.EnablePerformSssOnAllPathType ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Enable Bssrdf Fresnel", &m_ui.EnableBssrdfFresnel ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Enable Bsrdf Fresnel", &m_ui.EnableBsrdfFresnel ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Sample Scatter Length Intead of Channel", &m_ui.LengthInsteadOfChannel ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Scatter Map on Probability", &m_ui.ScatterMapOnProbability ) ) m_ui.ResetAccumulation = true;
         ImGui::Unindent( indent );
     }
 

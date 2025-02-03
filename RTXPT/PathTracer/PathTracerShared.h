@@ -60,11 +60,14 @@ struct SssConstants
     uint bssrdfSampleRay;
     uint useTransmissionLobe;
     uint invertWoZ;
+    uint absoluteWoZ;
     uint onlyDiffuseReflection;
     uint traceAfterPrimaryHit;
     uint performSssOnAllPathType;
     uint bssrdfFresnel;
     uint bsrdfFresnel;
+    uint lengthInsteadOfChannel;
+    uint scatterMapOnProbability;
 };
 
 // path tracer main constants

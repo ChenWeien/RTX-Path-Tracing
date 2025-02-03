@@ -673,7 +673,7 @@ inline bool sss_sampling_disk_sample(
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 
-        float Prob = 1;
+        float Prob = g_Const.sssConsts.scatterMapOnProbability ? length( bsdf.data.scatter ) : 1;
         if(1){
             float3 DiffuseColor = bsdf.data.diffuse;
             float3 SubsurfaceColor = bsdf.data.diffuse;

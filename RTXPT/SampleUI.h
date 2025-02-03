@@ -143,11 +143,14 @@ struct SampleUIData
     bool                                EnableBssrdfSampleRay = true;
     bool                                EnableUseTransmissionLobe = true;
     bool                                EnableInvertWoZ = false;
+    bool                                EnableAbsoluteWoZ = false;
     bool                                EnableOnlyDiffuseReflection = true;
     bool                                EnableTraceAfterPrimaryHit = true;
     bool                                EnablePerformSssOnAllPathType = true;
     bool                                EnableBssrdfFresnel = true;
     bool                                EnableBsrdfFresnel = true;
+    bool                                LengthInsteadOfChannel = true;
+    bool                                ScatterMapOnProbability = false;
 
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;
