@@ -238,8 +238,7 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::TextColored( filenameColor, "%s", getShortTexturePath( material->scatterTexture->path ).c_str() );
     }
 
-    if ( material->enableScatterTexture )
-        update |= ImGui::SliderFloat( "Scatter Strength", &material->scatterStrength, 0.f, 1.f );
+    update |= ImGui::SliderFloat( "Scatter Strength", &material->scatterStrength, 0.f, 1.f );
 
     update |= ImGui::ColorEdit3( "Emissive Color", material->emissiveColor.data(), ImGuiColorEditFlags_Float );
     update |= ImGui::SliderFloat("Emissive Intensity", &material->emissiveIntensity, 0.f, 100000.f, "%.3f", ImGuiSliderFlags_Logarithmic);

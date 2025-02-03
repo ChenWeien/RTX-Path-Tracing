@@ -108,14 +108,14 @@ struct DiffuseReflectionLambert // : IBxDF
 #define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0.25
 #define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 0.25
 /*/
-#define SSS_SAMPLING_DISK_AXIS_0_WEIGHT 1
-#define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 0
-#define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 0
+#define SSS_SAMPLING_DISK_AXIS_0_WEIGHT 1.0 / 3.0
+#define SSS_SAMPLING_DISK_AXIS_1_WEIGHT 1.0 / 3.0
+#define SSS_SAMPLING_DISK_AXIS_2_WEIGHT 1.0 / 3.0
 //*/
 
 float3 SamplingDiskAxisWeights()
 {
-    return g_Const.sssConsts.useMultipleIntersection
+    return g_Const.sssConsts.useReStirAxisWeights
         ? float3( SSS_SAMPLING_DISK_AXIS_0_WEIGHT, SSS_SAMPLING_DISK_AXIS_1_WEIGHT, SSS_SAMPLING_DISK_AXIS_2_WEIGHT )
         : float3( 1, 0, 0 );
 }
@@ -337,8 +337,8 @@ float sss_sampling_disk_pdf(
     const float3 axisProb = SamplingDiskAxisWeights();
     
     static const float3 channelProb = { SSS_SAMPLING_DISK_CHANNEL_0_WEIGHT,
-                                      SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT,
-                                      SSS_SAMPLING_DISK_CHANNEL_2_WEIGHT };
+                                        SSS_SAMPLING_DISK_CHANNEL_1_WEIGHT,
+                                        SSS_SAMPLING_DISK_CHANNEL_2_WEIGHT };
     
     float pdf = 0.0f;
     
@@ -548,40 +548,24 @@ struct BssrdfDiffuseReflection
     
     float3 eval(const float3 wi, const float3 wo)
     {
-        // need to fix bssrdfPDF, should used both normal vector of x1, x2
-        //float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
-
-        //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
-        float r = max( length( sssDistance ), 0.000001 );
-        float3 d = sssMeanFreePath / GetSssScalingFactor3D( albedo );
-        const float3 diffusionProfile = sss_diffusion_profile_evaluate( r, d );
-
-        float3 bssrdf = scatter * albedo * diffusionProfile;// * disney_bssrdf_fresnel_evaluate( pixelNormal, pixelView );
-
-        
-        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z; // wo.z is dot(N,L)
+        float cosAtSurface = evalCosAtSurface( wi, wo );
         if (min(wi.z, cosAtSurface ) < kMinCosTheta) return float3(0,0,0);
 
-        //float bsdf = disney_bssrdf_fresnel_evaluate( sssNormal, wo );
-
-        if ( g_Const.sssConsts.useMultipleIntersection )
-        {
-            return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF * intersectionPDF );
-        }
-        else
-        {
-            return M_1_PI * bssrdf * cosAtSurface / ( bssrdfPDF );
-        }
+        return evalWeight( wi, wo ) * M_1_PI * cosAtSurface * evalSssPdf();
     }
 
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
     {
         wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
-        lobe = g_Const.sssConsts.useTransmissionLobe
-             ? ( uint )LobeType::DiffuseTransmission
-             : ( uint )LobeType::DiffuseReflection;
+        lobe = ( uint )LobeType::DiffuseReflection;
+        
+        if ( g_Const.sssConsts.useTransmissionLobe )// && dot( pixelNormal, sssNormal ) < 0 )
+        {
+            //wo.z = -wo.z;
+            lobe = ( uint )LobeType::DiffuseTransmission;
+        }
 
-        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z;
+        float cosAtSurface = evalCosAtSurface( wi, wo );
         if (min(wi.z, cosAtSurface ) < kMinCosTheta)
         {
             weight = float3(0,0,0);
@@ -589,7 +573,7 @@ struct BssrdfDiffuseReflection
             return false;
         }
 
-        weight = albedo;
+        weight = evalWeight( wi, wo ) * evalSssPdf();
         lobeP = 1.0;
         return true;
     }
@@ -598,10 +582,51 @@ struct BssrdfDiffuseReflection
     {
         // TODO:
 
-        float cosAtSurface = g_Const.sssConsts.invertWoZ ? -wo.z : wo.z;
+        float cosAtSurface = evalCosAtSurface( wi, wo );
         if (min(wi.z, cosAtSurface ) < kMinCosTheta) return 0.f;
 
         return M_1_PI * cosAtSurface;
+    }
+
+    float evalCosAtSurface( const float3 wi, const float3 wo )
+    {
+        float cosAtSurface = wo.z;
+        if ( g_Const.sssConsts.invertWoZ )// && dot( wi, sssNormal ) < 0 )
+        {
+            cosAtSurface = -wo.z;
+        }
+        return cosAtSurface;
+    }
+
+    float evalSssPdf()
+    {
+        if ( g_Const.sssConsts.useMultipleIntersection )
+        {
+            return 1.f / ( bssrdfPDF * intersectionPDF );
+        }
+        else
+        {
+            return 1.f / ( bssrdfPDF );
+        }
+
+    }
+
+    float3 evalWeight( float3 wi, float3 wo )
+    {
+        // need to fix bssrdfPDF, should used both normal vector of x1, x2
+        //float bssrdfPDF = sss_sampling_disk_pdf(sssDistance, frame, frame.n, scatterDistance);
+
+        //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
+        float r = max( length( sssDistance ), 0.000001 );
+        float3 d = sssMeanFreePath / GetSssScalingFactor3D( albedo );
+        const float3 diffusionProfile = sss_diffusion_profile_evaluate( r, d );
+
+        float3 bssrdfWeight = g_Const.sssConsts.bssrdfFresnel
+                            ? disney_bssrdf_fresnel_evaluate( pixelNormal, pixelView )
+                            : ( float3 )1.f;
+        float3 bssrdf = scatter * albedo * diffusionProfile * bssrdfWeight;
+        float3 bsdf = g_Const.sssConsts.bsrdfFresnel ? disney_bssrdf_fresnel_evaluate( sssNormal, wo ) : ( float3 )1.f;
+        return bssrdf * bsdf;
     }
 };
 

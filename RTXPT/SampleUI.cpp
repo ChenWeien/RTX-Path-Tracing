@@ -272,7 +272,16 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Multiple Intersection", &m_ui.EnableMultipleIntersection ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "ReSITR Axis Weights", &m_ui.EnableReStirAxisWeights ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Query Back Face", &m_ui.EnableQueryBackFace ) ) m_ui.ResetAccumulation = true; 
-        if ( ImGui::Checkbox( "Correct View Ray", &m_ui.EnableCorrectViewRay ) ) m_ui.ResetAccumulation = true; 
+        if ( ImGui::Checkbox( "Correct View Ray", &m_ui.EnableCorrectViewRay ) ) m_ui.ResetAccumulation = true;
+        {
+            UI_SCOPED_DISABLE( !m_ui.EnableCorrectViewRay );
+            ImGui::Indent( indent );
+            if ( ImGui::Checkbox( "Use Ray Origin", &m_ui.UseRayOriginCorrectViewRay ) ) m_ui.ResetAccumulation = true;
+            ImGui::Indent( indent );
+            if ( ImGui::Checkbox( "Single Intersection Only", &m_ui.SingleIntersectionOnly ) ) m_ui.ResetAccumulation = true;
+            ImGui::Unindent( indent );
+            ImGui::Unindent( indent );
+        }
         if ( ImGui::Checkbox( "Late Scatter Ray", &m_ui.EnableLateScatterRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Bssrdf Sample Ray", &m_ui.EnableBssrdfSampleRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Use Transmission Lobe", &m_ui.EnableUseTransmissionLobe ) ) m_ui.ResetAccumulation = true;
@@ -280,6 +289,8 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Only Diffuse Reflection", &m_ui.EnableOnlyDiffuseReflection ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Trace After Primary Hit", &m_ui.EnableTraceAfterPrimaryHit ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Perform Sss On All Path Type", &m_ui.EnablePerformSssOnAllPathType ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Enable Bssrdf Fresnel", &m_ui.EnableBssrdfFresnel ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Enable Bsrdf Fresnel", &m_ui.EnableBsrdfFresnel ) ) m_ui.ResetAccumulation = true;
         ImGui::Unindent( indent );
     }
 

@@ -54,6 +54,8 @@ struct SssConstants
     uint useReStirAxisWeights;
     uint queryBackFace;
     uint correctViewRay;
+    uint useRayOrigin;
+    uint singleIntersectionOnly;
     uint lateScatterRay;
     uint bssrdfSampleRay;
     uint useTransmissionLobe;
@@ -61,6 +63,8 @@ struct SssConstants
     uint onlyDiffuseReflection;
     uint traceAfterPrimaryHit;
     uint performSssOnAllPathType;
+    uint bssrdfFresnel;
+    uint bsrdfFresnel;
 };
 
 // path tracer main constants

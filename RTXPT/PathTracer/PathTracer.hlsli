@@ -373,6 +373,7 @@ inline bool sss_sampling_disk_sample(
         const WorkingContext workingContext,
         inout SampleGenerator sampleGenerator,
         in const uniform OptimizationHints optimizationHints,
+        in float3 rayOrigin,
         in const PathState path,
         in const GeometryInstanceID geometryInstanceID,
         in float3 sssPosition, 
@@ -437,8 +438,11 @@ inline bool sss_sampling_disk_sample(
     intersectionPDF = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
+        float3 originPos = g_Const.sssConsts.useRayOrigin && ( !g_Const.sssConsts.singleIntersectionOnly || numIntersections == 1 )
+                         ? rayOrigin
+                         : sssPosition;
         float3 viewRay = g_Const.sssConsts.correctViewRay
-                       ? normalize( origin + direction * wrsT - sssPosition )
+                       ? normalize( origin + direction * wrsT - originPos )
                        : ray.Direction;
         SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, viewRay, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
@@ -463,6 +467,7 @@ inline bool sss_sampling_disk_sample(
     bool sss_sampling_sample( const WorkingContext workingContext,
                               inout SampleGenerator sampleGenerator, 
                               in const uniform OptimizationHints optimizationHints,
+                              in const float3 rayOrigin,
                               in const PathState path,
                               in const BSDFFrame frame, 
                               in const BSDFFrame projectionFrame, 
@@ -499,7 +504,7 @@ inline bool sss_sampling_disk_sample(
             GeometryInstanceID geometryInstanceID;
             geometryInstanceID.data = sssInfo.geometryInstanceID;
 
-            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, path, geometryInstanceID, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
+            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, geometryInstanceID, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
             {
                 return false;
             }
@@ -744,7 +749,7 @@ inline bool sss_sampling_disk_sample(
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, pixelGeometryInstanceID.data, scatterDistance, INVALID_UINT_VALUE);
 
             float bssrdfIntersectionPDF = 0;
-            if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
+            if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
                 bsdf.data.sssMeanFreePath = float3(0,0,0);
                 bsdf.data.bssrdfPDF = FLT_MAX;
@@ -755,9 +760,11 @@ inline bool sss_sampling_disk_sample(
             {
                 const uint vertexIndex = path.getVertexIndex();
                 path.setSssPath();
-
+                float3 originPos = g_Const.sssConsts.useRayOrigin && ( !g_Const.sssConsts.singleIntersectionOnly || bssrdfIntersectionPDF == 1 )
+                                 ? rayOrigin
+                                 : originalPosition;
                 float3 sssSampleRaydir = g_Const.sssConsts.correctViewRay
-                                       ? normalize( sssSample.position - originalPosition )
+                                       ? normalize( sssSample.position - originPos )
                                        : -projectionFrame.n;
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
@@ -771,7 +778,7 @@ inline bool sss_sampling_disk_sample(
 
                 shadingData = bridgedData.shadingData;
                 if ( g_Const.sssConsts.correctViewRay )
-                {
+                { 
                     shadingData.V = -sssSampleRaydir;
                 }
 

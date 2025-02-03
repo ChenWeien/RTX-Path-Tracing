@@ -137,13 +137,17 @@ struct SampleUIData
     bool                                EnableReStirAxisWeights = true;
     bool                                EnableQueryBackFace = true;
     bool                                EnableCorrectViewRay = true;
+    bool                                UseRayOriginCorrectViewRay = true;
+    bool                                SingleIntersectionOnly = true;
     bool                                EnableLateScatterRay = true;
     bool                                EnableBssrdfSampleRay = true;
     bool                                EnableUseTransmissionLobe = true;
-    bool                                EnableInvertWoZ = true;
+    bool                                EnableInvertWoZ = false;
     bool                                EnableOnlyDiffuseReflection = true;
     bool                                EnableTraceAfterPrimaryHit = true;
     bool                                EnablePerformSssOnAllPathType = true;
+    bool                                EnableBssrdfFresnel = true;
+    bool                                EnableBsrdfFresnel = true;
 
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;
