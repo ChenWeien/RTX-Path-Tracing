@@ -1710,12 +1710,14 @@ void Sample::UpdateSssConstants( SssConstants& constants )
     constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
     constants.invertWoZ = m_ui.EnableInvertWoZ;
     constants.absoluteWoZ = m_ui.EnableAbsoluteWoZ;
+    constants.onlyOnTransmission = m_ui.OnlyOnTransmission;
     constants.onlyDiffuseReflection = m_ui.EnableOnlyDiffuseReflection;
     constants.performSssOnAllPathType = m_ui.EnablePerformSssOnAllPathType;
     constants.bssrdfFresnel = m_ui.EnableBssrdfFresnel;
-    constants.bsrdfFresnel = m_ui.EnableBsrdfFresnel;
+    constants.bsrdfFresnel = m_ui.EnableBsrdfFresnel; 
     constants.lengthInsteadOfChannel = m_ui.LengthInsteadOfChannel;
     constants.scatterMapOnProbability = m_ui.ScatterMapOnProbability;
+    constants.bssrdfSampleRay = m_ui.EnableBssrdfEvalPdf;
 }
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)

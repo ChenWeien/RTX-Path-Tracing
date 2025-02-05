@@ -600,10 +600,13 @@ struct BssrdfDiffuseReflection
         float cosAtSurface = wo.z;
         if ( g_Const.sssConsts.invertWoZ )// && dot( wi, sssNormal ) < 0 )
         {
-            cosAtSurface = -wo.z;
-            if ( g_Const.sssConsts.absoluteWoZ )
+            if ( !g_Const.sssConsts.onlyOnTransmission || intersectionPDF < 1 )
             {
-                cosAtSurface = abs( wo.z );
+                cosAtSurface = -wo.z;
+                if ( g_Const.sssConsts.absoluteWoZ )
+                {
+                    cosAtSurface = abs( wo.z );
+                }
             }
         }
         return cosAtSurface;
@@ -1420,14 +1423,17 @@ struct FalcorBSDF // : IBxDF
             if ( isSss() )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
-                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
-                                                     scatter,
-                                                     sssMeanFreePath,
-                                                     _N,
-                                                     sssNormal,
-                                                     //_T,
-                                                     //_B,
-                                                     sssDistance );
+                    = BBssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                      scatter,
+                                                      sssMeanFreePath,
+                                                      _N,
+                                                      pixelView,
+                                                      sssNormal,
+                                                      //_T,
+                                                      //_B,
+                                                      sssDistance,
+                                                      bssrdfPDF,
+                                                      intersectionPDF );
                 diffuseReflectionEval = bssrdfDiffuseReflection.eval( wi, wo );
             }
             else
@@ -1550,7 +1556,29 @@ struct FalcorBSDF // : IBxDF
     float evalPdf(const float3 wi, const float3 wo)
     {
         float pdf = 0.f;
-        if (pDiffuseReflection > 0.f) pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+        if ( pDiffuseReflection > 0.f )
+        {
+            if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+            {
+                BssrdfDiffuseReflection bssrdfDiffuseReflection
+                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     scatter,
+                                                     sssMeanFreePath,
+                                                     _N,
+                                                     pixelView,
+                                                     sssNormal,
+                                                     //_T,
+                                                     //_B,
+                                                     sssDistance,
+                                                     bssrdfPDF,
+                                                     intersectionPDF );
+                pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+            }
+            else
+            {
+                pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+            }
+        }
         if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
         if (pSpecularReflection > 0.f) pdf += pSpecularReflection * specularReflection.evalPdf(wi, wo);
         if (pSpecularReflectionTransmission > 0.f) pdf += pSpecularReflectionTransmission * specularReflectionTransmission.evalPdf(wi, wo);
