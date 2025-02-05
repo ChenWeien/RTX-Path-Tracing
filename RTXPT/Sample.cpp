@@ -1717,7 +1717,7 @@ void Sample::UpdateSssConstants( SssConstants& constants )
     constants.bsrdfFresnel = m_ui.EnableBsrdfFresnel; 
     constants.lengthInsteadOfChannel = m_ui.LengthInsteadOfChannel;
     constants.scatterMapOnProbability = m_ui.ScatterMapOnProbability;
-    constants.bssrdfSampleRay = m_ui.EnableBssrdfEvalPdf;
+    constants.bssrdfEvalPdf = m_ui.EnableBssrdfEvalPdf;
 }
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)

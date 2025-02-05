@@ -1527,7 +1527,29 @@ struct FalcorBSDF // : IBxDF
             weight *= (1.f - specTrans);
             pdf *= pSpecularReflection;
             lobeP *= pSpecularReflection;
-            if (pDiffuseReflection > 0.f) pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+            if ( pDiffuseReflection > 0.f )
+            {
+                if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+                {
+                    BssrdfDiffuseReflection bssrdfDiffuseReflection
+                        = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                         scatter,
+                                                         sssMeanFreePath,
+                                                         _N,
+                                                         pixelView,
+                                                         sssNormal,
+                                                         //_T,
+                                                         //_B,
+                                                         sssDistance,
+                                                         bssrdfPDF,
+                                                         intersectionPDF );
+                    pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+                }
+                else
+                {
+                    pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+                }
+            }
             // if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
             if (pSpecularReflectionTransmission > 0.f) pdf += pSpecularReflectionTransmission * specularReflectionTransmission.evalPdf(wi, wo);
         }
@@ -1542,7 +1564,29 @@ struct FalcorBSDF // : IBxDF
             weight *= specTrans;
             pdf *= pSpecularReflectionTransmission;
             lobeP *= pSpecularReflectionTransmission;
-            if (pDiffuseReflection > 0.f) pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+            if ( pDiffuseReflection > 0.f )
+            {
+                if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+                {
+                    BssrdfDiffuseReflection bssrdfDiffuseReflection
+                        = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                         scatter,
+                                                         sssMeanFreePath,
+                                                         _N,
+                                                         pixelView,
+                                                         sssNormal,
+                                                         //_T,
+                                                         //_B,
+                                                         sssDistance,
+                                                         bssrdfPDF,
+                                                         intersectionPDF );
+                    pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+                }
+                else
+                {
+                    pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+                }
+            }
             if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
             if (pSpecularReflection > 0.f) pdf += pSpecularReflection * specularReflection.evalPdf(wi, wo);
         }
@@ -1556,7 +1600,29 @@ struct FalcorBSDF // : IBxDF
     float evalPdf(const float3 wi, const float3 wo)
     {
         float pdf = 0.f;
-        if (pDiffuseReflection > 0.f) pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+        if ( pDiffuseReflection > 0.f )
+        {
+            if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+            {
+                BssrdfDiffuseReflection bssrdfDiffuseReflection
+                    = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
+                                                     scatter,
+                                                     sssMeanFreePath,
+                                                     _N,
+                                                     pixelView,
+                                                     sssNormal,
+                                                     //_T,
+                                                     //_B,
+                                                     sssDistance,
+                                                     bssrdfPDF,
+                                                     intersectionPDF );
+                pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+            }
+            else
+            {
+                pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+            }
+        }
         if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
         if (pSpecularReflection > 0.f) pdf += pSpecularReflection * specularReflection.evalPdf(wi, wo);
         if (pSpecularReflectionTransmission > 0.f) pdf += pSpecularReflectionTransmission * specularReflectionTransmission.evalPdf(wi, wo);
