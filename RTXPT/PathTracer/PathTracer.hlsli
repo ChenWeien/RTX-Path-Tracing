@@ -684,9 +684,9 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
-        Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.N);
+        Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.faceN);
         Ray.TMin = 0;
-        ApplyRayBias(Ray, rayTCurrent, -shadingData.vertexN);
+        ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);
 
         SSS.Radius = max(SSS.Radius, 0.0009);
         SSS.Color = bsdf.data.diffuse;
