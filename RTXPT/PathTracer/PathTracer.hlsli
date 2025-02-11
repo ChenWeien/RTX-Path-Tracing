@@ -544,7 +544,7 @@ FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf 
 {
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
 	Result.Color = bsdf.data.diffuse;
-	Result.Radius = bsdf.data.sssMeanFreePath;
+	Result.Radius = bsdf.data.sssMeanFreePath / 3;
 	Result.Weight = 0;
 	Result.Prob = 0;
 	Result.G = 0;
@@ -619,6 +619,9 @@ float3 ComputeDwivediScale(float3 Albedo)
             
             SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, Ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
+            
+            workingContext.debug.DrawLine(Ray.Origin, bridgedData.shadingData.posW, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+            
             FProbeResult Result;
             Result.HitT = rayQuery.CommittedRayT();
             Result.WorldNormal = bridgedData.shadingData.N;
