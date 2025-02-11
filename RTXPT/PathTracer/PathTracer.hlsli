@@ -584,7 +584,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 	return rsqrt(1.0 - pow(ClampedAlbedo, 2.44294 - 0.0215813 * ClampedAlbedo + 0.578637 / ClampedAlbedo));
 }
     
-    FProbeResult TraceSSSProbeRay(const uniform OptimizationHints optimizationHints, in PathState path, RayDesc Ray, inout int InterfaceCounter, const WorkingContext workingContext)
+    FProbeResult TraceSSSProbeRay(const uniform OptimizationHints optimizationHints, in PathState path, RayDesc Ray, inout int InterfaceCounter, const WorkingContext workingContext, bool drawDebugLine)
     {
         for (;;)
         {
@@ -619,8 +619,10 @@ float3 ComputeDwivediScale(float3 Albedo)
             
             SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, Ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
-            
-            workingContext.debug.DrawLine(Ray.Origin, bridgedData.shadingData.posW, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+            if ( drawDebugLine )
+            {
+                workingContext.debug.DrawLine(Ray.Origin, bridgedData.shadingData.posW, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+            }
             
             FProbeResult Result;
             Result.HitT = rayQuery.CommittedRayT();
@@ -719,7 +721,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                 ProbeRay.TMin = 0.0;
                 ProbeRay.TMax = 10 * max3(SSS.Radius.x, SSS.Radius.y, SSS.Radius.z);
                 int ProbeInterfaceCounter = InterfaceCounter;
-                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext);
+                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext, false);
                 if (Result.IsMiss())
                 {
                     SlabThickness = -1.0;
@@ -738,11 +740,17 @@ float3 ComputeDwivediScale(float3 Albedo)
             {
                 break;
             }
-            FProbeResult ProbeResult = TraceSSSProbeRay(optimizationHints, path, Ray, InterfaceCounter, workingContext);
+            FProbeResult ProbeResult = TraceSSSProbeRay(optimizationHints, path, Ray, InterfaceCounter, workingContext, true);
             RandSample = sampleNext3D(sampleGenerator);;
             if (ProbeResult.IsMiss())
             {
+                //float3 oldOrigin = Ray.Origin; <= to double check using this origin is logically correct
+
                 Ray.Origin += Ray.TMax * Ray.Direction;
+
+                //float3 newOrigin = Ray.Origin;
+                //workingContext.debug.DrawLine(oldOrigin, newOrigin, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+
                 PathThroughput *= SigmaS * EvaluateGuidedSpectralTransmittanceHit(Ray.TMax, SlabCosine, DwivediScale, GuidedRatio, SigmaT, ProbT, ColorChannelPdf).xyz;
                 float4 Result = SampleDwivediPhaseFunction(ColorChannelPdf, DwivediScale, GuidedRatio, ProbT, DwivediSlabNormal, Ray.Direction, G, RandSample.xy);
                 Ray.Direction = Result.xyz;
