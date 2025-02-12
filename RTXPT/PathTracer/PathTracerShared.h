@@ -59,6 +59,7 @@ struct SssConstants
     uint lateScatterRay;
     uint bssrdfSampleRay;
     uint useTransmissionLobe;
+    uint transmissionLobeOnRefract;
     uint invertWoZ;
     uint absoluteWoZ;
     uint onlyOnTransmission;

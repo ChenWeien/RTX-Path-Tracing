@@ -285,12 +285,10 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Late Scatter Ray", &m_ui.EnableLateScatterRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Bssrdf Sample Ray", &m_ui.EnableBssrdfSampleRay ) ) m_ui.ResetAccumulation = true; 
         if ( ImGui::Checkbox( "Use Transmission Lobe", &m_ui.EnableUseTransmissionLobe ) ) m_ui.ResetAccumulation = true;
-        if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true;
         {
-            UI_SCOPED_DISABLE( !m_ui.EnableInvertWoZ );
+            UI_SCOPED_DISABLE( !m_ui.EnableUseTransmissionLobe );
             ImGui::Indent( indent );
-            if ( ImGui::Checkbox( "Absolute wo.z", &m_ui.EnableAbsoluteWoZ ) ) m_ui.ResetAccumulation = true;
-            if ( ImGui::Checkbox( "Only on Transmission", &m_ui.OnlyOnTransmission ) ) m_ui.ResetAccumulation = true;
+            if ( ImGui::Checkbox( "Only on Refraction", &m_ui.TransmissionLobeOnRefract ) ) m_ui.ResetAccumulation = true;
             ImGui::Unindent( indent );
         }
         if ( ImGui::Checkbox( "Only Diffuse Reflection", &m_ui.EnableOnlyDiffuseReflection ) ) m_ui.ResetAccumulation = true;
@@ -301,6 +299,14 @@ void SampleUI::buildUI(void)
         if ( ImGui::Checkbox( "Sample Scatter Length Intead of Channel", &m_ui.LengthInsteadOfChannel ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Scatter Map on Probability", &m_ui.ScatterMapOnProbability ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Bssrdf evalPdf", &m_ui.EnableBssrdfEvalPdf ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "Invert wo.z", &m_ui.EnableInvertWoZ ) ) m_ui.ResetAccumulation = true;
+        {
+            UI_SCOPED_DISABLE( !m_ui.EnableInvertWoZ );
+            ImGui::Indent( indent );
+            if ( ImGui::Checkbox( "Absolute wo.z", &m_ui.EnableAbsoluteWoZ ) ) m_ui.ResetAccumulation = true;
+            if ( ImGui::Checkbox( "Only on Transmission", &m_ui.OnlyOnTransmission ) ) m_ui.ResetAccumulation = true;
+            ImGui::Unindent( indent );
+        }
         ImGui::Unindent( indent );
     }
 

@@ -1706,8 +1706,9 @@ void Sample::UpdateSssConstants( SssConstants& constants )
     constants.useRayOrigin = m_ui.UseRayOriginCorrectViewRay;
     constants.singleIntersectionOnly = m_ui.SingleIntersectionOnly;
     constants.lateScatterRay = m_ui.EnableLateScatterRay;
-    constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay;
+    constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay; 
     constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
+    constants.transmissionLobeOnRefract = m_ui.TransmissionLobeOnRefract;
     constants.invertWoZ = m_ui.EnableInvertWoZ;
     constants.absoluteWoZ = m_ui.EnableAbsoluteWoZ;
     constants.onlyOnTransmission = m_ui.OnlyOnTransmission;

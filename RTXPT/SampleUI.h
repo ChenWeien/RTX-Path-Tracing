@@ -142,7 +142,8 @@ struct SampleUIData
     bool                                EnableLateScatterRay = true; 
     bool                                EnableBssrdfSampleRay = true;
     bool                                EnableUseTransmissionLobe = true;
-    bool                                EnableInvertWoZ = false;
+    bool                                TransmissionLobeOnRefract = true;
+    bool                                EnableInvertWoZ = true;
     bool                                EnableAbsoluteWoZ = false;
     bool                                OnlyOnTransmission = true;
     bool                                EnableOnlyDiffuseReflection = true;
@@ -152,7 +153,7 @@ struct SampleUIData
     bool                                EnableBsrdfFresnel = true;
     bool                                LengthInsteadOfChannel = true;
     bool                                ScatterMapOnProbability = false;
-    bool                                EnableBssrdfEvalPdf = true;
+    bool                                EnableBssrdfEvalPdf = false;
 
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;

@@ -568,8 +568,10 @@ struct BssrdfDiffuseReflection
         
         if ( g_Const.sssConsts.useTransmissionLobe )// && dot( pixelNormal, sssNormal ) < 0 )
         {
-            //wo.z = -wo.z;
-            lobe = ( uint )LobeType::DiffuseTransmission;
+            if ( !g_Const.sssConsts.transmissionLobeOnRefract || intersectionPDF < 1 )
+            {
+                lobe = ( uint )LobeType::DiffuseTransmission;
+            }
         }
 
         float cosAtSurface = evalCosAtSurface( wi, wo );
