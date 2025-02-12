@@ -619,9 +619,16 @@ float3 ComputeDwivediScale(float3 Albedo)
             
             SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, Ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
-            if ( drawDebugLine )
+            if (workingContext.debug.IsDebugPixel())
             {
-                workingContext.debug.DrawLine(Ray.Origin, bridgedData.shadingData.posW, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+                if (drawDebugLine)
+                {
+                    workingContext.debug.DrawLine(Ray.Origin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
+                }
+                else
+                {
+                workingContext.debug.DrawLine(Ray.Origin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), float4(0, 0.7, 1, 1), float4(0, 1, 1, 1));
+                }
             }
             
             FProbeResult Result;
@@ -669,20 +676,16 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
         float3 RandSample = sampleNext3D(sampleGenerator);
-        if ( RandSample.x < SSS.Prob )
-        {
-            PathThroughput *= SSS.Weight / SSS.Prob;
-        }
-        else
-        {
-            PathThroughput *= 1 / (1 - SSS.Prob);
-            RemoveMaterialSss(bsdf.data);
-            return true;
-        }
-
-        SSS.Radius = bsdf.data.sssMeanFreePath;
-        SSS.Color = bsdf.data.diffuse;
-        SSS.G = 0;
+        //if ( RandSample.x < SSS.Prob )
+        //{
+        //    PathThroughput *= SSS.Weight / SSS.Prob;
+        //}
+        //else
+        //{
+        //    PathThroughput *= 1 / (1 - SSS.Prob);
+        //    RemoveMaterialSss(bsdf.data);
+        //    return true;
+        //}
 
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
@@ -728,6 +731,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                 }
                 else
                 {
+                    //workingContext.debug.DrawLine(ProbeRay.Origin, ProbeRay.Origin + ProbeRay.Direction * Result.HitT, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
                     SlabThickness = Result.HitT;
                 }
                 bDoSlabSearch = false;
@@ -775,7 +779,6 @@ float3 ComputeDwivediScale(float3 Albedo)
                     InterfaceCounter = ProbeResult.FrontFace ? -1 : +1;
                     continue;
                 }
-                
 
                 shadingData.posW = Ray.Origin + ProbeResult.HitT * Ray.Direction; //Payload.TranslatedWorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
 
@@ -783,23 +786,21 @@ float3 ComputeDwivediScale(float3 Albedo)
                 shadingData.N = SignFlip * ProbeResult.WorldNormal;
                 shadingData.vertexN = SignFlip * ProbeResult.WorldSmoothNormal;
                 shadingData.faceN = SignFlip * ProbeResult.WorldGeoNormal;
-                shadingData.V = shadingData.posW - rayOrigin;
+                shadingData.V = normalize(rayOrigin - shadingData.posW); //-Ray.Direction; 
+                
                 const bool validTangentSpace = computeTangentSpace(shadingData, 1 );//ptVertex.tangentW);
                 // to check if any code call ::LoadSurface(  after RandomWalk and in NEE code?
                 
-                //Payload.WorldNormal = SignFlip * ProbeResult.WorldNormal;
-                //Payload.WorldSmoothNormal = SignFlip * ProbeResult.WorldSmoothNormal;
-                //Payload.WorldGeoNormal = SignFlip * ProbeResult.WorldGeoNormal;
                 //Payload.ShadingModelID = 13;
                 RemoveMaterialSss(bsdf.data);
 
                 //Payload.BSDFOpacity = 1;
                 //Payload.SetBaseColor(1.0);
+                //Payload.TransparencyColor = 0;
                 //bsdf.data.diffuse = 1;
                 bsdf.data.specular = 0;
                 bsdf.data.metallic = 0;
                 bsdf.data.transmission = 0;
-                //Payload.TransparencyColor = 0;
 
         #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
                 if( workingContext.debug.IsDebugPixel() ) {
@@ -968,8 +969,10 @@ float3 ComputeDwivediScale(float3 Albedo)
         if ( !isValidPoint )
         {
             // random walk did not terminate at a valid point
-            path.terminate();
-            return;
+            //PathThroughput *= 1 / (1 - SSS.Prob);
+            RemoveMaterialSss(bsdf.data);
+            // uncomment the following line to see only randomWalk result without PBR
+            path.terminate();  return;
         }
         
         if (SimplifySSS || all(bsdf.data.sssMeanFreePath == 0) || all(bsdf.data.diffuse == 0) ) //|| MaxSSSBounces == 0)
