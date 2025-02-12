@@ -676,17 +676,20 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
         float3 RandSample = sampleNext3D(sampleGenerator);
-        //if ( RandSample.x < SSS.Prob )
-        //{
-        //    PathThroughput *= SSS.Weight / SSS.Prob;
-        //}
-        //else
-        //{
-        //    PathThroughput *= 1 / (1 - SSS.Prob);
-        //    RemoveMaterialSss(bsdf.data);
-        //    return true;
-        //}
 
+#define SHOW_ONLY_SSS  1
+#if !defined( SHOW_ONLY_SSS )
+        if ( RandSample.x < SSS.Prob )
+        {
+            PathThroughput *= SSS.Weight / SSS.Prob;
+        }
+        else
+        {
+            PathThroughput *= 1 / (1 - SSS.Prob);
+            RemoveMaterialSss(bsdf.data);
+            return true;
+        }
+#endif
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
         Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.faceN);
@@ -971,8 +974,10 @@ float3 ComputeDwivediScale(float3 Albedo)
             // random walk did not terminate at a valid point
             //PathThroughput *= 1 / (1 - SSS.Prob);
             RemoveMaterialSss(bsdf.data);
-            // uncomment the following line to see only randomWalk result without PBR
-            path.terminate();  return;
+        #if defined( SHOW_ONLY_SSS )
+            path.terminate();
+            return;
+        #endif
         }
         
         if (SimplifySSS || all(bsdf.data.sssMeanFreePath == 0) || all(bsdf.data.diffuse == 0) ) //|| MaxSSSBounces == 0)
