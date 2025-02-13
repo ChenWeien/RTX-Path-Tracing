@@ -784,7 +784,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                 float3 WorldNormal = ProbeResult.WorldNormal;
                 float CosTheta = abs(dot(Ray.Direction, WorldNormal));
                 float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
-                if (RandSample.x < Fresnel)
+                if (0) //if (RandSample.x < Fresnel) //TODO: check why
                 {
                     Ray.Origin += ProbeResult.HitT * Ray.Direction;
                     Ray.Direction = reflect(Ray.Direction, WorldNormal);
