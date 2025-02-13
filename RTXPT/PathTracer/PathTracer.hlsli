@@ -620,8 +620,8 @@ float3 ComputeDwivediScale(float3 Albedo)
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
             if (drawDebugLine && workingContext.debug.IsDebugPixel())
             {
-                float4 startColor = bDoSlabSearch ? float4(0, 0.7, 1, 1) : float4(0.7, 0, 0.7, 1);
-                workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), startColor, float4(1.0, 0, 0, 1));
+                float4 startColor = bDoSlabSearch ? float4(0, 0.7, 0, 1) : float4(0, 1, 0, 1);
+                workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), startColor, float4(0, 1, 0, 1));
             }
 #endif
             if (InterfaceCounter != 0)
@@ -740,7 +740,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                 ProbeRay.TMin = 0.0;
                 ProbeRay.TMax = 10 * max3(SSS.Radius.x, SSS.Radius.y, SSS.Radius.z);
                 int ProbeInterfaceCounter = InterfaceCounter;
-                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext, true, drawDebugLine);
+                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext, true, false ); //drawDebugLine);
                 if (Result.IsMiss())
                 {
                     SlabThickness = -1.0;
@@ -823,9 +823,9 @@ float3 ComputeDwivediScale(float3 Albedo)
                     workingContext.debug.DrawLine(originalPosW, shadingData.posW, float4(1, 1, 1, 1), float4(1, 1, 0, 1));
                     
                     // draw tangent space
-            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.T * workingContext.debug.LineScale(), float4(0.7, 0, 0, 0.5), float4(1.0, 0, 0, 0.5));
-            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.B * workingContext.debug.LineScale(), float4(0, 0.7, 0, 0.5), float4(0, 1.0, 0, 0.5));
-            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.N * workingContext.debug.LineScale(), float4(0, 0, 0.7, 0.5), float4(0, 0, 1.0, 0.5));
+            //workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.T * workingContext.debug.LineScale(), float4(0.7, 0, 0, 0.5), float4(1.0, 0, 0, 0.5));
+            //workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.B * workingContext.debug.LineScale(), float4(0, 0.7, 0, 0.5), float4(0, 1.0, 0, 0.5));
+            //workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + shadingData.N * workingContext.debug.LineScale(), float4(0, 0, 0.7, 0.5), float4(0, 0, 1.0, 0.5));
                     
                 }
         #endif
