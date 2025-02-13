@@ -584,7 +584,14 @@ float3 ComputeDwivediScale(float3 Albedo)
 	return rsqrt(1.0 - pow(ClampedAlbedo, 2.44294 - 0.0215813 * ClampedAlbedo + 0.578637 / ClampedAlbedo));
 }
     
-    FProbeResult TraceSSSProbeRay(const uniform OptimizationHints optimizationHints, in PathState path, RayDesc Ray, inout int InterfaceCounter, const WorkingContext workingContext, bool drawDebugLine)
+    FProbeResult TraceSSSProbeRay(const uniform OptimizationHints optimizationHints, 
+                                  in PathState path, 
+                                  RayDesc Ray, 
+                                  inout int InterfaceCounter, 
+                                  const WorkingContext workingContext, 
+                                  bool bDoSlabSearch,
+                                  bool drawDebugLine
+                                  )
     {
         for (;;)
         {
@@ -604,33 +611,31 @@ float3 ComputeDwivediScale(float3 Albedo)
             }
             else
             {
-                return (FProbeResult) 0;
+                FProbeResult Result = (FProbeResult)0;
+                Result.HitT = -1;
+                return Result;
             }
             InterfaceCounter += rayQuery.CommittedTriangleFrontFace() ? +1 : -1;
+
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+            if (drawDebugLine && workingContext.debug.IsDebugPixel())
+            {
+                float4 startColor = bDoSlabSearch ? float4(0, 0.7, 1, 1) : float4(0.7, 0, 0.7, 1);
+                workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), startColor, float4(1.0, 0, 0, 1));
+            }
+#endif
             if (InterfaceCounter != 0)
             {
                 Ray.TMin = asfloat(asuint(rayQuery.CommittedRayT()) + 1);
                 continue;
             }
-            
+
             TriangleHit triangleHit = TriangleHit::make(rayQuery.CommittedInstanceIndex(),
                                                         rayQuery.CommittedGeometryIndex(),
                                                         rayQuery.CommittedPrimitiveIndex(), rayQuery.CommittedTriangleBarycentrics()) ;
-            
+
             SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, Ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
-            if (workingContext.debug.IsDebugPixel())
-            {
-                if (drawDebugLine)
-                {
-                    workingContext.debug.DrawLine(Ray.Origin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
-                }
-                else
-                {
-                workingContext.debug.DrawLine(Ray.Origin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), float4(0, 0.7, 1, 1), float4(0, 1, 1, 1));
-                }
-            }
-            
             FProbeResult Result;
             Result.HitT = rayQuery.CommittedRayT();
             Result.WorldNormal = bridgedData.shadingData.N;
@@ -693,6 +698,13 @@ float3 ComputeDwivediScale(float3 Albedo)
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
         Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.faceN);
+
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+        if (workingContext.debug.IsDebugPixel()) {
+            workingContext.debug.DrawLine(shadingData.posW, shadingData.posW + Ray.Direction * workingContext.debug.LineScale(), float4(0, 0, 1, 1), float4(0, 0, 1.0, 1));
+        }
+#endif
+        
         Ray.TMin = 0;
         ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);
 
@@ -703,6 +715,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         float G = SSS.G;
         Albedo = Albedo / (1 - G * (1 - Albedo));
         
+        const bool drawDebugLine = true;
         const int MaxSSSBounces = 256;
         const float SSSGuidingRatio = 0.5;
         
@@ -727,14 +740,13 @@ float3 ComputeDwivediScale(float3 Albedo)
                 ProbeRay.TMin = 0.0;
                 ProbeRay.TMax = 10 * max3(SSS.Radius.x, SSS.Radius.y, SSS.Radius.z);
                 int ProbeInterfaceCounter = InterfaceCounter;
-                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext, false);
+                FProbeResult Result = TraceSSSProbeRay(optimizationHints, path, ProbeRay, ProbeInterfaceCounter, workingContext, true, drawDebugLine);
                 if (Result.IsMiss())
                 {
                     SlabThickness = -1.0;
                 }
                 else
                 {
-                    //workingContext.debug.DrawLine(ProbeRay.Origin, ProbeRay.Origin + ProbeRay.Direction * Result.HitT, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
                     SlabThickness = Result.HitT;
                 }
                 bDoSlabSearch = false;
@@ -747,17 +759,18 @@ float3 ComputeDwivediScale(float3 Albedo)
             {
                 break;
             }
-            FProbeResult ProbeResult = TraceSSSProbeRay(optimizationHints, path, Ray, InterfaceCounter, workingContext, true);
+            FProbeResult ProbeResult = TraceSSSProbeRay(optimizationHints, path, Ray, InterfaceCounter, workingContext, false, drawDebugLine);
             RandSample = sampleNext3D(sampleGenerator);;
             if (ProbeResult.IsMiss())
             {
-                //float3 oldOrigin = Ray.Origin; <= to double check using this origin is logically correct
-
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+                if (drawDebugLine && workingContext.debug.IsDebugPixel())
+                {
+                    float4 startColor = float4(1, 0, 1, 1);
+                    workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * Ray.TMax, startColor, float4(1.0, 0, 1, 1));
+                }
+#endif
                 Ray.Origin += Ray.TMax * Ray.Direction;
-
-                //float3 newOrigin = Ray.Origin;
-                //workingContext.debug.DrawLine(oldOrigin, newOrigin, float4(0.7, 0.7, 0, 1), float4(1.0, 0, 0, 1));
-
                 PathThroughput *= SigmaS * EvaluateGuidedSpectralTransmittanceHit(Ray.TMax, SlabCosine, DwivediScale, GuidedRatio, SigmaT, ProbT, ColorChannelPdf).xyz;
                 float4 Result = SampleDwivediPhaseFunction(ColorChannelPdf, DwivediScale, GuidedRatio, ProbT, DwivediSlabNormal, Ray.Direction, G, RandSample.xy);
                 Ray.Direction = Result.xyz;
