@@ -268,6 +268,7 @@ void SampleUI::buildUI(void)
     if ( ImGui::CollapsingHeader( "Subsurface Scattering" ) ) //, ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::Indent( indent ); 
+        if ( ImGui::Checkbox( "isRandomWalk", &m_ui.IsRandomWalk ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Unreal Scale Factor", &m_ui.EnableUnrealScaleFactor ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Multiple Intersection", &m_ui.EnableMultipleIntersection ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "ReSITR Axis Weights", &m_ui.EnableReStirAxisWeights ) ) m_ui.ResetAccumulation = true;

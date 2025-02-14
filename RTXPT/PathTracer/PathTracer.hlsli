@@ -990,7 +990,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         return;
 #endif 
 
-        const bool isRandomWalk = true;
+        const bool isRandomWalk = g_Const.sssConsts.isRandomWalk;
         
         const PathState preScatterPath = path;
 

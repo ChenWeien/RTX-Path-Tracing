@@ -49,6 +49,7 @@ struct PathTracerCameraData
 
 struct SssConstants
 {
+    uint isRandomWalk;
     uint useUnrealScaleFactor;
     uint useMultipleIntersection;
     uint useReStirAxisWeights;
