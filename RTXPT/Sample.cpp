@@ -1696,6 +1696,30 @@ void Sample::UpdatePathTracerConstants( PathTracerConstants & constants, const P
     constants.NEEBoostSamplingOnDominantPlane   = m_ui.NEEBoostSamplingOnDominantPlane;
 }
 
+void Sample::UpdateSssConstants( SssConstants& constants )
+{
+    constants.useUnrealScaleFactor = m_ui.EnableUnrealScaleFactor;
+    constants.useMultipleIntersection = m_ui.EnableMultipleIntersection;
+    constants.useReStirAxisWeights = m_ui.EnableReStirAxisWeights;
+    constants.queryBackFace = m_ui.EnableQueryBackFace;
+    constants.correctViewRay = m_ui.EnableCorrectViewRay; 
+    constants.useRayOrigin = m_ui.UseRayOriginCorrectViewRay;
+    constants.singleIntersectionOnly = m_ui.SingleIntersectionOnly;
+    constants.lateScatterRay = m_ui.EnableLateScatterRay;
+    constants.bssrdfSampleRay = m_ui.EnableBssrdfSampleRay; 
+    constants.useTransmissionLobe = m_ui.EnableUseTransmissionLobe;
+    constants.transmissionLobeOnRefract = m_ui.TransmissionLobeOnRefract;
+    constants.invertWoZ = m_ui.EnableInvertWoZ;
+    constants.absoluteWoZ = m_ui.EnableAbsoluteWoZ;
+    constants.onlyOnTransmission = m_ui.OnlyOnTransmission;
+    constants.onlyDiffuseReflection = m_ui.EnableOnlyDiffuseReflection;
+    constants.performSssOnAllPathType = m_ui.EnablePerformSssOnAllPathType;
+    constants.bssrdfFresnel = m_ui.EnableBssrdfFresnel;
+    constants.bsrdfFresnel = m_ui.EnableBsrdfFresnel; 
+    constants.lengthInsteadOfChannel = m_ui.LengthInsteadOfChannel;
+    constants.scatterMapOnProbability = m_ui.ScatterMapOnProbability;
+    constants.bssrdfEvalPdf = m_ui.EnableBssrdfEvalPdf;
+}
 
 void Sample::RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims)
 {	
@@ -2041,6 +2065,7 @@ void Sample::Render(nvrhi::IFramebuffer* framebuffer)
         TransitionMeshBuffersToReadOnly(m_CommandList);
 
         UpdatePathTracerConstants(constants.ptConsts, cameraData);
+        UpdateSssConstants( constants.sssConsts );
         constants.ambientColor = float4(0.0f);
         constants.materialCount = (uint)m_Scene->GetSceneGraph()->GetMaterials().size();
         constants._padding1 = 0;

@@ -54,6 +54,7 @@ namespace PathTracer
     struct WorkingContext
     {
         PathTracerConstants     ptConsts;
+        SssConstants            sssConsts;
         DebugContext            debug;
         StablePlanesContext     stablePlanes;
         uint2                   pixelPos;

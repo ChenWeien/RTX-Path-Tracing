@@ -131,6 +131,30 @@ struct SampleUIData
     bool                                ShowConsole = false;
     bool                                EnableAnimations = false;
     bool                                EnableVsync = false;
+
+    bool                                EnableUnrealScaleFactor = true;
+    bool                                EnableMultipleIntersection = true;
+    bool                                EnableReStirAxisWeights = true;
+    bool                                EnableQueryBackFace = true;
+    bool                                EnableCorrectViewRay = true;
+    bool                                UseRayOriginCorrectViewRay = true;
+    bool                                SingleIntersectionOnly = true;
+    bool                                EnableLateScatterRay = true; 
+    bool                                EnableBssrdfSampleRay = true;
+    bool                                EnableUseTransmissionLobe = true;
+    bool                                TransmissionLobeOnRefract = true;
+    bool                                EnableInvertWoZ = true;
+    bool                                EnableAbsoluteWoZ = false;
+    bool                                OnlyOnTransmission = true;
+    bool                                EnableOnlyDiffuseReflection = true;
+    bool                                EnableTraceAfterPrimaryHit = true;
+    bool                                EnablePerformSssOnAllPathType = true;
+    bool                                EnableBssrdfFresnel = true;
+    bool                                EnableBsrdfFresnel = true;
+    bool                                LengthInsteadOfChannel = true;
+    bool                                ScatterMapOnProbability = false;
+    bool                                EnableBssrdfEvalPdf = false;
+
     std::shared_ptr<donut::engine::Material> SelectedMaterial;
     bool                                ShaderReloadRequested = false;
     float                               ShaderReloadDelayedRequest = 0.0f;

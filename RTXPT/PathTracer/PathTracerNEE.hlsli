@@ -145,6 +145,7 @@ namespace PathTracer
                                                                                              bsdf.data.scatter,
                                                                                              bsdf.data.sssMeanFreePath,
                                                                                              bsdf.data.pixelNormal,
+                                                                                             bsdf.data.pixelView,
                                                                                              shadingData.N,
                                                                                              sssDistance,
                                                                                              bsdf.data.bssrdfPDF,
@@ -153,16 +154,13 @@ namespace PathTracer
             float3 wiLocal = shadingData.toLocal( shadingData.V );
             float3 woLocal = shadingData.toLocal( lightSample.Direction );
             float3 diffuseReflectionEval = bssrdfDiffuseReflection.eval( wiLocal, woLocal );
-            float3 diffusionProfile = sss_diffusion_profile_evaluate( length( sssDistance ), bssrdfDiffuseReflection.scatterDistance );
             workingContext.debug.Print( 0, diffuseReflectionEval );
             workingContext.debug.Print( 1, bsdfThpDiff );
             workingContext.debug.Print( 2, bsdfThpSpec );
             workingContext.debug.Print( 3, bsdf.data.diffuse );
             workingContext.debug.Print( 4, bsdf.data.sssMeanFreePath );
-            workingContext.debug.Print( 5, bssrdfDiffuseReflection.scatterDistance );
             workingContext.debug.Print( 6, sssDistance );
             workingContext.debug.Print( 7, length( sssDistance ) );
-            workingContext.debug.Print( 8, diffusionProfile );
         }
 #endif
         

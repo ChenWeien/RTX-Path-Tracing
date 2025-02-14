@@ -47,6 +47,32 @@ struct PathTracerCameraData
     float   _padding2;
 };
 
+struct SssConstants
+{
+    uint useUnrealScaleFactor;
+    uint useMultipleIntersection;
+    uint useReStirAxisWeights;
+    uint queryBackFace;
+    uint correctViewRay;
+    uint useRayOrigin;
+    uint singleIntersectionOnly;
+    uint lateScatterRay;
+    uint bssrdfSampleRay;
+    uint useTransmissionLobe;
+    uint transmissionLobeOnRefract;
+    uint invertWoZ;
+    uint absoluteWoZ;
+    uint onlyOnTransmission;
+    uint onlyDiffuseReflection;
+    uint traceAfterPrimaryHit;
+    uint performSssOnAllPathType;
+    uint bssrdfFresnel;
+    uint bsrdfFresnel;
+    uint lengthInsteadOfChannel;
+    uint scatterMapOnProbability;
+    uint bssrdfEvalPdf;
+};
+
 // path tracer main constants
 struct PathTracerConstants
 {

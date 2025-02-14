@@ -701,7 +701,7 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
         debug.DrawLine(ray.Origin, ray.Origin+ray.Direction*ray.TMax, float4(visible.x, visible.x, 1-visible.x, 0.5), float4(visible.x, 1-visible.x, 1-visible.x, 0.8));
 #endif
 
-    return !rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+    return !(rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 #endif
 }
 

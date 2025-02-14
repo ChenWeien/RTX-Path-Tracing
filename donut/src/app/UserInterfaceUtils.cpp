@@ -222,12 +222,12 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
     }
     else if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
     {
-        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
+        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
         update = true;
     }
     else if ( ImGui::SliderFloat( "sssMeanFreePathDistance (cm)", &material->sssMeanFreePathDistance, 0.1f, 200.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
     {
-        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
+        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
         update = true;
     }
 
@@ -238,8 +238,7 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::TextColored( filenameColor, "%s", getShortTexturePath( material->scatterTexture->path ).c_str() );
     }
 
-    if ( material->enableScatterTexture )
-        update |= ImGui::SliderFloat( "Scatter Strength", &material->scatterStrength, 0.f, 1.f );
+    update |= ImGui::SliderFloat( "Scatter Strength", &material->scatterStrength, 0.f, 1.f );
 
     update |= ImGui::ColorEdit3( "Emissive Color", material->emissiveColor.data(), ImGuiColorEditFlags_Float );
     update |= ImGui::SliderFloat("Emissive Intensity", &material->emissiveIntensity, 0.f, 100000.f, "%.3f", ImGuiSliderFlags_Logarithmic);

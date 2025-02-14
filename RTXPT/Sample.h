@@ -253,6 +253,7 @@ public:
     void                                    PreUpdatePathTracing(bool resetAccum, nvrhi::CommandListHandle commandList);
     void                                    PostUpdatePathTracing();
     void                                    UpdatePathTracerConstants( PathTracerConstants & constants, const PathTracerCameraData & cameraData );
+    void                                    UpdateSssConstants( SssConstants& constants );
     void                                    RtxdiSetupFrame(nvrhi::IFramebuffer* framebuffer, PathTracerCameraData cameraData, uint2 renderDims);
 
     void                                    Denoise(nvrhi::IFramebuffer* framebuffer);

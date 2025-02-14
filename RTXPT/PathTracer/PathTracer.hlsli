@@ -373,6 +373,7 @@ inline bool sss_sampling_disk_sample(
         const WorkingContext workingContext,
         inout SampleGenerator sampleGenerator,
         in const uniform OptimizationHints optimizationHints,
+        in float3 rayOrigin,
         in const PathState path,
         in const GeometryInstanceID geometryInstanceID,
         in float3 sssPosition, 
@@ -382,7 +383,7 @@ inline bool sss_sampling_disk_sample(
         in float tMax, 
         out TriangleHit triangleHit,
         out SSSSample sssSample, 
-        out float pdf) 
+        out float intersectionPDF )
 {
     uint chosenIntersection = 0;
     uint numIntersections = 0;
@@ -404,7 +405,6 @@ inline bool sss_sampling_disk_sample(
     RayQuery<RAY_FLAG_FORCE_NON_OPAQUE  > rayQuery;
     rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_NON_OPAQUE , 0xff, ray);
 
-
     // Traverse acceleration structure
     while (rayQuery.Proceed())
     {
@@ -414,8 +414,11 @@ inline bool sss_sampling_disk_sample(
             if ( geometryInstanceID.data != nextID.data ) {
                 continue; // hit a different geometry
             }
-            if ( false == rayQuery.CandidateTriangleFrontFace() ) {
-                continue; // skip back face
+            if ( !g_Const.sssConsts.queryBackFace )
+            {
+                if ( false == rayQuery.CandidateTriangleFrontFace() ) {
+                    continue; // skip back face
+                }
             }
             numIntersections++;
             // Weighted reservoir sampling
@@ -432,21 +435,18 @@ inline bool sss_sampling_disk_sample(
             //break; // force numIntersections = 1
         }
     }
-    pdf = 0;
+    intersectionPDF = 0;
     // Process the selected intersection
     if (numIntersections > 0) {
-            
-#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-        if( workingContext.debug.IsDebugPixel() ) {
-            workingContext.debug.DrawLine(origin, origin + direction * wrsT, float4(0, 1, 1, 1), float4(0, 0, 1, 1));
-        }
-#endif
-            
-            
-        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, ray.Direction, path.rayCone, path.getVertexIndex(), workingContext.debug);
-            
+        float3 originPos = g_Const.sssConsts.useRayOrigin && ( !g_Const.sssConsts.singleIntersectionOnly || numIntersections == 1 )
+                         ? rayOrigin
+                         : sssPosition;
+        float3 viewRay = g_Const.sssConsts.correctViewRay
+                       ? normalize( origin + direction * wrsT - originPos )
+                       : ray.Direction;
+        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, viewRay, path.rayCone, path.getVertexIndex(), workingContext.debug);
+
         sssSample = SSSSample::make( 
-            triangleHit.barycentrics,
             bridgedData.shadingData.posW, 
             bridgedData.shadingData.N,
             bridgedData.shadingData.faceN,
@@ -454,8 +454,8 @@ inline bool sss_sampling_disk_sample(
             triangleHit.primitiveIndex,
             chosenIntersection );
 
-        pdf = wrsWeight / weightTotal;
-        //pdf = 1.f / numIntersections;
+        intersectionPDF = wrsWeight / weightTotal;
+        //intersectionPDF = 1.f / numIntersections;
         return true;
     }
 
@@ -467,6 +467,7 @@ inline bool sss_sampling_disk_sample(
     bool sss_sampling_sample( const WorkingContext workingContext,
                               inout SampleGenerator sampleGenerator, 
                               in const uniform OptimizationHints optimizationHints,
+                              in const float3 rayOrigin,
                               in const PathState path,
                               in const BSDFFrame frame, 
                               in const BSDFFrame projectionFrame, 
@@ -476,10 +477,10 @@ inline bool sss_sampling_disk_sample(
                               in const float xiAngle, 
                               out TriangleHit triangleHit,
                               out SSSSample sssSample, 
-                              out float pdf, 
+                              out float bssrdfPDF,
                               out float intersectionPDF )
     {
-        pdf = 0;
+        bssrdfPDF = 0;
         intersectionPDF = 0;
         const float sampledScatterDistance = sss_sampling_scatterDistance(channel, sssInfo.scatterDistance);
 
@@ -503,7 +504,7 @@ inline bool sss_sampling_disk_sample(
             GeometryInstanceID geometryInstanceID;
             geometryInstanceID.data = sssInfo.geometryInstanceID;
 
-            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, path, geometryInstanceID, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
+            if (!sss_sampling_disk_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, geometryInstanceID, sssInfo.position, origin, direction, tMin, tMax, triangleHit, sssSample, intersectionPDF))
             {
                 return false;
             }
@@ -519,11 +520,11 @@ inline bool sss_sampling_disk_sample(
         
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if( workingContext.debug.IsDebugPixel() ) {
-            workingContext.debug.DrawLine(sssInfo.position, sssSample.position, float4(1, 0, 0, 1), float4(1.0, 0, 0, 1));
+            workingContext.debug.DrawLine(sssInfo.position, sssSample.position, float4(0, 1, 0, 0.5), float4(0, 1, 0, 1));
         }
 #endif
         
-        pdf = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.geometricNormal, sssInfo.scatterDistance);
+        bssrdfPDF = sss_sampling_disk_pdf(sssSample.position - sssInfo.position, frame, sssSample.normal, sssInfo.scatterDistance);
 
         return true;
     }
@@ -988,11 +989,26 @@ float3 ComputeDwivediScale(float3 Albedo)
         // in build mode we've consumed emission and either updated or terminated path ourselves, so we must skip the rest of the function
         return;
 #endif 
-        
+
         const bool isRandomWalk = true;
         
         const PathState preScatterPath = path;
-        
+
+        bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
+        bool isValidSssSample = true; //debug info
+        float bssrdfPDF = 1;
+        float3 sssNearbyPosition = 0;
+        float3 scatterDistance = 0;
+        float3 sssDistanceVector = float3(0,0,0);
+        uint numIntersections = 0;
+        float3 originalPosition = shadingData.posW;
+        float Prob = g_Const.sssConsts.scatterMapOnProbability ? length( bsdf.data.scatter ) : 1;
+        ScatterResult scatterResult;
+        if ( !isRandomWalk && !g_Const.sssConsts.lateScatterRay )
+        {
+            scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
+        }
+
     if (isRandomWalk)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
@@ -1028,34 +1044,14 @@ float3 ComputeDwivediScale(float3 Albedo)
             RemoveMaterialSss(bsdf.data);
         }
     } //if (isRandomWalk)
-
-        
-        float Prob = 1;
-        bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
-        bool isValidSssSample = true; //debug info
-        float bssrdfPDF = 1;
-        float3 sssNearbyPosition = 0;
-        float3 scatterDistance = 0; 
-        float3 sssDiffusionProfile = 0;
-        float3 sssDistanceVector = float3(0,0,0);
-        float3 originalPosition = shadingData.posW;
-
-        uint numIntersections = 0;
-        float weightTotal = 0.f;
-        
-        ScatterResult  scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
-        
-    //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
-    if (!isRandomWalk)
-    {
-        bool canPerformSss = isPrimaryHit &&
-                               !path.wasScatterTransmission()
-                            && !path.wasScatterSpecular() 
-                            && !path.wasScatterDelta()
-                            && !path.isInsideDielectricVolume();
+    else {
+         bool canPerformSss = ( g_Const.sssConsts.traceAfterPrimaryHit || isPrimaryHit )
+                           && ( g_Const.sssConsts.performSssOnAllPathType || ( !path.wasScatterTransmission()
+                                                                               && !path.wasScatterSpecular()
+                                                                               && !path.wasScatterDelta()
+                                                                               && !path.isInsideDielectricVolume() ) );
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
-
 
         if(1){
             float3 DiffuseColor = bsdf.data.diffuse;
@@ -1082,6 +1078,10 @@ float3 ComputeDwivediScale(float3 Albedo)
         }
         
 
+
+        float3 originalNormal = shadingData.N;
+        float3 originalView = shadingData.V;
+
         if ( isSssPixel && !canPerformSss )
         {
             bsdf.data.sssMeanFreePath = float3(0,0,0);
@@ -1098,25 +1098,31 @@ float3 ComputeDwivediScale(float3 Albedo)
             const uint channel =  clamp(uint(floor(3 * sampleNext1D(sampleGenerator))), 0, 2);
             float xiAngle = sampleNext1D(sampleGenerator); // [0,1)
             float xiRadius = sampleNext1D(sampleGenerator);
-            sssDiffusionProfile = GetPerpendicularScalingFactor3D( bsdf.data.diffuse );// sss_diffusion_profile_scatterDistance( bsdf.data.diffuse );
-            //scatterDistance = bsdf.data.scatter * bsdf.data.sssMeanFreePath / sssDiffusionProfile;
-            scatterDistance = bsdf.data.scatter * GetDMFPFromMFPApprox( bsdf.data.diffuse, bsdf.data.sssMeanFreePath );
+
+            //Approximate Reflectance Profiles for Efficient Subsurface Scattering : equation (2)
+            //scatterDistance == d in equation (2)
+            scatterDistance = bsdf.data.sssMeanFreePath / GetSssScalingFactor3D( bsdf.data.diffuse );
             
+            /* 
+            const float3 sssTangentFrame = shadingData.N;
+            BSDFFrame frame = coordinateSystem( sssTangentFrame );
+            /*/
             BSDFFrame frame;
-            BSDFFrame projectionFrame;
             frame.n = shadingData.N; // faceN, vertexN
             frame.t = shadingData.T;
             frame.b = shadingData.B;
+            //*/
+
+            BSDFFrame projectionFrame;
             sss_sampling_axis(axis, frame, projectionFrame);
 
-            float3 sssSampleRaydir = -projectionFrame.n;
             TriangleHit triangleHit; // reservoir sample
             SSSSample sssSample = SSSSample::makeZero();
 
             SSSInfo sssInfo = SSSInfo::make(shadingData.posW, pixelGeometryInstanceID.data, scatterDistance, INVALID_UINT_VALUE);
 
             float bssrdfIntersectionPDF = 0;
-            if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
+            if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
                 bsdf.data.sssMeanFreePath = float3(0,0,0);
                 bsdf.data.bssrdfPDF = FLT_MAX;
@@ -1127,15 +1133,27 @@ float3 ComputeDwivediScale(float3 Albedo)
             {
                 const uint vertexIndex = path.getVertexIndex();
                 path.setSssPath();
+                float3 originPos = g_Const.sssConsts.useRayOrigin && ( !g_Const.sssConsts.singleIntersectionOnly || bssrdfIntersectionPDF == 1 )
+                                 ? rayOrigin
+                                 : originalPosition;
+                float3 sssSampleRaydir = g_Const.sssConsts.correctViewRay
+                                       ? normalize( sssSample.position - originPos )
+                                       : -projectionFrame.n;
                 SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit, sssSampleRaydir, path.rayCone, path.getVertexIndex(), workingContext.debug);
 
                 bsdf = bridgedData.bsdf;
                 bsdf.data.sssPosition = sssSample.position;
                 bsdf.data.position = originalPosition;
+                bsdf.data.pixelNormal = originalNormal;
+                bsdf.data.pixelView = originalView;
                 bsdf.data.bssrdfPDF = bssrdfPDF;
                 bsdf.data.intersectionPDF = bssrdfIntersectionPDF;
 
                 shadingData = bridgedData.shadingData;
+                if ( g_Const.sssConsts.correctViewRay )
+                { 
+                    shadingData.V = -sssSampleRaydir;
+                }
 
                 // set debug info
                 sssNearbyPosition = sssSample.position;
@@ -1155,6 +1173,11 @@ float3 ComputeDwivediScale(float3 Albedo)
             }
         }
     }
+    if ( isRandomWalk || g_Const.sssConsts.lateScatterRay )
+    {
+        scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
+    }
+
     // //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
 
 //        // debug-view invalid scatters
@@ -1183,18 +1206,21 @@ float3 ComputeDwivediScale(float3 Albedo)
 #endif
         }
 
+        float3 showNumIntersection = float3( 0, 0, 0 );
+        if ( numIntersections >= 3 )
+            showNumIntersection = float3( 0, 1, 0 );
+        else if ( numIntersections >= 2 )
+            showNumIntersection = float3( 1, 0, 0 );
+        else if ( numIntersections == 1 )
+            showNumIntersection = float3( 0, 0, 1 );
+#if PATH_TRACER_MODE==PATH_TRACER_MODE_FILL_STABLE_PLANES // fill
+#else
+        //path.L = neeResult.Valid.rrr;//showNumIntersection;
+#endif
+
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
         {
-            float3 showWeightTotal = weightTotal > 0 ? float3(weightTotal,1.f/weightTotal,0) : float3(0,0,1);
-            float3 showNumIntersection = float3(0,0,0);
-            if ( numIntersections >= 3 )
-                showNumIntersection = float3( 0,1,0);
-            else if ( numIntersections >= 2 )
-                showNumIntersection = float3( 1,0,0);
-            else if ( numIntersections == 1 )
-                showNumIntersection = float3( 0,0,1);
-
             const float sssDistanceLength = length( sssDistanceVector );
             float intersectionPDF = bsdf.data.intersectionPDF;
             float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;
@@ -1208,16 +1234,16 @@ float3 ComputeDwivediScale(float3 Albedo)
             switch ( g_Const.debug.debugViewType )
             {
                 //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssColor ):           workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssColor ):            workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
+                case ( ( int )DebugViewType::FirstHitNeeValid ):            workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( sssDistanceLength.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( Prob.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssDiffusionProfile ) ), 1.0 ) ); break;
+                case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): break;
                 default: break;
             }
         }
