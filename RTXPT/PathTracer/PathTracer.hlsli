@@ -674,6 +674,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                     , inout ActiveBSDF bsdf
                                    , const float3 rayOrigin, const float3 RayDirection, const float rayTCurrent
                                    , bool SimplifySSS
+                                   , bool viewOnlyRandomWalkResult
                                    , const WorkingContext workingContext )
     {
         float3 originalPosW = shadingData.posW;
@@ -699,19 +700,20 @@ float3 ComputeDwivediScale(float3 Albedo)
         FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
         float3 RandSample = sampleNext3D(sampleGenerator);
 
-#define SHOW_ONLY_SSS  1
-#if !defined( SHOW_ONLY_SSS )
-        if ( RandSample.x < SSS.Prob )
+        if ( !viewOnlyRandomWalkResult )
         {
-            PathThroughput *= SSS.Weight / SSS.Prob;
+            if (RandSample.x < SSS.Prob)
+            {
+                PathThroughput *= SSS.Weight / SSS.Prob;
+            }
+            else
+            {
+                PathThroughput *= 1 / (1 - SSS.Prob);
+                RemoveMaterialSss(bsdf.data);
+                return true;
+            }
         }
-        else
-        {
-            PathThroughput *= 1 / (1 - SSS.Prob);
-            RemoveMaterialSss(bsdf.data);
-            return true;
-        }
-#endif
+
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
         Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.N);//WorldNormal
@@ -1024,6 +1026,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                     , bsdf
                                    , rayOrigin, rayDir, rayTCurrent
                                    , SimplifySSS
+                                   , g_Const.sssConsts.viewOnlyRandomWalkResult
                                    , workingContext );
         path.thp = PathThroughput;
 
@@ -1033,16 +1036,19 @@ float3 ComputeDwivediScale(float3 Albedo)
             // random walk did not terminate at a valid point
             //PathThroughput *= 1 / (1 - SSS.Prob);
             RemoveMaterialSss(bsdf.data);
-        #if defined( SHOW_ONLY_SSS )
-            path.terminate();
-            return;
-        #endif
+            if (g_Const.sssConsts.viewOnlyRandomWalkResult)
+            {
+                path.terminate();
+                return;
+            }
         }
         
         if (SimplifySSS || all(bsdf.data.sssMeanFreePath == 0) || all(bsdf.data.diffuse == 0) ) //|| MaxSSSBounces == 0)
         {
             RemoveMaterialSss(bsdf.data);
         }
+        RemoveMaterialSss(bsdf.data);
+
     } //if (isRandomWalk)
     else {
          bool canPerformSss = ( g_Const.sssConsts.traceAfterPrimaryHit || isPrimaryHit )

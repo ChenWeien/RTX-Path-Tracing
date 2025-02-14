@@ -133,6 +133,7 @@ struct SampleUIData
     bool                                EnableVsync = false;
 
     bool                                IsRandomWalk = false;
+    bool                                ViewOnlyRandomWalkResult = false;
     bool                                EnableUnrealScaleFactor = true;
     bool                                EnableMultipleIntersection = true;
     bool                                EnableReStirAxisWeights = true;
