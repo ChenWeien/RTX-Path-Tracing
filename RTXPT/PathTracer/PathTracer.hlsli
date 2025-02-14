@@ -593,7 +593,11 @@ float3 ComputeDwivediScale(float3 Albedo)
                                   bool drawDebugLine
                                   )
     {
+        #define SSS_USE_INTERFACE_COUNTING 0
+
+#if SSS_USE_INTERFACE_COUNTING
         for (;;)
+#endif
         {
             RayQuery < RAY_FLAG_FORCE_OPAQUE > rayQuery;
             rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_FORCE_OPAQUE, 0xff, Ray);
@@ -615,13 +619,17 @@ float3 ComputeDwivediScale(float3 Albedo)
                 Result.HitT = -1;
                 return Result;
             }
+
+
+
+#if SSS_USE_INTERFACE_COUNTING            
             InterfaceCounter += rayQuery.CommittedTriangleFrontFace() ? +1 : -1;
             if (InterfaceCounter != 0)
             {
                 Ray.TMin = asfloat(asuint(rayQuery.CommittedRayT()) + 1);
                 continue;
             }
-
+#endif
             TriangleHit triangleHit = TriangleHit::make(rayQuery.CommittedInstanceIndex(),
                                                         rayQuery.CommittedGeometryIndex(),
                                                         rayQuery.CommittedPrimitiveIndex(), rayQuery.CommittedTriangleBarycentrics()) ;
