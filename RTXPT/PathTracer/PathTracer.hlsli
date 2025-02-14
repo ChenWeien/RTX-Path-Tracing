@@ -616,14 +616,6 @@ float3 ComputeDwivediScale(float3 Albedo)
                 return Result;
             }
             InterfaceCounter += rayQuery.CommittedTriangleFrontFace() ? +1 : -1;
-
-#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
-            if (drawDebugLine && workingContext.debug.IsDebugPixel())
-            {
-                float4 startColor = bDoSlabSearch ? float4(0, 0.7, 0, 1) : float4(0, 1, 0, 1);
-                workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), startColor, float4(0, 1, 0, 1));
-            }
-#endif
             if (InterfaceCounter != 0)
             {
                 Ray.TMin = asfloat(asuint(rayQuery.CommittedRayT()) + 1);
@@ -641,7 +633,23 @@ float3 ComputeDwivediScale(float3 Albedo)
             Result.WorldNormal = bridgedData.shadingData.N;
             Result.WorldSmoothNormal = bridgedData.shadingData.vertexN;
             Result.WorldGeoNormal = bridgedData.shadingData.faceN;
-            Result.FrontFace = rayQuery.CommittedTriangleFrontFace();
+            Result.FrontFace = bridgedData.shadingData.frontFacing;
+            
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+            if (drawDebugLine && workingContext.debug.IsDebugPixel())
+            {
+                float4 startColor = bDoSlabSearch ? float4(0, 0.7, 0, 1) : 
+                            ( (  dot( Result.WorldGeoNormal, Ray.Direction ) < 0 ) ? float4(1, 0, 0, 1) : float4(0, 0, 1, 1) );
+                workingContext.debug.DrawLine(Ray.Origin + Ray.Direction * Ray.TMin, Ray.Origin + Ray.Direction * rayQuery.CommittedRayT(), startColor, float4(0, 1, 0, 1));
+            }
+#endif
+            
+            #if 0
+    Result.WorldNormal = (Result.FrontFace)?(Result.WorldNormal):(-Result.WorldNormal);
+    Result.WorldSmoothNormal = (Result.FrontFace)?(Result.WorldSmoothNormal):(-Result.WorldSmoothNormal);
+            #endif
+            
+            //Result.FrontFace = rayQuery.CommittedTriangleFrontFace();
             return Result;
         }
     }
@@ -697,7 +705,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 #endif
         RayDesc Ray;
         Ray.Origin = shadingData.posW;
-        Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.faceN);
+        Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, shadingData.N);//WorldNormal
 
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (workingContext.debug.IsDebugPixel()) {
@@ -706,7 +714,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 #endif
         
         Ray.TMin = 0;
-        ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);
+        ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);//WorldGeoNormal
 
         SSS.Radius = max(SSS.Radius, 0.0009);
         SSS.Color = bsdf.data.diffuse;
@@ -720,7 +728,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         const float SSSGuidingRatio = 0.5;
         
         const float3 DwivediScale = ComputeDwivediScale(Albedo);
-        float3 DwivediSlabNormal = shadingData.N; //WorldSmoothNormal;
+        float3 DwivediSlabNormal = shadingData.vertexN; //WorldSmoothNormal;
         float3 DwivediSlabOrigin = shadingData.posW;
         const float GuidedRatio = SSSGuidingRatio * (1.0 - pow(saturate(abs(G * 4)), 0.0625));
         bool bDoSlabSearch = GuidedRatio > 0;
@@ -784,10 +792,20 @@ float3 ComputeDwivediScale(float3 Albedo)
                 float3 WorldNormal = ProbeResult.WorldNormal;
                 float CosTheta = abs(dot(Ray.Direction, WorldNormal));
                 float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
-                if (0) //if (RandSample.x < Fresnel) //TODO: check why
+                // total internal reflection happen only when ray from higher N (skin) to lower N (air)
+                if (0) //if (RandSample.x < Fresnel ) && dot(ProbeResult.WorldNormal, ProbeResult.WorldGeoNormal) < 0 )
                 {
                     Ray.Origin += ProbeResult.HitT * Ray.Direction;
                     Ray.Direction = reflect(Ray.Direction, WorldNormal);
+                    
+#if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
+                if (drawDebugLine && workingContext.debug.IsDebugPixel())
+                {
+                    float4 startColor = float4(1.0, 0.41, 0.71, 1);//pink
+                    workingContext.debug.DrawLine(Ray.Origin, Ray.Origin + Ray.Direction* workingContext.debug.LineScale(), startColor, float4(1.0, 0, 0, 1));
+                }
+#endif
+                    
                     DwivediSlabOrigin = Ray.Origin;
                     DwivediSlabNormal = ProbeResult.WorldSmoothNormal * ((ProbeResult.FrontFace != isFrontFace) ? -1.0 : 1.0);
                     bDoSlabSearch = GuidedRatio > 0;
