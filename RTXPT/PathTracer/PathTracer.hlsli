@@ -989,8 +989,12 @@ float3 ComputeDwivediScale(float3 Albedo)
         return;
 #endif 
         
+        const bool isRandomWalk = true;
+        
         const PathState preScatterPath = path;
         
+    if (isRandomWalk)
+    {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
 
         float3 PathThroughput = path.thp;
@@ -1023,7 +1027,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         {
             RemoveMaterialSss(bsdf.data);
         }
-        
+    } //if (isRandomWalk)
 
         
         float Prob = 1;
@@ -1042,7 +1046,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         ScatterResult  scatterResult = GenerateScatterRay(shadingData, bsdf, path, sampleGenerator, workingContext);
         
     //PATH_TRACER_MODE==PATH_TRACER_MODE_REFERENCE      
-    if (0)
+    if (!isRandomWalk)
     {
         bool canPerformSss = isPrimaryHit &&
                                !path.wasScatterTransmission()
