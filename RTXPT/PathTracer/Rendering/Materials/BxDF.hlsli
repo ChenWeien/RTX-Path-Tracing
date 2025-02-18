@@ -1611,7 +1611,7 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
-        bool forceDiffRelect = _isSss && g_Const.sssConsts.onlyDiffuseReflection;
+        bool forceDiffRelect = _isSss && (g_Const.sssConsts.onlyDiffuseReflection || g_Const.sssConsts.isRandomWalk);
         pDiffuseReflection = forceDiffRelect ? 1 : ( (activeLobes & (uint)LobeType::DiffuseReflection) ? diffuseWeight * dielectricBSDF * (1.f - diffTrans) : 0.f );
         pDiffuseTransmission = forceDiffRelect ? 0 : ( (activeLobes & (uint)LobeType::DiffuseTransmission) ? diffuseWeight * dielectricBSDF * diffTrans : 0.f );
         pSpecularReflection = forceDiffRelect ? 0 : ( (activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection)) ? specularWeight * (metallicBRDF + dielectricBSDF) : 0.f );
@@ -1683,7 +1683,7 @@ struct FalcorBSDF // : IBxDF
         if (pDiffuseReflection > 0.f)
         {
             float3 diffuseReflectionEval = 0;
-            if ( isSss() )
+            if ( isSss() && !g_Const.sssConsts.isRandomWalk )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1720,7 +1720,7 @@ struct FalcorBSDF // : IBxDF
         float3 result = 0.f;
         if (pDiffuseReflection > 0.f) {
             float3 diffuseReflectionEval = 0;
-            if ( isSss() )
+            if ( isSss() && !g_Const.sssConsts.isRandomWalk )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BBssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1777,7 +1777,7 @@ struct FalcorBSDF // : IBxDF
 #if RecycleSelectSamples
             preGeneratedSample.z = clamp(uSelect / pDiffuseReflection, 0, OneMinusEpsilon); // note, this gets compiled out because bsdf below does not need .z, however it has been tested and can be used in case of a new bsdf that might require it
 #endif
-            if ( isSss() && g_Const.sssConsts.bssrdfSampleRay )
+            if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfSampleRay )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1829,7 +1829,7 @@ struct FalcorBSDF // : IBxDF
             lobeP *= pSpecularReflection;
             if ( pDiffuseReflection > 0.f )
             {
-                if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+                if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
                 {
                     BssrdfDiffuseReflection bssrdfDiffuseReflection
                         = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1866,7 +1866,7 @@ struct FalcorBSDF // : IBxDF
             lobeP *= pSpecularReflectionTransmission;
             if ( pDiffuseReflection > 0.f )
             {
-                if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+                if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
                 {
                     BssrdfDiffuseReflection bssrdfDiffuseReflection
                         = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1902,7 +1902,7 @@ struct FalcorBSDF // : IBxDF
         float pdf = 0.f;
         if ( pDiffuseReflection > 0.f )
         {
-            if ( isSss() && g_Const.sssConsts.bssrdfEvalPdf )
+            if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,

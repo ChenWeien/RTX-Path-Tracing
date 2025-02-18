@@ -837,7 +837,6 @@ float3 ComputeDwivediScale(float3 Albedo)
                 // to check if any code call ::LoadSurface(  after RandomWalk and in NEE code?
                 
                 //Payload.ShadingModelID = 13;
-                RemoveMaterialSss(bsdf.data);
 
                 //Payload.BSDFOpacity = 1;
                 //Payload.SetBaseColor(1.0);
@@ -1047,7 +1046,6 @@ float3 ComputeDwivediScale(float3 Albedo)
         {
             RemoveMaterialSss(bsdf.data);
         }
-        RemoveMaterialSss(bsdf.data);
 
     } //if (isRandomWalk)
     else {
