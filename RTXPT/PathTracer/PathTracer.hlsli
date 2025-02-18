@@ -682,7 +682,7 @@ float3 ComputeDwivediScale(float3 Albedo)
     {
         float3 originalPosW = shadingData.posW;
         bool isFrontFace = shadingData.frontFacing;
-        bool canPerformSss = isPrimaryHit;
+        bool canPerformSss = 1; //isPrimaryHit;  TODO: add an option to test the speed difference
                             //&& !path.wasScatterTransmission()
                             //&& !path.wasScatterSpecular() 
                             //&& !path.wasScatterDelta()
