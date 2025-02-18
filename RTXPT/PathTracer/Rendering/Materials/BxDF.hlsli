@@ -92,6 +92,15 @@ float Pow5( float x )
 	return xx * xx * x;
 }
 
+void AdjustDiffuseSSSContribution(inout float3 DiffColor, inout float3 SSSColor, inout float3 Radius)
+{
+    const float MinRadius = 0.02;
+    float3 Blend = saturate(Radius / MinRadius);
+    DiffColor += SSSColor * (1 - Blend);
+    SSSColor *= Blend;
+    Radius = max(Radius, MinRadius);
+}
+
 float3x3 GetTangentBasis( float3 TangentZ )
 {
 	const float Sign = TangentZ.z >= 0 ? 1 : -1;

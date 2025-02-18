@@ -543,16 +543,19 @@ void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal)
 
 FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf )
 {
+    float3 DiffuseColor = 0;
+    float3 SubsurfaceColor = bsdf.data.diffuse;
+    float3 Radius = bsdf.data.sssMeanFreePath / 3;
+    AdjustDiffuseSSSContribution( DiffuseColor, SubsurfaceColor, Radius );
+
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
-	Result.Color = bsdf.data.diffuse;
-	Result.Radius = bsdf.data.sssMeanFreePath / 3;
+	Result.Color = SubsurfaceColor; //bsdf.data.diffuse;
+	Result.Radius = Radius; //bsdf.data.sssMeanFreePath / 3;
 	Result.Weight = 0;
 	Result.Prob = 0;
 	Result.G = 0;
 	if (any(bsdf.data.sssMeanFreePath) > 0)
 	{
-        float3 DiffuseColor = bsdf.data.diffuse;
-        float3 SubsurfaceColor = bsdf.data.diffuse;
         float3 SpecularColor = bsdf.data.specular;
         float3 WorldNormal = shadingData.N;
         float3 V_World = shadingData.V;
@@ -728,7 +731,6 @@ float3 ComputeDwivediScale(float3 Albedo)
         ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);//WorldGeoNormal
 
         SSS.Radius = max(SSS.Radius, 0.0009);
-        SSS.Color = bsdf.data.diffuse;
         int InterfaceCounter = isFrontFace ? +1 : -1;
         float3 Albedo = 1 - exp(SSS.Color * (-11.43 + SSS.Color * (15.38 - 13.91 * SSS.Color)));
         float G = SSS.G;
