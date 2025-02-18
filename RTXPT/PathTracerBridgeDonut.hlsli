@@ -457,6 +457,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     d.transmission = donutMaterial.baseColor;
     d.scatter = donutMaterial.scatter;
     d.sssMeanFreePath = donutMaterial.sssMeanFreePath;
+    d.sssColor = donutMaterial.sssColor;
     /*LobeType*/ uint lobeType = (uint)LobeType::All;
 
     if (optimizationHints.NoTransmission)

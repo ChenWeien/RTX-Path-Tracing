@@ -120,6 +120,7 @@ struct StandardBSDF // : IBSDF
         p.specularReflectionAlbedo = (1.f - data.specularTransmission) * data.specular;
         p.specularTransmissionAlbedo = data.specularTransmission * data.transmission;
         p.sssMeanFreePath = data.sssMeanFreePath;
+        p.sssColor = data.sssColor;
         // Pass on our specular reflectance field unmodified.
         p.specularReflectance = data.specular;
 

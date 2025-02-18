@@ -233,6 +233,7 @@ void MaterialPatch::Load(const Json::Value& node)
     node["IoR"] >> ior;
     node["specularTransmission"] >> transmissionFactor;
     node["diffuseTransmission"] >> diffuseTransmissionFactor;
+    node["sssColor"] >> sssColor;
     node["sssMeanFreePathColor"] >> sssMeanFreePathColor;
     node["sssMeanFreePathDistance"] >> sssMeanFreePathDistance;
     node["nestedPriority"] >> nestedPriority;
@@ -271,6 +272,7 @@ void MaterialPatch::Patch(Material& mat)
     MAT_VALUE_OR(volumeAttenuationColor);
     MAT_VALUE_OR(ior);
     MAT_VALUE_OR(transmissionFactor);
+    MAT_VALUE_OR(sssColor);
     MAT_VALUE_OR(sssMeanFreePathDistance);
     MAT_VALUE_OR(sssMeanFreePathColor);
     if ( sssMeanFreePathColor.has_value() || sssMeanFreePathDistance.has_value() )
