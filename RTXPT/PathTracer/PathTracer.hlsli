@@ -543,20 +543,9 @@ void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal)
 
 FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf )
 {
-    const float CmToMm = 10.f;
-    const float Dmfp2MfpMagicNumber = 0.6f;
-    float3 SurfaceAlbedo = bsdf.data.sssColor;
-    float3 DiffuseColor0 = bsdf.data.diffuse;
-    float3 WorldUnitScale = 1;
-    float3 ssWeight = 1;
-    float3 DiffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath( SurfaceAlbedo, bsdf.data.sssMeanFreePath ) * CmToMm / Dmfp2MfpMagicNumber;
-    float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor0, ssWeight * WorldUnitScale * DiffuseMeanFreePathInMm);
-    SSSRadius *= 0.1f;
-        
-    float3 DiffuseColor = 0;
-    float3 SubsurfaceColor = bsdf.data.diffuse;
-    float3 Radius = SSSRadius;
-    AdjustDiffuseSSSContribution( DiffuseColor, SubsurfaceColor, Radius );
+    float3 DiffuseColor = bsdf.data.diffuse;
+    float3 SubsurfaceColor = bsdf.data.sssColor;
+    float3 Radius = bsdf.data.sssMeanFreePath;
 
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
 	Result.Color = SubsurfaceColor; //bsdf.data.diffuse;
@@ -677,6 +666,27 @@ float3 ComputeDwivediScale(float3 Albedo)
     }
     
 
+    void AdjustBsdfDiffuseMeanFreePath(inout ActiveBSDF bsdf)
+    {
+        const float CmToMm = 10.f;
+        const float Dmfp2MfpMagicNumber = 0.6f;
+        float3 SurfaceAlbedo = bsdf.data.sssColor;
+        float3 DiffuseColor0 = bsdf.data.diffuse;
+        float3 WorldUnitScale = 1;
+        float3 ssWeight = 1;
+        float3 DiffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath(SurfaceAlbedo, bsdf.data.sssMeanFreePath) * CmToMm / Dmfp2MfpMagicNumber;
+        float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor0, ssWeight * WorldUnitScale * DiffuseMeanFreePathInMm);
+        SSSRadius *= 0.1f;
+        
+        float3 DiffuseColor = 0;
+        float3 SubsurfaceColor = bsdf.data.diffuse;
+        float3 Radius = SSSRadius;
+        AdjustDiffuseSSSContribution(DiffuseColor, SubsurfaceColor, Radius);
+        // out
+        bsdf.data.diffuse = DiffuseColor;
+        bsdf.data.sssColor = SubsurfaceColor;
+        bsdf.data.sssMeanFreePath = Radius;
+    }
     
     bool ProcessSubsurfaceRandomWalk(const uniform OptimizationHints optimizationHints
                                    , SampleGenerator sampleGenerator
@@ -690,6 +700,9 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , bool viewOnlyRandomWalkResult
                                    , const WorkingContext workingContext )
     {
+        float3 SurfaceAlbedo = bsdf.data.sssColor; //float3(0,1,0); //;
+        AdjustBsdfDiffuseMeanFreePath(bsdf);
+        
         float3 originalPosW = shadingData.posW;
         bool isFrontFace = shadingData.frontFacing;
         bool canPerformSss = 1; //isPrimaryHit;  TODO: add an option to test the speed difference
@@ -699,7 +712,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                             //&& !path.isInsideDielectricVolume();
         if (!canPerformSss)
         {
-            RemoveMaterialSss(bsdf.data);
+            RemoveMaterialSssRestoreDiffuse(bsdf.data);
             return true;
         }
         bool isSssMaterial = any(bsdf.data.sssMeanFreePath) > 0;
@@ -722,7 +735,7 @@ float3 ComputeDwivediScale(float3 Albedo)
             else
             {
                 PathThroughput *= 1 / (1 - SSS.Prob);
-                RemoveMaterialSss(bsdf.data);
+                RemoveMaterialSssRestoreDiffuse(bsdf.data);
                 return true;
             }
         }
@@ -857,6 +870,10 @@ float3 ComputeDwivediScale(float3 Albedo)
                 bsdf.data.specular = 0;
                 bsdf.data.metallic = 0;
                 bsdf.data.transmission = 0;
+
+                bsdf.data.diffuse += SurfaceAlbedo;
+                //bsdf.data.diffuse = saturate(bsdf.data.diffuse);
+                //bsdf.data.sssColor = 0.0;
 
         #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
                 if( workingContext.debug.IsDebugPixel() ) {
@@ -1046,7 +1063,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         {
             // random walk did not terminate at a valid point
             //PathThroughput *= 1 / (1 - SSS.Prob);
-            RemoveMaterialSss(bsdf.data);
+            RemoveMaterialSssRestoreDiffuse(bsdf.data);
             if (g_Const.sssConsts.viewOnlyRandomWalkResult)
             {
                 path.terminate();
@@ -1056,7 +1073,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         
         if (SimplifySSS || all(bsdf.data.sssMeanFreePath == 0) || all(bsdf.data.diffuse == 0) ) //|| MaxSSSBounces == 0)
         {
-            RemoveMaterialSss(bsdf.data);
+            RemoveMaterialSssRestoreDiffuse(bsdf.data);
         }
 
     } //if (isRandomWalk)

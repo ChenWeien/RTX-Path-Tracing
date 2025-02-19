@@ -1527,6 +1527,17 @@ void RemoveMaterialSss( inout StandardBSDFData data)
     data.sssPosition = data.position;
 }
 
+void RemoveMaterialSssRestoreDiffuse( inout StandardBSDFData data)
+{
+    data.diffuse += data.sssColor;
+	data.diffuse = saturate(data.diffuse);
+	data.sssColor = 0.0;
+    
+    data.sssMeanFreePath = float3(0,0,0);
+    data.bssrdfPDF = FLT_MAX;
+    data.sssPosition = data.position;
+}
+
 /** Mixed BSDF used for the standard material in Falcor.
 
     This consists of a diffuse and specular BRDF.
