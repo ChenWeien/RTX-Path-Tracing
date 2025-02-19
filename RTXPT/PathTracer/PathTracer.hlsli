@@ -551,7 +551,7 @@ FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf 
     float3 ssWeight = 1;
     float3 DiffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath( SurfaceAlbedo, bsdf.data.sssMeanFreePath ) * CmToMm / Dmfp2MfpMagicNumber;
     float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor0, ssWeight * WorldUnitScale * DiffuseMeanFreePathInMm);
-        
+    SSSRadius *= 0.1f;
         
     float3 DiffuseColor = 0;
     float3 SubsurfaceColor = bsdf.data.diffuse;
