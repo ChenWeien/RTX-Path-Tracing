@@ -746,6 +746,11 @@ float3 GetMFPFromDMFPCoeff(float3 DMFPSurfaceAlbedo, float3 MFPSurfaceAlbedo, fl
 	return Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(MFPSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(DMFPSurfaceAlbedo);
 }
 
+float3 GetDiffuseMeanFreePathFromMeanFreePath( float3 SurfaceAlbedo, float3 MeanFreePath )
+{
+    return MeanFreePath * GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo) / GetPerpendicularScalingFactor3D(SurfaceAlbedo);
+}
+
 float3 GetMFPFromDMFPApprox(float3 SurfaceAlbedo, float3 TargetSurfaceAlbedo, float3 DMFP)
 {
 	return GetMFPFromDMFPCoeff(SurfaceAlbedo, TargetSurfaceAlbedo) * DMFP;

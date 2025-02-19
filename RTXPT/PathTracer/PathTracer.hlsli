@@ -543,9 +543,19 @@ void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal)
 
 FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf )
 {
+    const float CmToMm = 10.f;
+    const float Dmfp2MfpMagicNumber = 0.6f;
+    float3 SurfaceAlbedo = bsdf.data.sssColor;
+    float3 DiffuseColor0 = bsdf.data.diffuse;
+    float3 WorldUnitScale = 1;
+    float3 ssWeight = 1;
+    float3 DiffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath( SurfaceAlbedo, bsdf.data.sssMeanFreePath ) * CmToMm / Dmfp2MfpMagicNumber;
+    float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor0, ssWeight * WorldUnitScale * DiffuseMeanFreePathInMm);
+        
+        
     float3 DiffuseColor = 0;
     float3 SubsurfaceColor = bsdf.data.diffuse;
-    float3 Radius = bsdf.data.sssMeanFreePath / 3;
+    float3 Radius = SSSRadius;
     AdjustDiffuseSSSContribution( DiffuseColor, SubsurfaceColor, Radius );
 
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
