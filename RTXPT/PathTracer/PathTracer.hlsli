@@ -1005,7 +1005,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         const bool isRandomWalk = g_Const.sssConsts.isRandomWalk;
         
-        const PathState preScatterPath = path;
+        PathState preScatterPath = path;
 
         bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
@@ -1026,7 +1026,7 @@ float3 ComputeDwivediScale(float3 Albedo)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
 
-        float3 PathThroughput = path.thp;
+        float3 PathThroughput = preScatterPath.thp;
         // random walk will move the shading point somewhere on the surface
         bool isValidPoint = ProcessSubsurfaceRandomWalk(optimizationHints
                                    , sampleGenerator
@@ -1039,7 +1039,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , SimplifySSS
                                    , g_Const.sssConsts.viewOnlyRandomWalkResult
                                    , workingContext );
-        path.thp = PathThroughput;
+        preScatterPath.thp = PathThroughput;
 
 
         if ( !isValidPoint )
