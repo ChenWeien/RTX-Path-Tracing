@@ -713,18 +713,15 @@ float3 ComputeDwivediScale(float3 Albedo)
         FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
         float3 RandSample = sampleNext3D(sampleGenerator);
 
-        if ( !viewOnlyRandomWalkResult )
+        if (viewOnlyRandomWalkResult || RandSample.x < SSS.Prob)
         {
-            if (RandSample.x < SSS.Prob)
-            {
-                PathThroughput *= SSS.Weight / SSS.Prob;
-            }
-            else
-            {
-                PathThroughput *= 1 / (1 - SSS.Prob);
-                RemoveMaterialSss(bsdf.data);
-                return true;
-            }
+            PathThroughput *= SSS.Weight / SSS.Prob;
+        }
+        else
+        {
+            PathThroughput *= 1 / (1 - SSS.Prob);
+            RemoveMaterialSss(bsdf.data);
+            return true;
         }
 
         RayDesc Ray;
