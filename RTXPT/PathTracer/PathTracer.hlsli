@@ -812,8 +812,9 @@ float3 ComputeDwivediScale(float3 Albedo)
                 float3 WorldNormal = ProbeResult.WorldNormal;
                 float CosTheta = abs(dot(Ray.Direction, WorldNormal));
                 float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
-                // total internal reflection happen only when ray from higher N (skin) to lower N (air)
-                if (0) //if (RandSample.x < Fresnel ) && dot(ProbeResult.WorldNormal, ProbeResult.WorldGeoNormal) < 0 )
+                /// total internal reflection happen only when ray from higher N (skin) to lower N (air)
+                ///if ((RandSample.x < Fresnel) && false == ProbeResult.FrontFace)
+                if (0)
                 {
                     Ray.Origin += ProbeResult.HitT * Ray.Direction;
                     Ray.Direction = reflect(Ray.Direction, WorldNormal);
