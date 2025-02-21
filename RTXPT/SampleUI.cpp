@@ -270,7 +270,6 @@ void SampleUI::buildUI(void)
         ImGui::Indent( indent ); 
         if ( ImGui::Checkbox( "isRandomWalk", &m_ui.IsRandomWalk ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "ViewOnlyRandomWalkResult", &m_ui.ViewOnlyRandomWalkResult ) ) m_ui.ResetAccumulation = true;
-        IMAGE_QUALITY_OPTION( ImGui::InputInt( "Max bounces", &m_ui.SubsurfaceBounceCount ) );
         if ( ImGui::Checkbox( "Unreal Scale Factor", &m_ui.EnableUnrealScaleFactor ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "Multiple Intersection", &m_ui.EnableMultipleIntersection ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "ReSITR Axis Weights", &m_ui.EnableReStirAxisWeights ) ) m_ui.ResetAccumulation = true;

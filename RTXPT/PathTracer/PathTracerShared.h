@@ -51,7 +51,6 @@ struct SssConstants
 {
     uint isRandomWalk;
     uint viewOnlyRandomWalkResult;
-    uint subsurfaceBounceCount;
     uint useUnrealScaleFactor;
     uint useMultipleIntersection;
     uint useReStirAxisWeights;
