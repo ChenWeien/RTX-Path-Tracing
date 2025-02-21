@@ -1037,7 +1037,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , g_Const.sssConsts.viewOnlyRandomWalkResult
                                    , workingContext );
         preScatterPath.thp = PathThroughput;
-
+        path.thp = PathThroughput;
 
         if ( !isValidPoint )
         {
