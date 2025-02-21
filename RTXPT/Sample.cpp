@@ -1699,6 +1699,7 @@ void Sample::UpdatePathTracerConstants( PathTracerConstants & constants, const P
 void Sample::UpdateSssConstants( SssConstants& constants )
 {
     constants.isRandomWalk = m_ui.IsRandomWalk;
+    constants.viewOnlyRandomWalkResult = m_ui.ViewOnlyRandomWalkResult;
     constants.useUnrealScaleFactor = m_ui.EnableUnrealScaleFactor;
     constants.useMultipleIntersection = m_ui.EnableMultipleIntersection;
     constants.useReStirAxisWeights = m_ui.EnableReStirAxisWeights;
