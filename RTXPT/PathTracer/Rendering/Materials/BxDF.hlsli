@@ -92,6 +92,15 @@ float Pow5( float x )
 	return xx * xx * x;
 }
 
+void AdjustDiffuseSSSContribution(inout float3 DiffColor, inout float3 SSSColor, inout float3 Radius)
+{
+    const float MinRadius = 0.02;
+    float3 Blend = saturate(Radius / MinRadius);
+    DiffColor += SSSColor * (1 - Blend);
+    SSSColor *= Blend;
+    Radius = max(Radius, MinRadius);
+}
+
 float3x3 GetTangentBasis( float3 TangentZ )
 {
 	const float Sign = TangentZ.z >= 0 ? 1 : -1;
@@ -392,6 +401,25 @@ struct DiffuseReflectionLambert // : IBxDF
 };
 
 
+// lambert diffuse reflection without checking wi,wo on the same side, for random walk subsurface 
+float3 lambert_eval( float3 albedo, const float3 wi, const float3 wo)
+{
+    return M_1_PI * albedo * wo.z;
+}
+
+bool lambert_sample(float3 albedo, const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
+{
+    wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
+    lobe = (uint)LobeType::DiffuseReflection;
+    weight = albedo;
+    lobeP = 1.0;
+    return true;
+}
+
+float lambert_evalPdf(const float3 wi, const float3 wo)
+{
+    return M_1_PI * wo.z;
+}
 
 //* 
 //faceting on CC head, https://app.asana.com/0/1208704467141427/1208971573306148
@@ -716,6 +744,11 @@ float3 GetSssScalingFactor3D( float3 SurfaceAlbedo )
 float3 GetMFPFromDMFPCoeff(float3 DMFPSurfaceAlbedo, float3 MFPSurfaceAlbedo, float Dmfp2MfpMagicNumber = 0.6f)
 {
 	return Dmfp2MfpMagicNumber * GetPerpendicularScalingFactor3D(MFPSurfaceAlbedo) / GetSearchLightDiffuseScalingFactor3D(DMFPSurfaceAlbedo);
+}
+
+float3 GetDiffuseMeanFreePathFromMeanFreePath( float3 SurfaceAlbedo, float3 MeanFreePath )
+{
+    return MeanFreePath * GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo) / GetPerpendicularScalingFactor3D(SurfaceAlbedo);
 }
 
 float3 GetMFPFromDMFPApprox(float3 SurfaceAlbedo, float3 TargetSurfaceAlbedo, float3 DMFP)
@@ -1412,6 +1445,7 @@ struct StandardBSDFData
     float metallic;                 ///< Metallic parameter, blends between dielectric and conducting BSDFs.
     float3 scatter;
     float3 sssMeanFreePath;         ///< Subsurface scattering mean free path.
+    float3 ssSurfaceAlbedo;
     float eta;                      ///< Relative index of refraction (incident IoR / transmissive IoR).
     float3 transmission;            ///< Transmission color.
     float diffuseTransmission;      ///< Diffuse transmission, blends between diffuse reflection and transmission lobes.
@@ -1435,6 +1469,7 @@ struct StandardBSDFData
         d.eta = 0;
         d.scatter = 1;
         d.sssMeanFreePath = 0;
+        d.ssSurfaceAlbedo = 0;
         d.transmission = 0;
         d.diffuseTransmission = 0;
         d.specularTransmission = 0;
@@ -1683,7 +1718,7 @@ struct FalcorBSDF // : IBxDF
         if (pDiffuseReflection > 0.f)
         {
             float3 diffuseReflectionEval = 0;
-            if ( isSss() && !g_Const.sssConsts.isRandomWalk )
+            if ( isSss() )
             {
                 BssrdfDiffuseReflection bssrdfDiffuseReflection
                     = BssrdfDiffuseReflection::make( diffuseReflection.albedo,
@@ -1697,7 +1732,9 @@ struct FalcorBSDF // : IBxDF
                                                      sssDistance,
                                                      bssrdfPDF,
                                                      intersectionPDF );
-                diffuseReflectionEval = bssrdfDiffuseReflection.eval(wi, wo);
+                diffuseReflectionEval = g_Const.sssConsts.isRandomWalk ?
+                                            lambert_eval(diffuseReflection.albedo, wi, wo) :
+                                            bssrdfDiffuseReflection.eval(wi, wo);
             }
             else
             {
@@ -1734,7 +1771,9 @@ struct FalcorBSDF // : IBxDF
                                                       sssDistance,
                                                       bssrdfPDF,
                                                       intersectionPDF );
-                diffuseReflectionEval = bssrdfDiffuseReflection.eval( wi, wo );
+                diffuseReflectionEval = g_Const.sssConsts.isRandomWalk ?
+                                            lambert_eval(diffuseReflection.albedo, wi, wo) :
+                                            bssrdfDiffuseReflection.eval( wi, wo );
             }
             else
             {
@@ -1791,7 +1830,10 @@ struct FalcorBSDF // : IBxDF
                                                      sssDistance,
                                                      bssrdfPDF,
                                                      intersectionPDF );
-                valid = bssrdfDiffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
+
+                valid = g_Const.sssConsts.isRandomWalk ? 
+                    lambert_sample(diffuseReflection.albedo, wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz) :
+                    bssrdfDiffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
             }
             else
             {
@@ -1843,7 +1885,9 @@ struct FalcorBSDF // : IBxDF
                                                          sssDistance,
                                                          bssrdfPDF,
                                                          intersectionPDF );
-                    pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+                    pdf += g_Const.sssConsts.isRandomWalk ?
+                            pDiffuseReflection * lambert_evalPdf(wi, wo) :
+                            pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
                 }
                 else
                 {
@@ -1880,7 +1924,9 @@ struct FalcorBSDF // : IBxDF
                                                          sssDistance,
                                                          bssrdfPDF,
                                                          intersectionPDF );
-                    pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+                    pdf +=  g_Const.sssConsts.isRandomWalk ?
+                                pDiffuseReflection * lambert_evalPdf( wi, wo ) :
+                                pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
                 }
                 else
                 {
@@ -1916,7 +1962,9 @@ struct FalcorBSDF // : IBxDF
                                                      sssDistance,
                                                      bssrdfPDF,
                                                      intersectionPDF );
-                pdf += pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
+                pdf += g_Const.sssConsts.isRandomWalk ?
+                        pDiffuseReflection * lambert_evalPdf( wi, wo ) :
+                        pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
             }
             else
             {

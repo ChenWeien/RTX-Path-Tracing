@@ -220,6 +220,11 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3(0.f);
         update = true;
     }
+    else if ( ImGui::ColorEdit3( "ssSurfaceAlbedo", material->ssSurfaceAlbedo.data(), ImGuiColorEditFlags_Float ) )
+    {
+        material->ssSurfaceAlbedo = material->isSss ? material->ssSurfaceAlbedo : float3( 0.f );
+        update = true;
+    }
     else if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
     {
         material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );

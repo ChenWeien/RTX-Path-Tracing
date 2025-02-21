@@ -42,6 +42,7 @@ struct MaterialSample
     float shadowNoLFadeout;
     float3 scatter;
     float3 sssMeanFreePath;
+    float3 ssSurfaceAlbedo;
 };
 
 MaterialSample DefaultMaterialSample()
@@ -61,6 +62,7 @@ MaterialSample DefaultMaterialSample()
     result.diffuseTransmission = 0;
     result.scatter = 1;
     result.sssMeanFreePath = 0;
+    result.ssSurfaceAlbedo = 0;
     result.hasMetalRoughParams = false;
     result.ior = 1.5;
     return result;

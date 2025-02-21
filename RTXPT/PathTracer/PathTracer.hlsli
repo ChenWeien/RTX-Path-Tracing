@@ -543,16 +543,29 @@ void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal)
 
 FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf )
 {
+    const float CmToMm = 10.f;
+    const float Dmfp2MfpMagicNumber = 0.6f;
+    float3 SurfaceAlbedo = bsdf.data.ssSurfaceAlbedo;
+    float3 DiffuseColor0 = bsdf.data.diffuse;
+    float3 WorldUnitScale = 1;
+    float3 ssWeight = 1;
+    float3 DiffuseMeanFreePathInMm = GetDiffuseMeanFreePathFromMeanFreePath( SurfaceAlbedo, bsdf.data.sssMeanFreePath ) * CmToMm / Dmfp2MfpMagicNumber;
+    float3 SSSRadius = GetMFPFromDMFPApprox(SurfaceAlbedo, DiffuseColor0, ssWeight * WorldUnitScale * DiffuseMeanFreePathInMm);
+    SSSRadius *= 0.1f;
+        
+    float3 DiffuseColor = 0;
+    float3 SubsurfaceColor = bsdf.data.diffuse;
+    float3 Radius = SSSRadius;
+    AdjustDiffuseSSSContribution( DiffuseColor, SubsurfaceColor, Radius );
+
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
-	Result.Color = bsdf.data.diffuse;
-	Result.Radius = bsdf.data.sssMeanFreePath / 3;
+	Result.Color = SubsurfaceColor; //bsdf.data.diffuse;
+	Result.Radius = Radius; //bsdf.data.sssMeanFreePath / 3;
 	Result.Weight = 0;
 	Result.Prob = 0;
 	Result.G = 0;
 	if (any(bsdf.data.sssMeanFreePath) > 0)
 	{
-        float3 DiffuseColor = bsdf.data.diffuse;
-        float3 SubsurfaceColor = bsdf.data.diffuse;
         float3 SpecularColor = bsdf.data.specular;
         float3 WorldNormal = shadingData.N;
         float3 V_World = shadingData.V;
@@ -679,7 +692,7 @@ float3 ComputeDwivediScale(float3 Albedo)
     {
         float3 originalPosW = shadingData.posW;
         bool isFrontFace = shadingData.frontFacing;
-        bool canPerformSss = isPrimaryHit;
+        bool canPerformSss = 1; //isPrimaryHit;  TODO: add an option to test the speed difference
                             //&& !path.wasScatterTransmission()
                             //&& !path.wasScatterSpecular() 
                             //&& !path.wasScatterDelta()
@@ -700,18 +713,15 @@ float3 ComputeDwivediScale(float3 Albedo)
         FSSSRandomWalkInfo SSS = GetMaterialSSSInfo(shadingData, bsdf);
         float3 RandSample = sampleNext3D(sampleGenerator);
 
-        if ( !viewOnlyRandomWalkResult )
+        if (viewOnlyRandomWalkResult || RandSample.x < SSS.Prob)
         {
-            if (RandSample.x < SSS.Prob)
-            {
-                PathThroughput *= SSS.Weight / SSS.Prob;
-            }
-            else
-            {
-                PathThroughput *= 1 / (1 - SSS.Prob);
-                RemoveMaterialSss(bsdf.data);
-                return true;
-            }
+            PathThroughput *= SSS.Weight / SSS.Prob;
+        }
+        else
+        {
+            PathThroughput *= 1 / (1 - SSS.Prob);
+            RemoveMaterialSss(bsdf.data);
+            return true;
         }
 
         RayDesc Ray;
@@ -728,7 +738,6 @@ float3 ComputeDwivediScale(float3 Albedo)
         ApplyRayBias(Ray, rayTCurrent, -shadingData.faceN);//WorldGeoNormal
 
         SSS.Radius = max(SSS.Radius, 0.0009);
-        SSS.Color = bsdf.data.diffuse;
         int InterfaceCounter = isFrontFace ? +1 : -1;
         float3 Albedo = 1 - exp(SSS.Color * (-11.43 + SSS.Color * (15.38 - 13.91 * SSS.Color)));
         float G = SSS.G;
@@ -803,8 +812,9 @@ float3 ComputeDwivediScale(float3 Albedo)
                 float3 WorldNormal = ProbeResult.WorldNormal;
                 float CosTheta = abs(dot(Ray.Direction, WorldNormal));
                 float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
-                // total internal reflection happen only when ray from higher N (skin) to lower N (air)
-                if (0) //if (RandSample.x < Fresnel ) && dot(ProbeResult.WorldNormal, ProbeResult.WorldGeoNormal) < 0 )
+                /// total internal reflection happen only when ray from higher N (skin) to lower N (air)
+                ///if ((RandSample.x < Fresnel) && false == ProbeResult.FrontFace)
+                if (0)
                 {
                     Ray.Origin += ProbeResult.HitT * Ray.Direction;
                     Ray.Direction = reflect(Ray.Direction, WorldNormal);
@@ -993,7 +1003,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         const bool isRandomWalk = g_Const.sssConsts.isRandomWalk;
         
-        const PathState preScatterPath = path;
+        PathState preScatterPath = path;
 
         bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
@@ -1014,7 +1024,7 @@ float3 ComputeDwivediScale(float3 Albedo)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
 
-        float3 PathThroughput = path.thp;
+        float3 PathThroughput = preScatterPath.thp;
         // random walk will move the shading point somewhere on the surface
         bool isValidPoint = ProcessSubsurfaceRandomWalk(optimizationHints
                                    , sampleGenerator
@@ -1027,8 +1037,8 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , SimplifySSS
                                    , g_Const.sssConsts.viewOnlyRandomWalkResult
                                    , workingContext );
+        preScatterPath.thp = PathThroughput;
         path.thp = PathThroughput;
-
 
         if ( !isValidPoint )
         {
