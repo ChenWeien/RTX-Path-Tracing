@@ -96,7 +96,7 @@ struct MaterialConstants
     float3  scatter;
     float   scatterStrength;
     float3  sssMeanFreePath;
-    float3  sssColor;
+    float3  ssSurfaceAlbedo;
 };
 
 #endif // MATERIAL_CB_H

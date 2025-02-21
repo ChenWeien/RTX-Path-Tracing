@@ -164,7 +164,7 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.scatter = asfloat( i.yzw );
     ret.scatterStrength = asfloat( j.x );
     ret.sssMeanFreePath = asfloat( j.yzw );
-    ret.sssColor = asfloat( k.xyz );
+    ret.ssSurfaceAlbedo = asfloat( k.xyz );
     return ret;   
 }
 

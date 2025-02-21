@@ -545,7 +545,7 @@ FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf 
 {
     const float CmToMm = 10.f;
     const float Dmfp2MfpMagicNumber = 0.6f;
-    float3 SurfaceAlbedo = bsdf.data.sssColor;
+    float3 SurfaceAlbedo = bsdf.data.ssSurfaceAlbedo;
     float3 DiffuseColor0 = bsdf.data.diffuse;
     float3 WorldUnitScale = 1;
     float3 ssWeight = 1;

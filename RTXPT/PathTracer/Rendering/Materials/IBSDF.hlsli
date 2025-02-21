@@ -83,7 +83,7 @@ struct BSDFProperties
     float3  specularReflectance;            ///< Specular reflectance at normal incidence (F0). This is in the range [0,1].
 
     float3 sssMeanFreePath;
-    float3 sssColor;
+    float3 ssSurfaceAlbedo;
     uint    flags;                          ///< Flags storing additional properties.
 
     enum Flags : uint

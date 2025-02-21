@@ -1445,7 +1445,7 @@ struct StandardBSDFData
     float metallic;                 ///< Metallic parameter, blends between dielectric and conducting BSDFs.
     float3 scatter;
     float3 sssMeanFreePath;         ///< Subsurface scattering mean free path.
-    float3 sssColor;
+    float3 ssSurfaceAlbedo;
     float eta;                      ///< Relative index of refraction (incident IoR / transmissive IoR).
     float3 transmission;            ///< Transmission color.
     float diffuseTransmission;      ///< Diffuse transmission, blends between diffuse reflection and transmission lobes.
@@ -1469,7 +1469,7 @@ struct StandardBSDFData
         d.eta = 0;
         d.scatter = 1;
         d.sssMeanFreePath = 0;
-        d.sssColor = 0;
+        d.ssSurfaceAlbedo = 0;
         d.transmission = 0;
         d.diffuseTransmission = 0;
         d.specularTransmission = 0;
