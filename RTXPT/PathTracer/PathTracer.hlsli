@@ -688,6 +688,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , const float3 rayOrigin, const float3 RayDirection, const float rayTCurrent
                                    , bool SimplifySSS
                                    , bool viewOnlyRandomWalkResult
+                                   , const int MaxSSSBounces
                                    , const WorkingContext workingContext )
     {
         float3 originalPosW = shadingData.posW;
@@ -739,12 +740,13 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         SSS.Radius = max(SSS.Radius, 0.0009);
         int InterfaceCounter = isFrontFace ? +1 : -1;
+        // formula from 4.4.2 Path-Traced Skin. https://media.disneyanimation.com/uploads/production/publication_asset/177/asset/a.pdf
         float3 Albedo = 1 - exp(SSS.Color * (-11.43 + SSS.Color * (15.38 - 13.91 * SSS.Color)));
         float G = SSS.G;
         Albedo = Albedo / (1 - G * (1 - Albedo));
         
         const bool drawDebugLine = true;
-        const int MaxSSSBounces = 256;
+
         const float SSSGuidingRatio = 0.5;
         
         const float3 DwivediScale = ComputeDwivediScale(Albedo);
@@ -813,7 +815,8 @@ float3 ComputeDwivediScale(float3 Albedo)
                 float CosTheta = abs(dot(Ray.Direction, WorldNormal));
                 float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
                 // total internal reflection happen only when ray from higher N (skin) to lower N (air)
-                if (0) //if (RandSample.x < Fresnel ) && dot(ProbeResult.WorldNormal, ProbeResult.WorldGeoNormal) < 0 )
+                //if (0) //if (RandSample.x < Fresnel ) && dot(ProbeResult.WorldNormal, ProbeResult.WorldGeoNormal) < 0 )
+                if (RandSample.x < Fresnel && dot(Ray.Direction, ProbeResult.WorldGeoNormal) < 0 )
                 {
                     Ray.Origin += ProbeResult.HitT * Ray.Direction;
                     Ray.Direction = reflect(Ray.Direction, WorldNormal);
@@ -1035,6 +1038,7 @@ float3 ComputeDwivediScale(float3 Albedo)
                                    , rayOrigin, rayDir, rayTCurrent
                                    , SimplifySSS
                                    , g_Const.sssConsts.viewOnlyRandomWalkResult
+                                   , g_Const.sssConsts.subsurfaceBounceCount
                                    , workingContext );
         preScatterPath.thp = PathThroughput;
         path.thp = PathThroughput;

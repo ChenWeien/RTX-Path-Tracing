@@ -134,6 +134,7 @@ struct SampleUIData
 
     bool                                IsRandomWalk = true;
     bool                                ViewOnlyRandomWalkResult = false;
+    int                                 SubsurfaceBounceCount = 32;
     bool                                EnableUnrealScaleFactor = true;
     bool                                EnableMultipleIntersection = true;
     bool                                EnableReStirAxisWeights = true;
