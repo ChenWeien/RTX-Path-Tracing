@@ -214,15 +214,20 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::SameLine();
         ImGui::TextColored(filenameColor, "%s", getShortTexturePath(material->emissiveTexture->path).c_str());
     }
-    
-    if ( ImGui::Checkbox( "Is SSS", &material->isSss ) )
+    bool isSssChanged = ImGui::Checkbox( "Is SSS", &material->isSss );
+    {
+        ImGui::BeginDisabled( !material->isSss );
+        ImGui::Indent( 4 );
+        if ( ImGui::ColorEdit3( "ssSurfaceAlbedo", material->ssSurfaceAlbedo.data(), ImGuiColorEditFlags_Float ) )
+        {
+            material->ssSurfaceAlbedo = material->isSss ? material->ssSurfaceAlbedo : float3( 0.f );
+            update = true;
+        }
+        ImGui::EndDisabled();
+    }
+    if ( isSssChanged )
     {
         material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3(0.f);
-        update = true;
-    }
-    else if ( ImGui::ColorEdit3( "ssSurfaceAlbedo", material->ssSurfaceAlbedo.data(), ImGuiColorEditFlags_Float ) )
-    {
-        material->ssSurfaceAlbedo = material->isSss ? material->ssSurfaceAlbedo : float3( 0.f );
         update = true;
     }
     else if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
