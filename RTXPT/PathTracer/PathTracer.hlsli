@@ -1083,11 +1083,15 @@ float3 ComputeDwivediScale(float3 Albedo)
         float RandSample = sampleNext1D(sampleGenerator);
         if ( RandSample < Prob )
         {
-            //path.thp *= SSS.Weight / Prob;
+            const float dielectricSpecular = 0.04;
+            float sssWeight = 1 - dielectricSpecular;
+            preScatterPath.thp *= sssWeight / Prob; //SSS.Weight / Prob;
+            path.thp *= sssWeight / Prob;
         }
         else
         {
-            //path.thp *= 1 / (1 - Prob);
+            preScatterPath.thp *= 1 / (1 - Prob);
+            path.thp *= 1 / (1 - Prob);
             canPerformSss = false;
         }
         
