@@ -143,7 +143,7 @@ struct SampleUIData
     bool                                SingleIntersectionOnly = true;
     bool                                EnableLateScatterRay = true; 
     bool                                EnableBssrdfSampleRay = true;
-    bool                                EnableUseTransmissionLobe = true;
+    bool                                SkipCheckWiWoAreOnTheSameSide = true;
     bool                                TransmissionLobeOnRefract = true;
     bool                                EnableInvertWoZ = true;
     bool                                EnableAbsoluteWoZ = false;

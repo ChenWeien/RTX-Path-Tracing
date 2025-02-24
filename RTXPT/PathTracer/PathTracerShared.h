@@ -60,7 +60,7 @@ struct SssConstants
     uint singleIntersectionOnly;
     uint lateScatterRay;
     uint bssrdfSampleRay;
-    uint useTransmissionLobe;
+    uint SkipCheckWiWoAreOnTheSameSide;
     uint transmissionLobeOnRefract;
     uint invertWoZ;
     uint absoluteWoZ;

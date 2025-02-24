@@ -880,7 +880,7 @@ struct BssrdfDiffuseReflection
     float3 eval(const float3 wi, const float3 wo)
     {
         float cosAtSurface = evalCosAtSurface( wi, wo );
-        if (min(wi.z, cosAtSurface ) < kMinCosTheta) return float3(0,0,0);
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta && !g_Const.sssConsts.SkipCheckWiWoAreOnTheSameSide) return float3(0,0,0);
 
         return evalWeight( wi, wo ) * M_1_PI * cosAtSurface * evalSssPdf();
     }
@@ -889,17 +889,14 @@ struct BssrdfDiffuseReflection
     {
         wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
         lobe = ( uint )LobeType::DiffuseReflection;
-        
-        if ( g_Const.sssConsts.useTransmissionLobe )// && dot( pixelNormal, sssNormal ) < 0 )
+
+        if ( !g_Const.sssConsts.transmissionLobeOnRefract || intersectionPDF < 1 )
         {
-            if ( !g_Const.sssConsts.transmissionLobeOnRefract || intersectionPDF < 1 )
-            {
-                lobe = ( uint )LobeType::DiffuseTransmission;
-            }
+            lobe = ( uint )LobeType::DiffuseTransmission;
         }
 
         float cosAtSurface = evalCosAtSurface( wi, wo );
-        if (min(wi.z, cosAtSurface ) < kMinCosTheta)
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta && !g_Const.sssConsts.SkipCheckWiWoAreOnTheSameSide)
         {
             weight = float3(0,0,0);
             lobeP = 0.0;
@@ -916,7 +913,7 @@ struct BssrdfDiffuseReflection
         // TODO:
 
         float cosAtSurface = evalCosAtSurface( wi, wo );
-        if (min(wi.z, cosAtSurface ) < kMinCosTheta) return 0.f;
+        if (min(wi.z, cosAtSurface ) < kMinCosTheta && !g_Const.sssConsts.SkipCheckWiWoAreOnTheSameSide) return 0.f;
 
         return M_1_PI * cosAtSurface;
     }
