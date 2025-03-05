@@ -18,6 +18,11 @@
 #define PACK_BITS(bits, offset, flags, value) ((((value) & ((1u << (bits)) - 1u)) << (offset)) | ((flags) & (~(((1u << (bits)) - 1u) << (offset)))))
 #define PACK_BITS_UNSAFE(bits, offset, flags, value) (((value) << (offset)) | ((flags) & (~(((1u << (bits)) - 1u) << (offset)))))
 
+#define MODELID_PBR 0
+#define MODELID_SS 1
+#define MODELID_HAIR 2
+#define MODELID_EYE 3
+
 /** This is a host/device structure for material header data for all material types (8B).
 */
 struct MaterialHeader

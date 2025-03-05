@@ -43,6 +43,7 @@ struct MaterialSample
     float3 scatter;
     float3 sssMeanFreePath;
     float3 ssSurfaceAlbedo;
+    int modelId;
 };
 
 MaterialSample DefaultMaterialSample()
@@ -65,6 +66,7 @@ MaterialSample DefaultMaterialSample()
     result.ssSurfaceAlbedo = 0;
     result.hasMetalRoughParams = false;
     result.ior = 1.5;
+    result.modelId = 0;//MODELID_PBR
     return result;
 }
 

@@ -223,9 +223,26 @@ MaterialDomain MaterialPatch::GetDomainFromString(const std::string& domain)
     return MaterialDomain::Count;
 }
 
+MaterialModelId MaterialPatch::GetModelIdFromString( const std::string& modelId )
+{
+    if ( modelId == "PBR" )
+        return MaterialModelId::PBR;
+    if ( modelId == "SSS" )
+        return MaterialModelId::SSS;
+    if ( modelId == "Hair" )
+        return MaterialModelId::Hair;
+    if ( modelId == "Eye" )
+        return MaterialModelId::Eye;
+
+
+    assert( false && "Unrecognized material modelId" );
+    return MaterialModelId::Count;
+}
+
 void MaterialPatch::Load(const Json::Value& node)
 {
     node["domain"] >> domain;
+    node["modelId"] >> modelId;
     node["volumeThicknessFactor"] >> volumeThicknessFactor;
     node["volumeAttenuationDistance"] >> volumeAttenuationDistance;
     node["volumeAttenuationColor"] >> volumeAttenuationColor;
@@ -260,6 +277,7 @@ bool MaterialPatch::SetProperty(const std::string& name, const dm::float4& value
 void MaterialPatch::Patch(Material& mat)
 {
     mat.domain = domain.has_value() ? GetDomainFromString(domain.value()) : mat.domain;
+    mat.modelId = modelId.has_value() ? GetModelIdFromString( modelId.value()) : mat.modelId;
     if( volumeThicknessFactor.has_value() )
     {
         mat.thinSurface = volumeThicknessFactor.value() == 0;

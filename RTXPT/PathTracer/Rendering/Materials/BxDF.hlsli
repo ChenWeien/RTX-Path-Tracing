@@ -1454,6 +1454,7 @@ struct StandardBSDFData
     float3 pixelView;
     float bssrdfPDF;
     float intersectionPDF;
+    int modelId;
     //float sssDistance;  ///< distance(position, sssPosition)
 
     static StandardBSDFData make() 
@@ -1476,6 +1477,7 @@ struct StandardBSDFData
         d.pixelView = 0;
         d.bssrdfPDF = 1;
         d.intersectionPDF = 1;
+        d.modelId = MODELID_PBR;
         //d.sssDistance = 0;
         return d;
     }
@@ -1494,7 +1496,8 @@ struct StandardBSDFData
         float3 position,
         float3 sssPosition,
         float bssrdfPDF,
-        float intersectionPDF
+        float intersectionPDF,
+        uint modelId
     )
     {
         StandardBSDFData d;
@@ -1513,6 +1516,7 @@ struct StandardBSDFData
         d.pixelView = pixelView;
         d.bssrdfPDF = bssrdfPDF;
         d.intersectionPDF = intersectionPDF;
+        d.modelId = modelId;
         return d;
     }
 };
@@ -1522,6 +1526,7 @@ void RemoveMaterialSss( inout StandardBSDFData data)
     data.sssMeanFreePath = float3(0,0,0);
     data.bssrdfPDF = FLT_MAX;
     data.sssPosition = data.position;
+    data.modelId = MODELID_PBR;
 }
 
 /** Mixed BSDF used for the standard material in Falcor.
@@ -1563,11 +1568,11 @@ struct FalcorBSDF // : IBxDF
     float3 sssDistance; // sssPosition - position
     float bssrdfPDF;
     float intersectionPDF; // ~= 1.f/numInersections
-    bool _isSss;
-    
+    uint modelId;
+
     bool isSss()
     {
-        return _isSss > 0;
+        return modelId == MODELID_SS;
     }
     
     /** Initialize a new instance.
@@ -1594,7 +1599,7 @@ struct FalcorBSDF // : IBxDF
         sssMeanFreePath = data.sssMeanFreePath;
         sssDistance = data.sssPosition - data.position;
         intersectionPDF = data.intersectionPDF;
-        _isSss = any(sssMeanFreePath > 0.f);
+        modelId = data.modelId;
 
         // TODO: Currently specular reflection and transmission lobes are not properly separated.
         // This leads to incorrect behaviour if only the specular reflection or transmission lobe is selected.
@@ -1643,7 +1648,7 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
-        bool forceDiffRelect = _isSss && (g_Const.sssConsts.onlyDiffuseReflection || g_Const.sssConsts.isRandomWalk);
+        bool forceDiffRelect = isSss() && (g_Const.sssConsts.onlyDiffuseReflection || g_Const.sssConsts.isRandomWalk);
         pDiffuseReflection = forceDiffRelect ? 1 : ( (activeLobes & (uint)LobeType::DiffuseReflection) ? diffuseWeight * dielectricBSDF * (1.f - diffTrans) : 0.f );
         pDiffuseTransmission = forceDiffRelect ? 0 : ( (activeLobes & (uint)LobeType::DiffuseTransmission) ? diffuseWeight * dielectricBSDF * diffTrans : 0.f );
         pSpecularReflection = forceDiffRelect ? 0 : ( (activeLobes & ((uint)LobeType::SpecularReflection | (uint)LobeType::DeltaReflection)) ? specularWeight * (metallicBRDF + dielectricBSDF) : 0.f );
@@ -1738,11 +1743,6 @@ struct FalcorBSDF // : IBxDF
                 diffuseReflectionEval = diffuseReflection.eval(wi, wo);
             }
             diffuse += (1.f - specTrans) * (1.f - diffTrans) * diffuseReflectionEval;
-            //if ( _isSss )
-            //{
-            //    diffuse = sssMeanFreePath;
-            //}
-
         }
         if (pDiffuseTransmission > 0.f) diffuse += (1.f - specTrans) * diffTrans * diffuseTransmission.eval(wi, wo);
         if (pSpecularReflection > 0.f) specular += (1.f - specTrans) * specularReflection.eval(wi, wo);

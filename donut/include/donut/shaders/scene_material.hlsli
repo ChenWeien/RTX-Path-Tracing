@@ -233,5 +233,6 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     result.scatter = result.scatter * material.scatterStrength;
     result.sssMeanFreePath = material.sssMeanFreePath;
     result.ssSurfaceAlbedo = material.ssSurfaceAlbedo;
+    result.modelId = material.modelId;
     return result;
 }

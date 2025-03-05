@@ -52,6 +52,7 @@ namespace donut::engine
     public:
         // Feel free to add more!
         std::optional<std::string>  domain;
+        std::optional<std::string> modelId;
         std::optional<float>        volumeThicknessFactor;
         std::optional<float>        volumeAttenuationDistance;
         std::optional<dm::float3>   volumeAttenuationColor;
@@ -81,6 +82,7 @@ namespace donut::engine
         void Patch( Material & mat );
     private:
         static MaterialDomain GetDomainFromString(const std::string& domain);
+        static MaterialModelId GetModelIdFromString(const std::string& modelId);
     };
 
     // used to setup initial sample scene settings

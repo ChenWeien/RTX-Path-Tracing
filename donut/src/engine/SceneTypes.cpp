@@ -376,6 +376,19 @@ const char* donut::engine::MaterialDomainToString(MaterialDomain domain)
     }
 }
 
+const char* donut::engine::MaterialModelIdToString( MaterialModelId modelId )
+{
+    switch ( modelId )
+    {
+    case MaterialModelId::PBR: return "PBR";
+    case MaterialModelId::SSS: return "SSS";
+    case MaterialModelId::Hair: return "hair";
+    case MaterialModelId::Eye: return "Eye";
+    case MaterialModelId::Count: return "Count";
+    default: return "<Invalid>";
+    }
+}
+
 bool LightProbe::IsActive() const
 {
     if (!enabled)

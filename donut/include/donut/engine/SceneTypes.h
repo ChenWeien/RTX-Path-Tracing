@@ -104,12 +104,23 @@ namespace donut::engine
         Count
     };
 
-    const char* MaterialDomainToString(MaterialDomain domain);
+    enum class MaterialModelId : uint8_t
+    {
+        PBR = 0,
+        SSS,
+        Hair,
+        Eye,
+        Count
+    };
+
+    const char* MaterialDomainToString( MaterialDomain domain );
+    const char* MaterialModelIdToString(MaterialModelId domain);
 
     struct Material
     {
         std::string name;
         MaterialDomain domain = MaterialDomain::Opaque;
+        MaterialModelId modelId = MaterialModelId::PBR;
         std::shared_ptr<LoadedTexture> baseOrDiffuseTexture; // metal-rough: base color; spec-gloss: diffuse color; .a = opacity (both modes)
         std::shared_ptr<LoadedTexture> metalRoughOrSpecularTexture; // metal-rough: ORM map; spec-gloss: specular color, .a = glossiness
         std::shared_ptr<LoadedTexture> normalTexture;
@@ -126,7 +137,10 @@ namespace donut::engine
         dm::float3 sssMeanFreePath = 0.f; // mean free path for subsurface scattering
         dm::float3 sssMeanFreePathColor = 0.5; // mean free path Color UI, mfp = mfp Color * mfp distance
         float sssMeanFreePathDistance = 0.1f; // in cm
-        bool isSss = true; // enable subsurface scattering
+        bool isSss() const
+        {
+            return ( modelId == MaterialModelId::SSS );
+        }
         float emissiveIntensity = 1.f; // additional multiplier for emissiveColor
         float metalness = 0.f; // metal-rough only
         float roughness = 0.f; // both metal-rough and spec-gloss

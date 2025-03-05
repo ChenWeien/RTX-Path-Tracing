@@ -93,16 +93,23 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
     bool update = false;
 
     float itemWidth = ImGui::CalcItemWidth();
+    bool isSssChanged = false;
 
     if (allowMaterialDomainChanges)
     {
         update |= ImGui::Combo("Material Domain", (int*)&material->domain,
             "Opaque\0Alpha-tested\0Alpha-blended\0Transmissive\0"
             "Transmissive alpha-tested\0Transmissive alpha-blended\0");
+
+        isSssChanged = ImGui::Combo( "Material ModelId", (int*)&material->modelId,
+            "PBR\0SSS\0Hair\0Eye\0"
+             );
+        update |= isSssChanged;
     }
     else
     {
         ImGui::Text("Material Domain: %s", MaterialDomainToString(material->domain));
+        ImGui::Text("Material ModelId: %s", MaterialModelIdToString(material->modelId));
     }
 
     auto getShortTexturePath = [](const std::string& fullPath)
@@ -214,30 +221,26 @@ bool donut::app::MaterialEditor(engine::Material* material, bool allowMaterialDo
         ImGui::SameLine();
         ImGui::TextColored(filenameColor, "%s", getShortTexturePath(material->emissiveTexture->path).c_str());
     }
-    bool isSssChanged = ImGui::Checkbox( "Is SSS", &material->isSss );
+
+    if ( ImGui::ColorEdit3( "ssSurfaceAlbedo", material->ssSurfaceAlbedo.data(), ImGuiColorEditFlags_Float ) )
     {
-        ImGui::BeginDisabled( !material->isSss );
-        ImGui::Indent( 4 );
-        if ( ImGui::ColorEdit3( "ssSurfaceAlbedo", material->ssSurfaceAlbedo.data(), ImGuiColorEditFlags_Float ) )
-        {
-            material->ssSurfaceAlbedo = material->isSss ? material->ssSurfaceAlbedo : float3( 0.f );
-            update = true;
-        }
-        ImGui::EndDisabled();
-    }
-    if ( isSssChanged )
-    {
-        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3(0.f);
         update = true;
     }
-    else if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
+
+    if ( isSssChanged )
     {
-        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
+        material->sssMeanFreePath = material->isSss() ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3(0.f);
+        update = true;
+    }
+
+    if ( ImGui::ColorEdit3( "sssMeanFreePathColor", material->sssMeanFreePathColor.data(), ImGuiColorEditFlags_Float ) )
+    {
+        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
         update = true;
     }
     else if ( ImGui::SliderFloat( "sssMeanFreePathDistance (cm)", &material->sssMeanFreePathDistance, 0.1f, 200.f, "%.2f", ImGuiSliderFlags_Logarithmic ) )
     {
-        material->sssMeanFreePath = material->isSss ? material->sssMeanFreePathColor * material->sssMeanFreePathDistance : float3( 0.f );
+        material->sssMeanFreePath = material->sssMeanFreePathColor * material->sssMeanFreePathDistance;
         update = true;
     }
 

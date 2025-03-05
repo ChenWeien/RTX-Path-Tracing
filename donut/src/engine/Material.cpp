@@ -93,6 +93,7 @@ namespace donut::engine
         // free parameters
 
         constants.domain = (int)domain;
+        constants.modelId = (int)modelId;
         constants.baseOrDiffuseColor = baseOrDiffuseColor;
         constants.specularColor = specularColor;
         constants.emissiveColor = emissiveColor * emissiveIntensity;

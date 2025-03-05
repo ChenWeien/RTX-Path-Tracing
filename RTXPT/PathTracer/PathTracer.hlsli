@@ -559,12 +559,13 @@ FSSSRandomWalkInfo GetMaterialSSSInfo( ShadingData shadingData, ActiveBSDF bsdf 
     AdjustDiffuseSSSContribution( DiffuseColor, SubsurfaceColor, Radius );
 
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
-	Result.Color = SubsurfaceColor; //bsdf.data.diffuse;
-	Result.Radius = Radius; //bsdf.data.sssMeanFreePath / 3;
+	Result.Color = SubsurfaceColor;
+	Result.Radius = Radius;
 	Result.Weight = 0;
 	Result.Prob = 0;
 	Result.G = 0;
-	if (any(bsdf.data.sssMeanFreePath) > 0)
+
+    if (bsdf.data.modelId == MODELID_SS) //if (any(bsdf.data.sssMeanFreePath) > 0)
 	{
         float3 SpecularColor = bsdf.data.specular;
         float3 WorldNormal = shadingData.N;
@@ -702,7 +703,7 @@ float3 ComputeDwivediScale(float3 Albedo)
             RemoveMaterialSss(bsdf.data);
             return true;
         }
-        bool isSssMaterial = any(bsdf.data.sssMeanFreePath) > 0;
+        bool isSssMaterial = bsdf.data.modelId == MODELID_SS; //any(bsdf.data.sssMeanFreePath) > 0;
         if (!isSssMaterial)
         {
             return true;
@@ -1005,7 +1006,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         
         PathState preScatterPath = path;
 
-        bool isSssPixel = any(bsdf.data.sssMeanFreePath) > 0;
+        bool isSssPixel = bsdf.data.modelId == MODELID_SS; //any(bsdf.data.sssMeanFreePath) > 0;
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
@@ -1101,6 +1102,7 @@ float3 ComputeDwivediScale(float3 Albedo)
             bsdf.data.sssMeanFreePath = float3(0,0,0);
             bsdf.data.bssrdfPDF = FLT_MAX;
             bsdf.data.sssPosition = bsdf.data.position;
+            //bsdf.data.modelId = MODELID_PBR; ?
             isValidSssSample = false;
         }
         if ( isSssPixel && canPerformSss )

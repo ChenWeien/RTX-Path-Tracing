@@ -67,6 +67,7 @@ struct MaterialConstants
 
     float3  emissiveColor;
     int     domain;
+    int     modelId;
 
     float   opacity;
     float   roughness;
