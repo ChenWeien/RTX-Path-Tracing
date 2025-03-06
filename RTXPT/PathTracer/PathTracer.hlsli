@@ -1099,10 +1099,7 @@ float3 ComputeDwivediScale(float3 Albedo)
 
         if ( isSssPixel && !canPerformSss )
         {
-            bsdf.data.sssMeanFreePath = float3(0,0,0);
-            bsdf.data.bssrdfPDF = FLT_MAX;
-            bsdf.data.sssPosition = bsdf.data.position;
-            //bsdf.data.modelId = MODELID_PBR; ?
+            RemoveMaterialSss(bsdf.data);
             isValidSssSample = false;
         }
         if ( isSssPixel && canPerformSss )
@@ -1140,9 +1137,7 @@ float3 ComputeDwivediScale(float3 Albedo)
             float bssrdfIntersectionPDF = 0;
             if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))
             {
-                bsdf.data.sssMeanFreePath = float3(0,0,0);
-                bsdf.data.bssrdfPDF = FLT_MAX;
-                bsdf.data.sssPosition = bsdf.data.position;
+                RemoveMaterialSss(bsdf.data);
                 isValidSssSample = false;
             }
             else
