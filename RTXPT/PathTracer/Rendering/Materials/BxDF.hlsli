@@ -1800,15 +1800,17 @@ struct FalcorBSDF // : IBxDF
 #if RecycleSelectSamples
             preGeneratedSample.z = clamp(uSelect / pDiffuseReflection, 0, OneMinusEpsilon); // note, this gets compiled out because bsdf below does not need .z, however it has been tested and can be used in case of a new bsdf that might require it
 #endif
-            if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfSampleRay )
-            {
-                valid = g_Const.sssConsts.isRandomWalk ? 
-                    lambert_sample(diffuseReflection.albedo, wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz) :
-                    bssrdfDiffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
-            }
-            else
-            {
-                valid = diffuseReflection.sample( wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz );
+            switch (modelId){
+                case MODELID_SS:
+                    valid = g_Const.sssConsts.bssrdfSampleRay ?
+                                ( g_Const.sssConsts.isRandomWalk ?
+                                    lambert_sample(diffuseReflection.albedo, wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz)
+                                    : bssrdfDiffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz) )
+                                : diffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
+                    break;
+                default:
+                    valid = diffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
+                    break;
             }
             weight /= pDiffuseReflection;
             weight *= (1.f - specTrans) * (1.f - diffTrans);
@@ -1842,15 +1844,16 @@ struct FalcorBSDF // : IBxDF
             lobeP *= pSpecularReflection;
             if ( pDiffuseReflection > 0.f )
             {
-                if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
+                switch (modelId)
                 {
-                    pdf += g_Const.sssConsts.isRandomWalk ?
-                            pDiffuseReflection * lambert_evalPdf(wi, wo) :
-                            pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
-                }
-                else
-                {
-                    pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+                    case MODELID_SS:
+                        pdf += pDiffuseReflection * (g_Const.sssConsts.bssrdfEvalPdf ?
+                                (g_Const.sssConsts.isRandomWalk ? lambert_evalPdf(wi, wo) : bssrdfDiffuseReflection.evalPdf(wi, wo))
+                                : diffuseReflection.evalPdf(wi, wo));
+                        break;
+                    default:
+                        pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+                        break;
                 }
             }
             // if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
@@ -1869,15 +1872,16 @@ struct FalcorBSDF // : IBxDF
             lobeP *= pSpecularReflectionTransmission;
             if ( pDiffuseReflection > 0.f )
             {
-                if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
+                switch (modelId)
                 {
-                    pdf +=  g_Const.sssConsts.isRandomWalk ?
-                                pDiffuseReflection * lambert_evalPdf( wi, wo ) :
-                                pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
-                }
-                else
-                {
-                    pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+                    case MODELID_SS:
+                        pdf += pDiffuseReflection * (g_Const.sssConsts.bssrdfEvalPdf ?
+                                (g_Const.sssConsts.isRandomWalk ? lambert_evalPdf(wi, wo) : bssrdfDiffuseReflection.evalPdf(wi, wo))
+                                : diffuseReflection.evalPdf(wi, wo));
+                        break;
+                    default:
+                        pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+                        break;
                 }
             }
             if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
@@ -1895,15 +1899,16 @@ struct FalcorBSDF // : IBxDF
         float pdf = 0.f;
         if ( pDiffuseReflection > 0.f )
         {
-            if ( isSss() && !g_Const.sssConsts.isRandomWalk && g_Const.sssConsts.bssrdfEvalPdf )
+            switch (modelId)
             {
-                pdf += g_Const.sssConsts.isRandomWalk ?
-                        pDiffuseReflection * lambert_evalPdf( wi, wo ) :
-                        pDiffuseReflection * bssrdfDiffuseReflection.evalPdf( wi, wo );
-            }
-            else
-            {
-                pdf += pDiffuseReflection * diffuseReflection.evalPdf( wi, wo );
+                case MODELID_SS:
+                    pdf += pDiffuseReflection * (g_Const.sssConsts.bssrdfEvalPdf ?
+                            (g_Const.sssConsts.isRandomWalk ? lambert_evalPdf(wi, wo) : bssrdfDiffuseReflection.evalPdf(wi, wo))
+                            : diffuseReflection.evalPdf(wi, wo));
+                    break;
+                default:
+                    pdf += pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
+                    break;
             }
         }
         if (pDiffuseTransmission > 0.f) pdf += pDiffuseTransmission * diffuseTransmission.evalPdf(wi, wo);
