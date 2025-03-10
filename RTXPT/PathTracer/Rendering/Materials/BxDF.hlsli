@@ -1733,6 +1733,9 @@ struct FalcorBSDF // : IBxDF
                                     lambert_eval(diffuseReflection.albedo, wi, wo) :
                                     bssrdfDiffuseReflection.eval(wi, wo);
             break;
+        case MODELID_EYE:
+            
+            break;
         default:
             return diffuseReflection.eval(wi, wo);
             break;

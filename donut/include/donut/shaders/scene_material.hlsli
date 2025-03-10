@@ -193,11 +193,12 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
         result.diffuseAlbedo = lerp(result.baseColor * (1.0 - c_DielectricSpecular), 0.0, result.metalness);
         result.specularF0 = lerp(c_DielectricSpecular, result.baseColor.rgb, result.metalness);
     }
-    
+    float irisMaskTemp = 0;
     result.occlusion = 1.0;
     if (material.flags & MaterialFlags_UseOcclusionTexture)
     {
         result.occlusion = textures.occlusion.r;
+        irisMaskTemp = textures.occlusion.g;
     }
 
     result.occlusion = lerp(1.0, result.occlusion, material.occlusionStrength);
@@ -228,9 +229,11 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
 
     if ( material.flags & MaterialFlags_UseScatterTexture )
     {
-        result.scatter = textures.scatter.xyz;
+        result.scatter = textures.scatter.r;
     }
     result.scatter = result.scatter * material.scatterStrength;
+    result.irisMask = irisMaskTemp;
+    result.irisDistance = result.scatter.r;
     result.sssMeanFreePath = material.sssMeanFreePath;
     result.ssSurfaceAlbedo = material.ssSurfaceAlbedo;
     result.modelId = material.modelId;

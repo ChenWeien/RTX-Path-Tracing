@@ -94,8 +94,10 @@ struct MaterialConstants
     VolumeConstants volume;
 
     uint    scatterTextureIndex;
-    float3  scatter;
+    float   scatter;
     float   scatterStrength;
+    //float irisMask;
+    //float irisDistance;
     float3  sssMeanFreePath;
     float3  ssSurfaceAlbedo;
 };

@@ -162,6 +162,8 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.volume.attenuationDistance = asfloat(h.w);
     ret.scatterTextureIndex = int( i.x );
     ret.scatter = asfloat( i.yzw );
+    //ret.irisMask = asfloat(i.z);
+    //ret.irisDistance = asfloat(i.w);
     ret.scatterStrength = asfloat( j.x );
     ret.sssMeanFreePath = asfloat( j.yzw );
     ret.ssSurfaceAlbedo = asfloat( k.xyz );

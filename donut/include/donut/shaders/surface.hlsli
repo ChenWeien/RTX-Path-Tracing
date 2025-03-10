@@ -40,7 +40,10 @@ struct MaterialSample
     bool hasMetalRoughParams; // indicates that 'baseColor' and 'metalness' are valid
     float ior;
     float shadowNoLFadeout;
-    float3 scatter;
+    float scatter;
+    float irisMask;
+    float irisDistance;
+    float3 irisNormal;
     float3 sssMeanFreePath;
     float3 ssSurfaceAlbedo;
     int modelId;
