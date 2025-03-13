@@ -109,7 +109,7 @@ struct PathTracerSurfaceData
 		float3 wiLocal = _ToLocal(_V);
 		float3 woLocal = _ToLocal(wo);
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, _data);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, wo, _data);
 
 		bsdf.eval(wiLocal, woLocal, diffuse, specular);
 	}
@@ -122,7 +122,7 @@ struct PathTracerSurfaceData
 		float3 wiLocal = _ToLocal(_V);
 		float3 woLocal = _ToLocal(wo);
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, roughBsdf);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, wo, roughBsdf);
 
 		bsdf.eval(wiLocal, woLocal, diffuse, specular);
 	}
@@ -133,7 +133,7 @@ struct PathTracerSurfaceData
 		float3 wiLocal = _ToLocal(_V);
 		float3 woLocal = _ToLocal(wo);
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, _data);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, wo, _data);
 
 #if RTXPT_DIFFUSE_SPECULAR_SPLIT
 		float3 diffuse, specular;
@@ -172,7 +172,7 @@ struct PathTracerSurfaceData
 		float3 wiLocal = _ToLocal(_V);
 		float3 woLocal = _ToLocal(wo);
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, _data);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, wo, _data);
 
 		return bsdf.evalPdf(wiLocal, woLocal);
 	}
@@ -200,7 +200,8 @@ struct PathTracerSurfaceData
 			if (min(wiLocal.z, woLocal.z) < kMinCosTheta || result.pdf == 0.f) return false;
 		}
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, _data);
+		float3 wo_World = _FromLocal(woLocal);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, wo_World, _data);
 
 		result.wo = _FromLocal(woLocal);
 #if RTXPT_DIFFUSE_SPECULAR_SPLIT
@@ -222,7 +223,7 @@ struct PathTracerSurfaceData
 		float3 wiLocal = _ToLocal(_V);
 		float3 woLocal = float3(0, 0, 0);
 
-		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, _data);
+		FalcorBSDF bsdf = FalcorBSDF::make(_mtl, _N, _V, (float3)0, _data);
 #if RecycleSelectSamples
         bool valid = bsdf.sample(wiLocal, woLocal, result.pdf, result.weight, result.lobe, result.lobeP, sampleNext3D(sampleGenerator));
 #else

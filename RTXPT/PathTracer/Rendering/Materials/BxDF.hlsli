@@ -1587,6 +1587,7 @@ struct FalcorBSDF // : IBxDF
         //float3 T,
         //float3 B,
         float3 V,
+        float3 Lworld,
         const StandardBSDFData data)
     {
         _N = N;
@@ -1680,21 +1681,22 @@ struct FalcorBSDF // : IBxDF
     \param[in] sd Shading data.
     \param[in] data BSDF parameters.
 */
-    void __init(const ShadingData shadingData, const StandardBSDFData data)
+    void __init(const ShadingData shadingData, const StandardBSDFData data, float3 Lworld)
     {
-        __init(shadingData.mtl, data.pixelNormal, data.pixelView, shadingData.N, shadingData.V, data);
+        __init(shadingData.mtl, data.pixelNormal, data.pixelView, shadingData.N, shadingData.V, Lworld, data);
     }
 
-    static FalcorBSDF make( const ShadingData shadingData, const StandardBSDFData data )     { FalcorBSDF ret; ret.__init(shadingData, data); return ret; }
+    static FalcorBSDF make( const ShadingData shadingData, const StandardBSDFData data, float3 Lworld)     { FalcorBSDF ret; ret.__init(shadingData, data, Lworld); return ret; }
 
     static FalcorBSDF make(
         const MaterialHeader mtl,
         float3 N,
-        float3 V, 
+        float3 V,
+        float3 Lworld,
         const StandardBSDFData data) 
     { 
         FalcorBSDF ret;
-        ret.__init(mtl, data.pixelNormal, data.pixelView, N, V, data);
+        ret.__init(mtl, data.pixelNormal, data.pixelView, N, V, Lworld, data);
         return ret;
     }
 

@@ -50,7 +50,7 @@ struct StandardBSDF // : IBSDF
         float3 wiLocal = shadingData.toLocal(shadingData.V);
         float3 woLocal = shadingData.toLocal(wo);
 
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data);
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, wo);
 
         bsdf.eval(wiLocal, woLocal/*, sampleGenerator*/, diffuse, specular);
     }
@@ -61,7 +61,7 @@ struct StandardBSDF // : IBSDF
         float3 wiLocal = shadingData.toLocal(shadingData.V);
         float3 woLocal = shadingData.toLocal(wo);
 
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data);
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, wo);
 
 #if RTXPT_DIFFUSE_SPECULAR_SPLIT
         float3 diffuse, specular;
@@ -79,7 +79,7 @@ struct StandardBSDF // : IBSDF
         float3 wiLocal = shadingData.toLocal(shadingData.V);
         float3 woLocal = float3(0,0,0);
 
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data);
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, (float3)0);
 #if RecycleSelectSamples
         bool valid = bsdf.sample(wiLocal, woLocal, result.pdf, result.weight, result.lobe, result.lobeP, sampleNext3D(sampleGenerator));
 #else
@@ -97,7 +97,7 @@ struct StandardBSDF // : IBSDF
         float3 wiLocal = shadingData.toLocal(shadingData.V);
         float3 woLocal = shadingData.toLocal(wo);
 
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data);
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, wo);
 
         return bsdf.evalPdf(wiLocal, woLocal);
     }
@@ -165,7 +165,8 @@ struct StandardBSDF // : IBSDF
             if (min(wiLocal.z, woLocal.z) < kMinCosTheta || result.pdf == 0.f) return false;
         }
 
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data);
+        float3 wo_World = shadingData.fromLocal(woLocal);
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, wo_World);
 
         result.wo = shadingData.fromLocal(woLocal);
 #if RTXPT_DIFFUSE_SPECULAR_SPLIT
@@ -208,7 +209,7 @@ struct StandardBSDF // : IBSDF
     {
         float3 wiLocal = shadingData.toLocal(shadingData.V);
         
-        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data); 
+        FalcorBSDF bsdf = FalcorBSDF::make(shadingData, data, (float3)0); 
         bsdf.evalDeltaLobes(wiLocal, deltaLobes, deltaLobeCount, nonDeltaPart);
         
         // local to world!
