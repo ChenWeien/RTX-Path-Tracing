@@ -841,6 +841,27 @@ void disney_bssrdf_evaluate(in const float3 normal,
     bsdf = disney_bssrdf_fresnel_evaluate(normalSample, l);
 }
 
+struct EyeBsdf
+{
+    float3 IrisNormal;
+    float IrisMask;
+    float3 CausticNormal;
+    static EyeBsdf make( float3 IrisNormal_, float IrisMask_, float3 CausticNormal_ )
+    {
+        EyeBsdf ret;
+        ret.IrisNormal = IrisNormal_;
+        ret.IrisMask = IrisMask_;
+        ret.CausticNormal = CausticNormal_;
+        return ret;
+    }
+    
+    float3 evalDiffuseReflect(const float3 wi, const float3 wo)
+    {
+        return M_1_PI * wo.z; // wo.z = dot(N,L)
+        return float3(1,0,0);
+    }
+};
+
 struct BssrdfDiffuseReflection
 {
     float3 scatter;
@@ -1545,6 +1566,7 @@ struct FalcorBSDF // : IBxDF
 #endif
     DiffuseTransmissionLambert diffuseTransmission;
     BssrdfDiffuseReflection bssrdfDiffuseReflection;
+    EyeBsdf eyeBsdf;
     SpecularReflectionMicrofacet specularReflection;
     SpecularReflectionTransmissionMicrofacet specularReflectionTransmission;
 
@@ -1649,6 +1671,8 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
+        //eyeBsdf = EyeBsdf::make(data
+        
         bssrdfDiffuseReflection = BssrdfDiffuseReflection::make(
                                     data.diffuse,
                                     scatter,
@@ -1735,9 +1759,20 @@ struct FalcorBSDF // : IBxDF
                                     lambert_eval(diffuseReflection.albedo, wi, wo) :
                                     bssrdfDiffuseReflection.eval(wi, wo);
             break;
-        case MODELID_EYE:
-            
-            break;
+//        case MODELID_EYE:
+//        {
+//                const float IrisMask = 
+//	const float3 IrisNormal = 
+//	const float3 CausticNormal = 
+//	const float IrisNoL = saturate(dot(IrisNormal, L_World));
+//	const float Power = lerp(12, 1, IrisNoL);
+//	const float Caustic = 0.8 + 0.2 * (Power + 1) * pow(saturate(dot(CausticNormal, L_World)), Power);
+//	const float Iris = IrisNoL * Caustic;
+//	const float Sclera = NoL;
+//	const float EyeDiffuseTweak = 2 * lerp(Sclera, Iris, IrisMask);
+//            float3 EyeDiffuseTweak = 0;
+//        }
+//            break;
         default:
             return diffuseReflection.eval(wi, wo);
             break;
