@@ -1476,6 +1476,10 @@ struct StandardBSDFData
     float bssrdfPDF;
     float intersectionPDF;
     int modelId;
+    float3 IrisNormal;
+    float IrisMask;
+    float3 CausticNormal;
+    
     //float sssDistance;  ///< distance(position, sssPosition)
 
     static StandardBSDFData make() 
@@ -1499,6 +1503,9 @@ struct StandardBSDFData
         d.bssrdfPDF = 1;
         d.intersectionPDF = 1;
         d.modelId = MODELID_PBR;
+        d.IrisNormal = 0;
+        d.IrisMask = 0;
+        d.CausticNormal = 0;
         //d.sssDistance = 0;
         return d;
     }
@@ -1518,7 +1525,10 @@ struct StandardBSDFData
         float3 sssPosition,
         float bssrdfPDF,
         float intersectionPDF,
-        uint modelId
+        uint modelId,
+        float3 IrisNormal,
+        float IrisMask,
+        float3 CausticNormal
     )
     {
         StandardBSDFData d;
@@ -1538,6 +1548,9 @@ struct StandardBSDFData
         d.bssrdfPDF = bssrdfPDF;
         d.intersectionPDF = intersectionPDF;
         d.modelId = modelId;
+        d.IrisNormal = IrisNormal;
+        d.IrisMask = IrisMask;
+        d.CausticNormal = CausticNormal;
         return d;
     }
 };
