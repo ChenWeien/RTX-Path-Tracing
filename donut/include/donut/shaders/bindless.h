@@ -161,7 +161,7 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.volume.attenuationColor = asfloat(h.xyz);
     ret.volume.attenuationDistance = asfloat(h.w);
     ret.scatterTextureIndex = int( i.x );
-    ret.scatter = asfloat( i.yzw );
+    ret.scatter = asfloat( i.y );
     //ret.irisMask = asfloat(i.z);
     //ret.irisDistance = asfloat(i.w);
     ret.scatterStrength = asfloat( j.x );
