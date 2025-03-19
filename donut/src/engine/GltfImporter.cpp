@@ -465,6 +465,10 @@ bool GltfImporter::Load(
         matinfo->doubleSided = material.double_sided;
 
         matinfo->scatterTexture = load_scatter_texture( "Face_Scatter map.jpg", true );
+        matinfo->customTextures.resize( 3 );
+        matinfo->customTextures[ 0 ] = load_scatter_texture( "IrisNormal.png", false );
+        matinfo->customTextures[ 1 ] = load_scatter_texture( "IrisMask.jpg", false );
+        matinfo->customTextures[ 2 ] = load_scatter_texture( "IrisDistance.jpg", false );
 
         switch (material.alpha_mode)
         {

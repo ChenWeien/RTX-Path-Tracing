@@ -209,8 +209,16 @@ MaterialSample sampleGeometryMaterial(uniform PathTracer::OptimizationHints opti
 
         if ( ( attributes & MatAttr_Scatter ) && ( gs.material.flags & MaterialFlags_UseScatterTexture ) != 0 )
             textures.scatter = sampleTexture( gs.material.scatterTextureIndex, materialSampler, textureSampler, gs.texcoord );
-    }
 
+        if ((gs.material.flags & MaterialFlags_UseCustomTexture0) != 0)
+            textures.custom0 = sampleTexture(gs.material.customTexture0Index, materialSampler, textureSampler, gs.texcoord);
+        if ((gs.material.flags & MaterialFlags_UseCustomTexture1) != 0)
+            textures.custom1 = sampleTexture(gs.material.customTexture1Index, materialSampler, textureSampler, gs.texcoord);
+        if ((gs.material.flags & MaterialFlags_UseCustomTexture2) != 0)
+            textures.custom2 = sampleTexture(gs.material.customTexture2Index, materialSampler, textureSampler, gs.texcoord);
+        if ((gs.material.flags & MaterialFlags_UseCustomTexture3) != 0)
+            textures.custom3 = sampleTexture(gs.material.customTexture3Index, materialSampler, textureSampler, gs.texcoord);
+    }
     return EvaluateSceneMaterial(gs.geometryNormal, gs.tangent, gs.material, textures);
 }
 

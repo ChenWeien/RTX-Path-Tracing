@@ -41,6 +41,11 @@ static const int MaterialFlags_UseTransmissionTexture           = 0x00000080;
 static const int MaterialFlags_ThinSurface                      = 0x00000100;
 static const int MaterialFlags_PSDExclude                       = 0x00000200;
 static const int MaterialFlags_UseScatterTexture                = 0x00000400;
+static const int MaterialFlags_UseCustomTexture0                = 0x00000800;
+static const int MaterialFlags_UseCustomTexture1                = 0x00001000;
+static const int MaterialFlags_UseCustomTexture2                = 0x00002000;
+static const int MaterialFlags_UseCustomTexture3                = 0x00004000;
+
 
 static const int MaterialFlags_NestedPriorityMask               = 0xF0000000;
 static const int MaterialFlags_NestedPriorityShift              = 28;
@@ -94,6 +99,10 @@ struct MaterialConstants
     VolumeConstants volume;
 
     uint    scatterTextureIndex;
+    uint    customTexture0Index;
+    uint    customTexture1Index;
+    uint    customTexture2Index;
+    uint    customTexture3Index;
     float   scatter;
     float   scatterStrength;
     //float irisMask;

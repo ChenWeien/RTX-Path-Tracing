@@ -81,6 +81,20 @@ namespace donut::engine
         if ( scatterTexture && enableScatterTexture )
             constants.flags |= MaterialFlags_UseScatterTexture;
 
+        constexpr unsigned int flagMappings[ (int)ECustomTextureId::Count ] = {
+            MaterialFlags_UseCustomTexture0,
+            MaterialFlags_UseCustomTexture1,
+            MaterialFlags_UseCustomTexture2,
+            MaterialFlags_UseCustomTexture3
+        };
+        for ( size_t i = 0; i < customTextures.size(); i++ )
+        {
+            if ( customTextures[ i ] )
+            {
+                constants.flags |= flagMappings[i];
+            }
+        }
+
         if (doubleSided)
             constants.flags |= MaterialFlags_DoubleSided;
 
@@ -157,6 +171,21 @@ namespace donut::engine
         GetBindlessTextureIndex(occlusionTexture, constants.occlusionTextureIndex, constants.flags, MaterialFlags_UseOcclusionTexture );
         GetBindlessTextureIndex(transmissionTexture, constants.transmissionTextureIndex, constants.flags, MaterialFlags_UseTransmissionTexture );
         GetBindlessTextureIndex(scatterTexture, constants.scatterTextureIndex, constants.flags, MaterialFlags_UseScatterTexture );
+
+        uint* customTextureIndices[] = {
+            &constants.customTexture0Index,
+            &constants.customTexture1Index,
+            &constants.customTexture2Index,
+            &constants.customTexture3Index
+        };
+
+        for ( size_t i = 0; i < customTextures.size(); i++ )
+        {
+            if ( customTextures[i] )
+            {
+                GetBindlessTextureIndex( customTextures[i], *customTextureIndices[i], constants.flags, flagMappings[i] );
+            }
+        }
 
         constants.flags |= (uint)(min(nestedPriority, kMaterialMaxNestedPriority)) << MaterialFlags_NestedPriorityShift;
         constants.flags |= (uint)(clamp(psdDominantDeltaLobe+1, 0, 7)) << MaterialFlags_PSDDominantDeltaLobeP1Shift;

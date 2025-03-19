@@ -578,6 +578,8 @@ void Sample::SceneLoaded( )
         listUncompressedTextureIfNeeded( material->occlusionTexture, false );
         listUncompressedTextureIfNeeded( material->transmissionTexture, false );
         listUncompressedTextureIfNeeded( material->scatterTexture, false );
+        for ( size_t i = 0; i < material->customTextures.size(); i++ )
+            listUncompressedTextureIfNeeded( material->customTextures[ i ], false );
     };
 
     // seem like sensible defaults
@@ -988,12 +990,14 @@ MaterialShadingProperties MaterialShadingProperties::Compute(const donut::engine
     props.NoTransmission = !props.HasTransmission;
     props.FullyTransmissive = props.HasTransmission && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
     //bool hasEmissive = (material.emissiveIntensity > 0) && ((donut::math::luminance(material.emissiveColor) > 0) || (material.enableEmissiveTexture && material.emissiveTexture != nullptr));
+    const bool noCustomTextures = std::all_of( material.customTextures.begin(), material.customTextures.end(), []( const auto& tex ) { return tex == nullptr; } );
     props.NoTextures = (!material.enableBaseOrDiffuseTexture || material.baseOrDiffuseTexture == nullptr)
         && (!material.enableEmissiveTexture || material.emissiveTexture == nullptr)
         && (!material.enableNormalTexture || material.normalTexture == nullptr)
         && (!material.enableMetalRoughOrSpecularTexture || material.metalRoughOrSpecularTexture == nullptr)
         && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr)
-        && (!material.enableScatterTexture || material.scatterTexture == nullptr );
+        && (!material.enableScatterTexture || material.scatterTexture == nullptr )
+        && noCustomTextures;
     static const float kMinGGXRoughness = 0.08f; // see BxDF.hlsli, kMinGGXAlpha constant: kMinGGXRoughness must match sqrt(kMinGGXAlpha)!
     props.OnlyDeltaLobes = ((props.HasTransmission && material.transmissionFactor == 1.0) || (material.metalness == 1)) && (material.roughness < kMinGGXRoughness) && !(material.enableMetalRoughOrSpecularTexture && material.metalRoughOrSpecularTexture != nullptr);
     //bool hasOnlyTransmission = (!material.enableTransmissionTexture || material.transmissionTexture == nullptr) && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
@@ -1133,12 +1137,14 @@ SubInstanceData ComputeSubInstanceData(const donut::engine::MeshInstance& meshIn
     // bool path.interiorList.isEmpty() - could additionally sort on this at runtime
 
     bool hasEmissive = (material.emissiveIntensity > 0) && ((donut::math::luminance(material.emissiveColor) > 0) || (material.enableEmissiveTexture && material.emissiveTexture != nullptr));
+    const bool noCustomTextures = std::all_of(material.customTextures.begin(), material.customTextures.end(), [](const auto& tex) { return tex == nullptr; });
     bool noTextures = (!material.enableBaseOrDiffuseTexture || material.baseOrDiffuseTexture == nullptr)
         && (!material.enableEmissiveTexture || material.emissiveTexture == nullptr)
         && (!material.enableNormalTexture || material.normalTexture == nullptr)
         && (!material.enableMetalRoughOrSpecularTexture || material.metalRoughOrSpecularTexture == nullptr)
         && (!material.enableTransmissionTexture || material.transmissionTexture == nullptr)
-        && (!material.enableScatterTexture || material.scatterTexture == nullptr );
+        && (!material.enableScatterTexture || material.scatterTexture == nullptr )
+        && noCustomTextures;
     bool hasNonDeltaLobes = (material.roughness > 0) || (material.enableMetalRoughOrSpecularTexture && material.metalRoughOrSpecularTexture != nullptr) || material.diffuseTransmissionFactor > 0;
     //bool hasOnlyTransmission = (!material.enableTransmissionTexture || material.transmissionTexture == nullptr) && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
 

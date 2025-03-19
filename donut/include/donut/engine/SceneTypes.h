@@ -113,6 +113,16 @@ namespace donut::engine
         Count
     };
 
+    enum class ECustomTextureId : uint8_t
+    {
+        Custom0 = 0,
+        Custom1,
+        Custom2,
+        Custom3,
+
+        Count
+    };
+
     const char* MaterialDomainToString( MaterialDomain domain );
     const char* MaterialModelIdToString(MaterialModelId domain);
 
@@ -128,6 +138,8 @@ namespace donut::engine
         std::shared_ptr<LoadedTexture> occlusionTexture;
         std::shared_ptr<LoadedTexture> transmissionTexture; // see KHR_materials_transmission; undefined on specular-gloss materials
         std::shared_ptr<LoadedTexture> scatterTexture; // see KHR_materials_scatter; undefined on non-SSS materials
+        std::vector<std::shared_ptr<LoadedTexture>> customTextures;
+
         // std::shared_ptr<LoadedTexture> thicknessTexture; // see KHR_materials_volume (not implemented yet)
         nvrhi::BufferHandle materialConstants;
         dm::float3 baseOrDiffuseColor = 1.f; // metal-rough: base color, spec-gloss: diffuse color (if no texture present)

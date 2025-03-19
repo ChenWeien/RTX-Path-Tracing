@@ -42,6 +42,10 @@ struct MaterialTextureSample
     float4 occlusion;
     float4 transmission;
     float4 scatter;
+    float4 custom0;
+    float4 custom1;
+    float4 custom2;
+    float4 custom3;
 };
 
 MaterialTextureSample DefaultMaterialTextures()
@@ -54,6 +58,10 @@ MaterialTextureSample DefaultMaterialTextures()
     values.occlusion = 1.0;
     values.transmission = 1.0;
     values.scatter = 1.0;
+    values.custom0 = 0;
+    values.custom1 = 0;
+    values.custom2 = 0;
+    values.custom3 = 0;
     return values;
 }
 
@@ -193,12 +201,11 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
         result.diffuseAlbedo = lerp(result.baseColor * (1.0 - c_DielectricSpecular), 0.0, result.metalness);
         result.specularF0 = lerp(c_DielectricSpecular, result.baseColor.rgb, result.metalness);
     }
-    float irisMaskTemp = 0;
+
     result.occlusion = 1.0;
     if (material.flags & MaterialFlags_UseOcclusionTexture)
     {
         result.occlusion = textures.occlusion.r;
-        irisMaskTemp = textures.occlusion.g;
     }
 
     result.occlusion = lerp(1.0, result.occlusion, material.occlusionStrength);
@@ -231,9 +238,19 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     {
         result.scatter = textures.scatter.r;
     }
+    if ( material.flags & MaterialFlags_UseCustomTexture0 )
+    {
+        //result.irisNormal = textures.custom0 ...;
+    }
+    if ( material.flags & MaterialFlags_UseCustomTexture1 )
+    {
+        result.irisMask = textures.custom1.r;
+    }
+    if ( material.flags & MaterialFlags_UseCustomTexture2 )
+    {
+        result.irisDistance = textures.custom2.r;
+    }
     result.scatter = result.scatter * material.scatterStrength;
-    result.irisMask = irisMaskTemp;
-    result.irisDistance = result.scatter.r;
     result.sssMeanFreePath = material.sssMeanFreePath;
     result.ssSurfaceAlbedo = material.ssSurfaceAlbedo;
     result.modelId = material.modelId;

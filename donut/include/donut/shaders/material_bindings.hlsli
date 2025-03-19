@@ -54,6 +54,14 @@
 #define MATERIAL_SCATTER_SLOT t6
 #endif
 
+#ifndef MATERIAL_CUSTOM0_SLOT 
+#define MATERIAL_CUSTOM0_SLOT t7
+#define MATERIAL_CUSTOM1_SLOT t8
+#define MATERIAL_CUSTOM2_SLOT t9
+#define MATERIAL_CUSTOM3_SLOT t10
+#endif
+
+
 #ifndef MATERIAL_SAMPLER_SLOT 
 #define MATERIAL_SAMPLER_SLOT s0
 #endif
@@ -70,6 +78,10 @@ Texture2D t_Emissive : register(MATERIAL_EMISSIVE_SLOT);
 Texture2D t_Occlusion : register(MATERIAL_OCCLUSION_SLOT);
 Texture2D t_Transmission : register(MATERIAL_TRANSMISSION_SLOT);
 Texture2D t_Scatter : register( MATERIAL_SCATTER_SLOT );
+Texture2D t_Custom0 : register( MATERIAL_CUSTOM0_SLOT );
+Texture2D t_Custom1 : register( MATERIAL_CUSTOM1_SLOT );
+Texture2D t_Custom2 : register( MATERIAL_CUSTOM2_SLOT );
+Texture2D t_Custom3 : register( MATERIAL_CUSTOM3_SLOT );
 
 SamplerState s_MaterialSampler : register(MATERIAL_SAMPLER_SLOT);
 
@@ -111,7 +123,22 @@ MaterialTextureSample SampleMaterialTexturesAuto(float2 texCoord)
     {
         values.scatter = t_Scatter.Sample( s_MaterialSampler, texCoord );
     }
-
+    if (g_Material.flags & MaterialFlags_UseCustomTexture0)
+    {
+        values.custom0 = t_Custom0.Sample( s_MaterialSampler, texCoord );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture1)
+    {
+        values.custom1 = t_Custom1.Sample( s_MaterialSampler, texCoord );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture2)
+    {
+        values.custom2 = t_Custom2.Sample( s_MaterialSampler, texCoord );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture3)
+    {
+        values.custom3 = t_Custom3.Sample( s_MaterialSampler, texCoord );
+    }
     return values;
 }
 
@@ -153,7 +180,22 @@ MaterialTextureSample SampleMaterialTexturesLevel(float2 texCoord, float lod)
     {
         values.scatter = t_Scatter.SampleLevel( s_MaterialSampler, texCoord, lod );
     }
-
+    if (g_Material.flags & MaterialFlags_UseCustomTexture0)
+    {
+        values.custom0 = t_Custom0.SampleLevel( s_MaterialSampler, texCoord, lod );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture1)
+    {
+        values.custom1 = t_Custom1.SampleLevel( s_MaterialSampler, texCoord, lod );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture2)
+    {
+        values.custom2 = t_Custom2.SampleLevel( s_MaterialSampler, texCoord, lod );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture3)
+    {
+        values.custom3 = t_Custom3.SampleLevel( s_MaterialSampler, texCoord, lod );
+    }
     return values;
 }
 
@@ -195,6 +237,21 @@ MaterialTextureSample SampleMaterialTexturesGrad(float2 texCoord, float2 ddx, fl
     {
         values.scatter = t_Scatter.SampleGrad( s_MaterialSampler, texCoord, ddx, ddy );
     }
-
+    if (g_Material.flags & MaterialFlags_UseCustomTexture0)
+    {
+        values.custom0 = t_Custom0.SampleGrad( s_MaterialSampler, texCoord, ddx, ddy );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture1)
+    {
+        values.custom1 = t_Custom1.SampleGrad( s_MaterialSampler, texCoord, ddx, ddy );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture2)
+    {
+        values.custom2 = t_Custom2.SampleGrad( s_MaterialSampler, texCoord, ddx, ddy );
+    }
+    if (g_Material.flags & MaterialFlags_UseCustomTexture3)
+    {
+        values.custom3 = t_Custom3.SampleGrad( s_MaterialSampler, texCoord, ddx, ddy );
+    }
     return values;
 }

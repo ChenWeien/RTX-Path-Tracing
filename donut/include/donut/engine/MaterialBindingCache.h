@@ -39,7 +39,11 @@ namespace donut::engine
         EmissiveTexture,
         OcclusionTexture,
         TransmissionTexture,
-        ScatterTexture
+        ScatterTexture,
+        CustomTexture0,
+        CustomTexture1,
+        CustomTexture2,
+        CustomTexture3,
     };
 
     struct MaterialResourceBinding

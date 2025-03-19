@@ -135,6 +135,7 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     uint4 i = buffer.Load4(offset + 16 * 8);
     uint4 j = buffer.Load4(offset + 16 * 9);
     uint4 k = buffer.Load4(offset + 16 *10);
+    uint4 l = buffer.Load4(offset + 16 *11);
     MaterialConstants ret;
     ret.baseOrDiffuseColor = asfloat(a.xyz);
     ret.flags = int(a.w);
@@ -168,6 +169,10 @@ MaterialConstants LoadMaterialConstants(ByteAddressBuffer buffer, uint offset)
     ret.sssMeanFreePath = asfloat( j.yzw );
     ret.ssSurfaceAlbedo = asfloat( k.xyz );
     ret.modelId = int( k.w );
+    ret.customTexture0Index = int( l.x );
+    ret.customTexture1Index = int( l.y );
+    ret.customTexture2Index = int( l.z );
+    ret.customTexture3Index = int( l.w );
     return ret;   
 }
 

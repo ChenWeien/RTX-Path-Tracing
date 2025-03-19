@@ -61,6 +61,10 @@ MaterialBindingCache::MaterialBindingCache(
         case MaterialResource::OcclusionTexture:
         case MaterialResource::TransmissionTexture:
         case MaterialResource::ScatterTexture:
+        case MaterialResource::CustomTexture0:
+        case MaterialResource::CustomTexture1:
+        case MaterialResource::CustomTexture2:
+        case MaterialResource::CustomTexture3:
             layoutItem.type = nvrhi::ResourceType::Texture_SRV;
             break;
         case MaterialResource::Sampler:
@@ -158,7 +162,22 @@ nvrhi::BindingSetHandle donut::engine::MaterialBindingCache::CreateMaterialBindi
         case MaterialResource::ScatterTexture:
             setItem = GetTextureBindingSetItem( item.slot, material->scatterTexture );
             break;
-
+        case MaterialResource::CustomTexture0:
+            assert(material->customTextures.size() > 0);
+            setItem = GetTextureBindingSetItem( item.slot, material->customTextures[0] );
+            break;
+        case MaterialResource::CustomTexture1:
+            assert( material->customTextures.size() > 1 );
+            setItem = GetTextureBindingSetItem( item.slot, material->customTextures[ 1 ] );
+            break;
+        case MaterialResource::CustomTexture2:
+            assert( material->customTextures.size() > 2 );
+            setItem = GetTextureBindingSetItem( item.slot, material->customTextures[ 2 ] );
+            break;
+        case MaterialResource::CustomTexture3:
+            assert( material->customTextures.size() > 3 );
+            setItem = GetTextureBindingSetItem( item.slot, material->customTextures[ 3 ] );
+            break;
         default:
             log::error("MaterialBindingCache: unknown MaterialResource value (%d)", item.resource);
             return nullptr;
