@@ -1,0 +1,44 @@
+{
+  "models": [
+	"cc/Cornea_R.gltf"
+  ],
+  "graph": [
+    {
+      "name": "Cornea_R",
+      "model": 0,
+      "translation": [ 0, 0, 0 ],
+      "euler": [ 0, -1.57, 0 ],
+      "scaling": 10.0
+    },
+    {
+      "name": "Lights",
+      "children": [
+		{
+          "name": "Point",
+          "type": "PointLight",
+          "translation": [-150, 30, 0],
+          "color": [ 1, 1, 1 ],
+          "intensity": 50234
+        }
+      ]
+    },
+    {
+      "name": "Cameras",
+      "children": [
+        {
+          "name": "Default",
+          "type": "PerspectiveCameraEx",
+          "translation": [ -15.2879696, 4.01690054, 2.73888302 ],
+          "euler": [ 0, -1.38, 0 ],
+          "verticalFov": 0.2,
+          "zNear": 0.100000,
+          "enableAutoExposure": false,
+          "exposureCompensation": 1.700000,
+          "exposureValue": 0.000000
+        }
+      ]
+    }
+  ]
+}
+
+

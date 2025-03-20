@@ -1,0 +1,64 @@
+{
+  "models": [
+    "cc/ccYup.gltf",
+	"cc/Cornea_R.gltf"
+  ],
+  "graph": [
+    {
+      "name": "Head",
+      "model": 0,
+      "translation": [ 0, 0, 0 ],
+      "euler": [ 0, -1.57, 0 ],
+      "scaling": 10.0
+    },
+    {
+      "name": "Lights",
+      "children": [
+		{
+          "name": "Point",
+          "type": "PointLight",
+          "translation": [-150, 30, 0],
+          "color": [ 1, 1, 1 ],
+          "intensity": 50234
+        }
+      ]
+    },
+    {
+      "name": "Cameras",
+      "children": [
+        {
+          "name": "Default",
+          "type": "PerspectiveCameraEx",
+          "translation": [ -15.2879696, 4.01690054, 2.73888302 ],
+          "euler": [ 0, -1.38, 0 ],
+          "verticalFov": 0.2,
+          "zNear": 0.100000,
+          "enableAutoExposure": false,
+          "exposureCompensation": 1.700000,
+          "exposureValue": 0.000000
+        }
+      ]
+    },
+    {
+      "name": "MaterialPatches",
+      "children": [
+        {
+          "name": "Head",
+          "type": "MaterialPatch",
+		  "modelId": "SSS",
+          "volumeAttenuationDistance": 0.6,
+          "thinSurface": false,
+          "doubleSided": false,
+          "metalness": 0.0,
+          "roughness": 0.85,
+		  "ssSurfaceAlbedo" : [0.9, 0.3, 0.3],
+          "sssMeanFreePathColor": [ 0.6, 0.1, 0.05 ],
+		  "sssMfpDistance": 0.1,
+          "baseOrDiffuseColor": [ 0.45, 0.45, 0.45 ]
+        }
+      ]
+    }
+  ]
+}
+
+
