@@ -1232,13 +1232,15 @@ float3 ComputeDwivediScale(float3 Albedo)
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
         if ( g_Const.debug.debugViewType != ( int )DebugViewType::Disabled && path.getVertexIndex() == 1 )
         {
-            const float sssDistanceLength = length( sssDistanceVector );
+            float sssDistanceLength = length( sssDistanceVector );
             float intersectionPDF = bsdf.data.intersectionPDF;
             float showIntersectionPDF =  intersectionPDF > 0 ?  ( 0.1f * 1.f/ intersectionPDF) : 0;
             float bssrdfPDF = bsdf.data.bssrdfPDF;
             float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(bssrdfPDF) );
             float3 visualizeSssProb = lerp( float3(0,0,1), float3(1,0,0), Prob );
-            
+            originalPosition = bsdf.data.IrisNormal;
+            showNumIntersection = ( bsdf.data.modelId == MODELID_EYE ) ? float3(1,0,0) : float3(0,0,1);
+            sssDistanceLength = bsdf.data.IrisMask;
             //float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
             
             //DebugContext debug = workingContext.debug;
@@ -1247,14 +1249,14 @@ float3 ComputeDwivediScale(float3 Albedo)
                 //case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( bsdf.data.position ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitSssColor ):            workingContext.debug.DrawDebugViz( float4( showNumIntersection, 1 ) ); break;
                 //case ( ( int )DebugViewType::FirstHitNeeValid ):           workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB(sssDistance), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitNeeValid ):            workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
+                //case ( ( int )DebugViewType::FirstHitNeeValid ):            workingContext.debug.DrawDebugViz( float4( neeResult.Valid.rrr, 1 ) ); break;
                 case ( ( int )DebugViewType::FirstHitNearbyDistance ):      workingContext.debug.DrawDebugViz( float4( sssDistanceLength.rrr, 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX1Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( originalPosition ) ), 1.0 ) ); break;
                 case ( ( int )DebugViewType::FirstHitX2Position ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( sssNearbyPosition ) ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( Prob.rrr, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): break;
+                //case ( ( int )DebugViewType::FirstHitSssDistanceLength ):   workingContext.debug.DrawDebugViz( float4( length( scatterDistance ).xxx, 1.0 ) ); break;
+                //case ( ( int )DebugViewType::FirstHitValidSssSample ):      workingContext.debug.DrawDebugViz( float4( Prob.rrr, 1.0 ) ); break;
+                //case ( ( int )DebugViewType::FirstHitScatterDistance ):     workingContext.debug.DrawDebugViz( float4( scatterDistance, 1.0 ) ); break;
+                //case ( ( int )DebugViewType::FirstHitSssDiffusionProfile ): break;
                 default: break;
             }
         }

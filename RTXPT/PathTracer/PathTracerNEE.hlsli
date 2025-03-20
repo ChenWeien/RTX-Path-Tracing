@@ -124,18 +124,18 @@ namespace PathTracer
             float3 diffuseReflectionEval;
             float3 specularReflectionEval;
             //bsdf.falcorBsdf.eval( wiLocal, woLocal, diffuseReflectionEval, specularReflectionEval );
-            switch ( g_Const.debug.debugViewType )
-            {
-                case ( ( int )DebugViewType::FirstHitNeeLightSampleBsdfThp ): workingContext.debug.DrawDebugViz( float4( bsdfThp, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitFalcorDiffusePdf ):      //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf.pDiffuseReflection.xxx, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitFalcorDiffuseTrans ):    workingContext.debug.DrawDebugViz( float4( bsdfThpDiff, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitFalcorSpecularTrans ):   workingContext.debug.DrawDebugViz( float4( bsdfThpSpec, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitIsSss ):                 //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf._isSss.xxx, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitDiffuseReflectionEval ): //workingContext.debug.DrawDebugViz( float4( diffuseReflectionEval, 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssView ):            workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( wiLocal ) ), 1.0 ) ); break;
-                case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( woLocal ) ), 1.0 ) ); break;
-                default: break;
-            }
+            //switch ( g_Const.debug.debugViewType )
+            //{
+            //    case ( ( int )DebugViewType::FirstHitNeeLightSampleBsdfThp ): workingContext.debug.DrawDebugViz( float4( bsdfThp, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitFalcorDiffusePdf ):      //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf.pDiffuseReflection.xxx, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitFalcorDiffuseTrans ):    workingContext.debug.DrawDebugViz( float4( bsdfThpDiff, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitFalcorSpecularTrans ):   workingContext.debug.DrawDebugViz( float4( bsdfThpSpec, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitIsSss ):                 //workingContext.debug.DrawDebugViz( float4( bsdf.falcorBsdf._isSss.xxx, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitDiffuseReflectionEval ): //workingContext.debug.DrawDebugViz( float4( diffuseReflectionEval, 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitSssView ):            workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( wiLocal ) ), 1.0 ) ); break;
+            //    case ( ( int )DebugViewType::FirstHitSssAlbedo ):          workingContext.debug.DrawDebugViz( float4( DbgShowNormalSRGB( normalize( woLocal ) ), 1.0 ) ); break;
+            //    default: break;
+            //}
         }
 
         if( workingContext.debug.IsDebugPixel() )

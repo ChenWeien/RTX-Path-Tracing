@@ -843,22 +843,49 @@ void disney_bssrdf_evaluate(in const float3 normal,
 
 struct EyeBsdf
 {
+    float3 albedo;
     float3 IrisNormal;
     float IrisMask;
     float3 CausticNormal;
-    static EyeBsdf make( float3 IrisNormal_, float IrisMask_, float3 CausticNormal_ )
+    static EyeBsdf make( float3 albedo_, float3 IrisNormal_, float IrisMask_, float3 CausticNormal_ )
     {
         EyeBsdf ret;
+        ret.albedo = albedo_;
         ret.IrisNormal = IrisNormal_;
         ret.IrisMask = IrisMask_;
         ret.CausticNormal = CausticNormal_;
         return ret;
     }
     
-    float3 evalDiffuseReflect(const float3 wi, const float3 wo)
+    float3 eval(const float3 wi, const float3 wo)
     {
-        return M_1_PI * wo.z; // wo.z = dot(N,L)
-        return float3(1,0,0);
+        if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
+
+        return M_1_PI * wo.z * IrisNormal; //albedo * wo.z;
+    }
+    
+    bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
+    {
+        wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
+        lobe = (uint)LobeType::DiffuseReflection;
+
+        if (min(wi.z, wo.z) < kMinCosTheta)
+        {
+            weight = float3(0,0,0);
+            lobeP = 0.0;
+            return false;
+        }
+
+        weight = IrisNormal;
+        lobeP = 1.0;
+        return true;
+    }
+
+    float evalPdf(const float3 wi, const float3 wo)
+    {
+        if (min(wi.z, wo.z) < kMinCosTheta) return 0.f;
+
+        return M_1_PI * wo.z;
     }
 };
 
@@ -1684,7 +1711,7 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
-        //eyeBsdf = EyeBsdf::make(data
+        eyeBsdf = EyeBsdf::make(data.diffuse, data.IrisNormal, data.IrisMask, data.CausticNormal );
         
         bssrdfDiffuseReflection = BssrdfDiffuseReflection::make(
                                     data.diffuse,
@@ -1772,8 +1799,9 @@ struct FalcorBSDF // : IBxDF
                                     lambert_eval(diffuseReflection.albedo, wi, wo) :
                                     bssrdfDiffuseReflection.eval(wi, wo);
             break;
-//        case MODELID_EYE:
-//        {
+        case MODELID_EYE:
+        {
+             return eyeBsdf.eval(wi,wo);
 //                const float IrisMask = 
 //	const float3 IrisNormal = 
 //	const float3 CausticNormal = 
@@ -1784,8 +1812,8 @@ struct FalcorBSDF // : IBxDF
 //	const float Sclera = NoL;
 //	const float EyeDiffuseTweak = 2 * lerp(Sclera, Iris, IrisMask);
 //            float3 EyeDiffuseTweak = 0;
-//        }
-//            break;
+        }
+            break;
         default:
             return diffuseReflection.eval(wi, wo);
             break;
@@ -1803,6 +1831,9 @@ struct FalcorBSDF // : IBxDF
                                 : bssrdfDiffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz))
                             : diffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
             break;
+        case MODELID_EYE:
+             return eyeBsdf.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
+             break;
         default:
             return diffuseReflection.sample(wi, wo, pdf, weight, lobe, lobeP, preGeneratedSample.xyz);
             break;
@@ -1817,6 +1848,9 @@ struct FalcorBSDF // : IBxDF
             return pDiffuseReflection * (g_Const.sssConsts.bssrdfEvalPdf ?
                         (g_Const.sssConsts.isRandomWalk ? lambert_evalPdf(wi, wo) : bssrdfDiffuseReflection.evalPdf(wi, wo))
                         : diffuseReflection.evalPdf(wi, wo));
+            break;
+        case MODELID_EYE:
+            return pDiffuseReflection * eyeBsdf.evalPdf(wi, wo);
             break;
         default:
             return pDiffuseReflection * diffuseReflection.evalPdf(wi, wo);
