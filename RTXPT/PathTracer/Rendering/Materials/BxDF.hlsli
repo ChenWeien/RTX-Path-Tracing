@@ -847,21 +847,42 @@ struct EyeBsdf
     float3 IrisNormal;
     float IrisMask;
     float3 CausticNormal;
-    static EyeBsdf make( float3 albedo_, float3 IrisNormal_, float IrisMask_, float3 CausticNormal_ )
+    float3 N_world;
+    float3 L_world;
+    static EyeBsdf make( float3 albedo_, float3 IrisNormal_, float IrisMask_, float3 CausticNormal_, float3 N_world_, float3 L_world_ )
     {
         EyeBsdf ret;
         ret.albedo = albedo_;
         ret.IrisNormal = IrisNormal_;
         ret.IrisMask = IrisMask_;
         ret.CausticNormal = CausticNormal_;
+        ret.N_world = N_world_;
+        ret.L_world = L_world_;
         return ret;
     }
     
     float3 eval(const float3 wi, const float3 wo)
     {
-        if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
+        //if (min(wi.z, wo.z) < kMinCosTheta) return float3(0,0,0);
 
-        return M_1_PI * wo.z * IrisNormal; //albedo * wo.z;
+        const float3 V = wi;
+        const float3 L = wo;
+        const float3 H = normalize(V + L);
+
+        const float NoV = wi.z;
+        const float NoL = wo.z;
+        const float VoH = saturate(dot(V, H));
+
+        const float IrisNoL = saturate(dot(IrisNormal, L_world));
+        const float Power = lerp(12, 1, IrisNoL);
+        const float Caustic = 0.8 + 0.2 * (Power + 1) * pow(saturate(dot(CausticNormal, L_world)), Power);
+        const float Iris = IrisNoL * Caustic;
+        const float Sclera = NoL;
+        const float EyeDiffuseTweak = 2 * lerp(Sclera, Iris, IrisMask);
+        const float DiffPdf = 1 / (2 * M_PI);
+
+        return M_1_PI * EyeDiffuseTweak * albedo;
+        //return M_1_PI * wo.z * (CausticNormal * 0.5 + 0.5); //albedo * wo.z;
     }
     
     bool sample(const float3 wi, out float3 wo, out float pdf, out float3 weight, out uint lobe, out float lobeP, float3 preGeneratedSample)
@@ -869,21 +890,22 @@ struct EyeBsdf
         wo = sample_cosine_hemisphere_concentric(preGeneratedSample.xy, pdf);
         lobe = (uint)LobeType::DiffuseReflection;
 
-        if (min(wi.z, wo.z) < kMinCosTheta)
-        {
-            weight = float3(0,0,0);
-            lobeP = 0.0;
-            return false;
-        }
+        //if (min(wi.z, wo.z) < kMinCosTheta)
+        //{
+        //    weight = float3(0,0,0);
+        //    lobeP = 0.0;
+        //    return false;
+        //}
 
-        weight = IrisNormal;
+        //weight = IrisNormal;
+        weight = albedo;
         lobeP = 1.0;
         return true;
     }
 
     float evalPdf(const float3 wi, const float3 wo)
     {
-        if (min(wi.z, wo.z) < kMinCosTheta) return 0.f;
+        //if (min(wi.z, wo.z) < kMinCosTheta) return 0.f;
 
         return M_1_PI * wo.z;
     }
@@ -1620,9 +1642,8 @@ struct FalcorBSDF // : IBxDF
 
     bool psdExclude; // disable PSD
 
-    float3 _N;
-    //float3 _T;
-    //float3 _B;
+    float3 _N; // world normal
+    float3 L_world;
     float3 pixelView;
     float3 sssNormal; // sss sample point's normal vector
     float3 scatter;
@@ -1653,6 +1674,7 @@ struct FalcorBSDF // : IBxDF
         const StandardBSDFData data)
     {
         _N = N;
+        L_world = Lworld;
         //_T = T;
         //_B = B;
         pixelView = pixelView_;
@@ -1711,7 +1733,7 @@ struct FalcorBSDF // : IBxDF
         float diffuseWeight = luminance(data.diffuse);
         float specularWeight = luminance(evalFresnelSchlick(data.specular, 1.f, dot(V, N)));
 
-        eyeBsdf = EyeBsdf::make(data.diffuse, data.IrisNormal, data.IrisMask, data.CausticNormal );
+        eyeBsdf = EyeBsdf::make(data.diffuse, data.IrisNormal, data.IrisMask, data.CausticNormal, _N, L_world );
         
         bssrdfDiffuseReflection = BssrdfDiffuseReflection::make(
                                     data.diffuse,
