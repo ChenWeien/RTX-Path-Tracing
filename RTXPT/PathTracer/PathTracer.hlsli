@@ -1021,6 +1021,8 @@ float3 ComputeDwivediScale(float3 Albedo)
             scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
         }
 
+  if ( bsdf.data.modelId == MODELID_SS )
+  {
     if (isRandomWalk)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
@@ -1184,6 +1186,8 @@ float3 ComputeDwivediScale(float3 Albedo)
             }
         }
     }
+
+  }//if (bsdf.data.modelId == MODELID_SS)
     if ( isRandomWalk || g_Const.sssConsts.lateScatterRay )
     {
         scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
@@ -1239,7 +1243,19 @@ float3 ComputeDwivediScale(float3 Albedo)
             float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(bssrdfPDF) );
             float3 visualizeSssProb = lerp( float3(0,0,1), float3(1,0,0), Prob );
             originalPosition = bsdf.data.IrisNormal;
-            showNumIntersection = ( bsdf.data.modelId == MODELID_EYE ) ? float3(1,0,0) : float3(0,0,1);
+            switch (bsdf.data.modelId)
+            {
+                case MODELID_EYE:
+                    showNumIntersection = float3(1, 0, 0);
+                    break;
+                case MODELID_SS:
+                    showNumIntersection = float3(0, 1, 0);
+                    break;
+                default:
+                    showNumIntersection = float3(0, 0, 1);
+                    break;
+            }
+            
             sssDistanceLength = bsdf.data.IrisMask;
             //float4 visualizeDistance = lerp( float4(0,0,1,1), float4(1,0,0,1), saturate(length(sssDistance)) );
             

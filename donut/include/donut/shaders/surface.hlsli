@@ -65,6 +65,9 @@ MaterialSample DefaultMaterialSample()
     result.transmission = 0;
     result.diffuseTransmission = 0;
     result.scatter = 1;
+    result.irisNormal = 0;
+    result.irisMask = 0;
+    result.irisDistance = 0;
     result.sssMeanFreePath = 0;
     result.ssSurfaceAlbedo = 0;
     result.hasMetalRoughParams = false;

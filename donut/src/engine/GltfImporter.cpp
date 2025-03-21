@@ -469,7 +469,7 @@ bool GltfImporter::Load(
         matinfo->customTextures[ 0 ] = load_scatter_texture( "IrisNormal.png", false );
         matinfo->customTextures[ 1 ] = load_scatter_texture( "IrisMask.jpg", false );
         matinfo->customTextures[ 2 ] = load_scatter_texture( "IrisDistance.jpg", false );
-
+        matinfo->modelId = MaterialModelId::Eye;
         switch (material.alpha_mode)
         {
         case cgltf_alpha_mode_opaque: matinfo->domain = useTransmission ? MaterialDomain::Transmissive : MaterialDomain::Opaque; break;

@@ -240,7 +240,7 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     }
     if ( material.flags & MaterialFlags_UseCustomTexture0 )
     {
-        //result.irisNormal = textures.custom0 ...;
+        result.irisNormal = textures.custom0.rgb;
     }
     if ( material.flags & MaterialFlags_UseCustomTexture1 )
     {
