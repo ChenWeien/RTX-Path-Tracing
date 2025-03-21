@@ -136,7 +136,7 @@ void ConvertMetalRoughToSpecularGloss(float3 baseColor, float metalness, out flo
 // ----- End of PBR workflow conversion code -----
 
 
-void ApplyNormalMap(inout MaterialSample result, float4 tangent, float4 normalsTextureValue, float normalTextureScale)
+void ApplyNormalMapImp(out float3 outNormal, inout float4 tangent, out float3 bitangent, in float3 geometryNormal, float4 normalsTextureValue, float normalTextureScale)
 {
     float squareTangentLength = dot(tangent.xyz, tangent.xyz);
     if (squareTangentLength == 0)
@@ -162,9 +162,15 @@ void ApplyNormalMap(inout MaterialSample result, float4 tangent, float4 normalsT
     float3 localNormal = normalsTextureValue.xyz / normalMapLen;
 
     tangent.xyz *= rsqrt(squareTangentLength);
-    float3 bitangent = cross(result.geometryNormal, tangent.xyz) * tangent.w;
+    bitangent = cross(geometryNormal, tangent.xyz) * tangent.w;
 
-    result.shadingNormal = normalize(tangent.xyz * localNormal.x + bitangent.xyz * localNormal.y + result.geometryNormal.xyz * localNormal.z);
+    outNormal = normalize(tangent.xyz * localNormal.x + bitangent.xyz * localNormal.y + geometryNormal.xyz * localNormal.z);
+}
+
+void ApplyNormalMap(inout MaterialSample result, float4 tangent, float4 normalsTextureValue, float normalTextureScale)
+{
+    float3 bitangent = 0;
+    ApplyNormalMapImp(result.shadingNormal, tangent, bitangent, result.geometryNormal, normalsTextureValue, normalTextureScale);
 }
 
 MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialConstants material, MaterialTextureSample textures)
@@ -233,14 +239,15 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     result.ior = material.ior;
     
     result.shadowNoLFadeout = material.shadowNoLFadeout;
-
+    float3 bitangent = 0;
+    float IrisDistance = 0;
     if ( material.flags & MaterialFlags_UseScatterTexture )
     {
         result.scatter = textures.scatter.r;
     }
     if ( material.flags & MaterialFlags_UseCustomTexture0 )
     {
-        result.irisNormal = textures.custom0.rgb;
+        ApplyNormalMapImp( result.irisNormal, tangent, bitangent, result.geometryNormal, textures.custom0, material.normalTextureScale );
     }
     if ( material.flags & MaterialFlags_UseCustomTexture1 )
     {
@@ -248,8 +255,12 @@ MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialCons
     }
     if ( material.flags & MaterialFlags_UseCustomTexture2 )
     {
-        result.irisDistance = textures.custom2.r;
+        IrisDistance = textures.custom2.r;
     }
+    
+    const float3 CausticNormal = normalize(lerp(result.irisNormal, -result.shadingNormal, result.irisMask * IrisDistance));
+    result.causticNormal = CausticNormal;
+
     result.scatter = result.scatter * material.scatterStrength;
     result.sssMeanFreePath = material.sssMeanFreePath;
     result.ssSurfaceAlbedo = material.ssSurfaceAlbedo;

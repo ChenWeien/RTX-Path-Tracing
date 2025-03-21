@@ -42,7 +42,7 @@ struct MaterialSample
     float shadowNoLFadeout;
     float scatter;
     float irisMask;
-    float irisDistance;
+    float3 causticNormal;
     float3 irisNormal;
     float3 sssMeanFreePath;
     float3 ssSurfaceAlbedo;
@@ -67,7 +67,7 @@ MaterialSample DefaultMaterialSample()
     result.scatter = 1;
     result.irisNormal = 0;
     result.irisMask = 0;
-    result.irisDistance = 0;
+    result.causticNormal = 0;
     result.sssMeanFreePath = 0;
     result.ssSurfaceAlbedo = 0;
     result.hasMetalRoughParams = false;
