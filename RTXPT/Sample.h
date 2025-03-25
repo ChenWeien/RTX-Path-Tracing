@@ -53,9 +53,11 @@ struct MaterialShadingProperties
     bool FullyTransmissive;
     bool OnlyDeltaLobes;
     bool NoTextures;
+    donut::engine::MaterialModelId modelId = donut::engine::MaterialModelId::PBR;
 
-    bool operator==(const MaterialShadingProperties& other) const { return AlphaTest==other.AlphaTest && HasTransmission==other.HasTransmission && NoTransmission==other.NoTransmission && FullyTransmissive==other.FullyTransmissive && OnlyDeltaLobes==other.OnlyDeltaLobes && NoTextures==other.NoTextures; };
+    bool operator==(const MaterialShadingProperties& other) const { return modelId == other.modelId && AlphaTest==other.AlphaTest && HasTransmission==other.HasTransmission && NoTransmission==other.NoTransmission && FullyTransmissive==other.FullyTransmissive && OnlyDeltaLobes==other.OnlyDeltaLobes && NoTextures==other.NoTextures; };
     bool operator!=(const MaterialShadingProperties& other) const { return !(*this==other); }
+
 
     static MaterialShadingProperties Compute(const donut::engine::Material& material);
 };

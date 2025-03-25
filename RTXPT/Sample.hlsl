@@ -381,6 +381,12 @@ void HandleHit(const uniform PathTracer::OptimizationHints optimizationHints, co
     HandleHit( PathTracer::OptimizationHints::make( A, B, C, SERSortKey ), TriangleHit::make( InstanceIndex(), GeometryIndex(), PrimitiveIndex(), attrib.barycentrics ).pack(), payload); \
 }
 
+[shader("closesthit")] void ClosestHitEye(inout PathPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attrib)
+{
+    uint SERSortKey = t_SubInstanceData[InstanceID()+GeometryIndex()].FlagsAndSERSortKey & 0xFFFF;
+    HandleHit( PathTracer::OptimizationHints::make( false, true, false, SERSortKey ), TriangleHit::make( InstanceIndex(), GeometryIndex(), PrimitiveIndex(), attrib.barycentrics ).pack(), payload);
+}
+
 //hints: NoTextures, NoTransmission, OnlyDeltaLobes
 #if 1 // 3bit 8-variant version
 CLOSEST_HIT_VARIANT( 000, false, false, false );

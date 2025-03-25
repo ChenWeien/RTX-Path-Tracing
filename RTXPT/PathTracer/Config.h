@@ -25,9 +25,9 @@
 
 // default defines from Falcor/RTXPT test scene with some mods
 #define HIT_INFO_DEFINES                        1
-#define HIT_INFO_INSTANCE_ID_BITS               29      // was 5, could be less but let's max it out for now
+#define HIT_INFO_INSTANCE_ID_BITS               27 //29      // was 5, could be less but let's max it out for now
 #define HIT_INFO_PRIMITIVE_INDEX_BITS           32      // was 11, could be less but let's max it out for now
-#define HIT_INFO_TYPE_BITS                      3
+#define HIT_INFO_TYPE_BITS                      5 // was 3, now we have 17 shaders
 #define HIT_INFO_USE_COMPRESSION                0
 
 // we use static specialization for BSDFs at the moment (even though parts can be compile-time removed with )
