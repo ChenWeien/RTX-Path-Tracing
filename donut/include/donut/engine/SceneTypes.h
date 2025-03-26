@@ -113,6 +113,19 @@ namespace donut::engine
         Count
     };
 
+    enum class RLShaderId : uint8_t
+    {
+        RLEye = 0,
+        RLHead,
+        RLSkin,
+        RLSss,
+        RLTearline,
+        RLTeeth,
+        RLTongue,
+        RLHair,
+        RLCount
+    };
+
     enum class ECustomTextureId : uint8_t
     {
         Custom0 = 0,

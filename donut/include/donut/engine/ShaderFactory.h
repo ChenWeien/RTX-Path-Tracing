@@ -68,6 +68,7 @@ namespace donut::engine
         nvrhi::ShaderHandle CreateShader(const char* fileName, const char* entryName, const std::vector<ShaderMacro>* pDefines, nvrhi::ShaderType shaderType);
         nvrhi::ShaderHandle CreateShader(const char* fileName, const char* entryName, const std::vector<ShaderMacro>* pDefines, const nvrhi::ShaderDesc& desc);
         nvrhi::ShaderLibraryHandle CreateShaderLibrary(const char* fileName, const std::vector<ShaderMacro>* pDefines);
+        nvrhi::ShaderLibraryHandle CreateShaderLibraryWithExtraFile(const char* fileName, const std::vector<ShaderMacro>* pDefines, const char* extraFilename);
 
         std::shared_ptr<vfs::IBlob> GetBytecode(const char* fileName, const char* entryName);
     };

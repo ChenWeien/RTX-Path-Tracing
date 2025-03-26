@@ -49,6 +49,8 @@ static const char* g_WindowTitle = "RTX Path Tracing v1.3.0";
 
 const float c_EnvMapRadianceScale = 1.0f / 4.0f; // used to make input 32bit float radiance fit into 16bit float range that baker supports; going lower than 1/4 causes issues with current BC6U compression algorithm when used
 
+const std::string c_closestHitSuffixName[ (int)donut::engine::RLShaderId::RLCount ] = { "Eye", "Head", "Skin", "SSS", "Tearline", "Teeth", "Tongue", "Hair" };
+
 // Temp helper used to reduce FPS to specified target (i.e.) 30 - useful to avoid overheating the office :) but not intended for precise fps control
 class FPSLimiter
 {
@@ -1029,7 +1031,7 @@ HitGroupInfo ComputeSubInstanceHitGroupInfo(const donut::engine::Material& mater
     info.ExportName = "HitGroup";
     if (matProps.modelId == MaterialModelId::Eye)
     {
-        info.ExportName += "_Eye";
+        info.ExportName += c_closestHitSuffixName[(int)RLShaderId::RLEye];
     }
     else
     {
@@ -1079,6 +1081,12 @@ bool Sample::CreatePTPipeline(engine::ShaderFactory& shaderFactory)
         if (variant == 5) { defines.push_back({ "PATH_TRACER_MODE", "PATH_TRACER_MODE_FILL_STABLE_PLANES" });    defines.push_back({ "USE_HIT_OBJECT_EXTENSION", "1" }); }
         m_PTShaderLibrary[variant] = shaderFactory.CreateShaderLibrary("app/Sample.hlsl", &defines);
 
+        for (size_t idx = 0; idx < (int)RLShaderId::RLCount; ++idx)
+        {
+            std::vector<engine::ShaderMacro> definesRL = defines;
+            definesRL.push_back({ "RLSHADER", c_closestHitSuffixName[idx] });
+            m_RLPTShaderLibrary[ variant ][ idx ] = shaderFactory.CreateShaderLibrary("app/RLShader.hlsl", &definesRL);
+        }
         if (!m_PTShaderLibrary)
             return false;
 
@@ -1091,10 +1099,27 @@ bool Sample::CreatePTPipeline(engine::ShaderFactory& shaderFactory)
 
         for (auto& [_, hitGroupInfo]: uniqueHitGroups)
         {
+            nvrhi::ShaderHandle closestHit;
+
+            bool found = false;
+            for (size_t idx = 0; idx < (size_t)RLShaderId::RLCount; ++idx)
+            {
+                if (hitGroupInfo.ClosestHitShader.find(c_closestHitSuffixName[idx]) != std::string::npos)
+                {
+                    closestHit = m_RLPTShaderLibrary[variant][idx]->getShader(hitGroupInfo.ClosestHitShader.c_str(), nvrhi::ShaderType::ClosestHit),
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                closestHit = m_PTShaderLibrary[variant]->getShader(hitGroupInfo.ClosestHitShader.c_str(), nvrhi::ShaderType::ClosestHit);
+            }
+
             pipelineDesc.hitGroups.push_back(
                 {
                     .exportName = hitGroupInfo.ExportName,
-                    .closestHitShader = m_PTShaderLibrary[variant]->getShader(hitGroupInfo.ClosestHitShader.c_str(), nvrhi::ShaderType::ClosestHit),
+                    .closestHitShader = closestHit,
                     .anyHitShader = (exportAnyHit && hitGroupInfo.AnyHitShader!="")?(m_PTShaderLibrary[variant]->getShader(hitGroupInfo.AnyHitShader.c_str(), nvrhi::ShaderType::AnyHit)):(nullptr),
                     .intersectionShader = nullptr,
                     .bindingLayout = nullptr,

@@ -65,6 +65,7 @@ struct MaterialShadingProperties
 class Sample : public donut::app::ApplicationBase
 {
     static constexpr uint32_t c_PathTracerVariants   = 6; // see shaders.cfg and CreatePTPipeline for details on variants
+    static constexpr uint32_t c_RLShaderCount = (uint32_t)donut::engine::RLShaderId::RLCount;
 
 private:
     std::shared_ptr<donut::vfs::RootFileSystem> m_RootFS;
@@ -169,6 +170,7 @@ private:
 
     // path tracing
     nvrhi::ShaderLibraryHandle                  m_PTShaderLibrary[c_PathTracerVariants];
+    nvrhi::ShaderLibraryHandle                  m_RLPTShaderLibrary[c_PathTracerVariants][c_RLShaderCount];
     nvrhi::rt::PipelineHandle                   m_PTPipeline[c_PathTracerVariants];
     nvrhi::rt::ShaderTableHandle                m_PTShaderTable[c_PathTracerVariants];
     int                                         m_AccumulationSampleIndex = 0;  // accumulated so far in the past, so if 0 this is the first.

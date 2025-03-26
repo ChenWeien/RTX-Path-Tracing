@@ -536,6 +536,10 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     // if you think tangent space is broken, test with this (won't make it correctly oriented)
     //ConstructONB( ptShadingData.N, ptShadingData.T, ptShadingData.B );
 
+#if RLSHADER == Eye
+    d.diffuse = d.CausticNormal;
+#endif
+    
     PathTracer::SurfaceData ret = PathTracer::SurfaceData::make(/*ptVertex, */ptShadingData, bsdf, prevPosW, matIoR);
 
 #if ENABLE_DEBUG_VIZUALISATION && !NON_PATH_TRACING_PASS
