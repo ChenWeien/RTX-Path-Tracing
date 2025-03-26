@@ -1018,7 +1018,7 @@ HitGroupInfo ComputeSubInstanceHitGroupInfo(const donut::engine::Material& mater
     info.ClosestHitShader = "ClosestHit";
     if (matProps.modelId == MaterialModelId::Eye)
     {
-        info.ClosestHitShader = "ClosestHitEye";
+        info.ClosestHitShader += c_closestHitSuffixName[(int)RLShaderId::RLEye];
     }
     else
     {
