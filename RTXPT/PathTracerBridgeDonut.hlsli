@@ -470,7 +470,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     d.IrisNormal = donutMaterial.irisNormal;
     d.IrisMask = donutMaterial.irisMask;
     d.CausticNormal = donutMaterial.causticNormal;
-    d.diffuse = d.IrisNormal;
+
     /*LobeType*/ uint lobeType = (uint)LobeType::All;
 
     if (optimizationHints.NoTransmission)
