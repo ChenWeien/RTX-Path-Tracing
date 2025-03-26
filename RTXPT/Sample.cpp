@@ -1001,6 +1001,8 @@ MaterialShadingProperties MaterialShadingProperties::Compute(const donut::engine
     static const float kMinGGXRoughness = 0.08f; // see BxDF.hlsli, kMinGGXAlpha constant: kMinGGXRoughness must match sqrt(kMinGGXAlpha)!
     props.OnlyDeltaLobes = ((props.HasTransmission && material.transmissionFactor == 1.0) || (material.metalness == 1)) && (material.roughness < kMinGGXRoughness) && !(material.enableMetalRoughOrSpecularTexture && material.metalRoughOrSpecularTexture != nullptr);
     //bool hasOnlyTransmission = (!material.enableTransmissionTexture || material.transmissionTexture == nullptr) && ((material.transmissionFactor + material.diffuseTransmissionFactor) >= 1.0);
+
+    props.modelId = material.modelId;
     return props;
 }
 
@@ -1012,22 +1014,34 @@ HitGroupInfo ComputeSubInstanceHitGroupInfo(const donut::engine::Material& mater
     HitGroupInfo info;
 
     info.ClosestHitShader = "ClosestHit";
-    info.ClosestHitShader += std::to_string(matProps.NoTextures);
-    info.ClosestHitShader += std::to_string(matProps.NoTransmission);
-    info.ClosestHitShader += std::to_string(matProps.OnlyDeltaLobes);
-
+    if (matProps.modelId == MaterialModelId::Eye)
+    {
+        info.ClosestHitShader = "ClosestHitEye";
+    }
+    else
+    {
+        info.ClosestHitShader += std::to_string(matProps.NoTextures);
+        info.ClosestHitShader += std::to_string(matProps.NoTransmission);
+        info.ClosestHitShader += std::to_string(matProps.OnlyDeltaLobes);
+    }
     info.AnyHitShader = matProps.AlphaTest?"AnyHit":"";
 
     info.ExportName = "HitGroup";
-    if (matProps.NoTextures)
-        info.ExportName += "_NoTextures";
-    if (matProps.NoTransmission)
-        info.ExportName += "_NoTransmission";
-    if (matProps.OnlyDeltaLobes)
-        info.ExportName += "_OnlyDeltaLobes";
-    if (matProps.AlphaTest)
-        info.ExportName += "_HasAlphaTest";
-
+    if (matProps.modelId == MaterialModelId::Eye)
+    {
+        info.ExportName += "_Eye";
+    }
+    else
+    {
+        if (matProps.NoTextures)
+            info.ExportName += "_NoTextures";
+        if (matProps.NoTransmission)
+            info.ExportName += "_NoTransmission";
+        if (matProps.OnlyDeltaLobes)
+            info.ExportName += "_OnlyDeltaLobes";
+        if (matProps.AlphaTest)
+            info.ExportName += "_HasAlphaTest";
+    }
     return info;
 }
 
