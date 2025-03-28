@@ -183,8 +183,87 @@ float4 sampleTexture(uint textureIndexAndInfo, SamplerState samplerState, const 
     return textureSampler.sampleTexture(tex2D, samplerState, uv, baseLOD, mipLevels);
 }
 
+// RLEye  RLchanged
+
+static const float BlendMap2_Strength = 1; // 1 [ 0, 1 ]
+static const float Shadow_Radius            = 0.242;//[ 0 1 ]
+static const float Shadow_Hardness          = 0.715;//[ -1 1 ]
+static const float Specular_Scale          = 0.8;// [ 0 10 ]
+static const float Is_Left_Eye = 0; // 1 [ 0 1 ] checkbox
+static const float3 Eye_Corner_Darkness_Color  = float3( 1, 0.7372, 0.70196 );
+// group("Iris")
+static const float Iris_Depth_Scale        = 1.3;  //[ 0  2.5 ]
+static const float _Iris_Roughness          = 0; // 0  [ 0 1 ]
+static const float Iris_Color_Brightness    = 0.598f;  //[ 0 5 ]
+static const float Pupil_Scale              = 0.96;  //[ 0.91  1.1 ]
+// subgroup("Iris_Advance")
+static const float IoR                    = 1.4 ; // 1.4  [ 1 5 ]
+static const float3 Iris_Cloudy_Color     = float3(0,0,0); // 0, 0, 0
+static const float3 Iris_Inner_Color = float3(1,1,1); // 1 1 1
+static const float Iris_Inner_Scale = 0;         // 0.000 [ 0 1 ]
+static const float Iris_UV_Radius            = 0.145f; // [ 0.01   0.160001 ]
+static const float3 Iris_Color = float3(1,1,1); // 1 1 1
+// group("Limbus")
+static const float Limbus_UV_Width_Color      = 0.037; // 0.037 [ 0  0.2 ]
+static const float Limbus_Dark_Scale         = 6.6; // 6.600  [ 0  10 ]
+// group("Sclera")
+static const float ScleraBrightness        = 1; // 1 [ 0 5 ]
+static const float Sclera_Roughness        = 0; // 0 [ 0  1 ]
+// subgroup("Sclera_Advance")
+static const float Sclera_Flatten_Normal   = 0.452; // 0.452 [ -5  5 ]
+static const float Sclera_Normal_UV_Scale = 0.893; // 0.893 [ 0 5 ]
+static const float Sclera_UV_Radius           = 0.930;   // 0.930 [ 0.01  1 ] Sclera_Scale
+
+// group("Subsurface_Scatter")
+// #SSS color1 ( 1, 1, 1 )
+// #SSS slider0 5 [ 1, 5 ] spinMin 0.1 spinMax 100
+//};
+
+static const float Limbus_UV_Width_Shading = 0.2; // 0.3 [ 0  0.4 ]
+static const float Iris_Concavity_Power = 0.5; // 0.5  [ 0.1  2 ]
+static const float Iris_Concavity_Scale = 0.1116f; // 0.1116f  [ 0  4 ]
+// float padding2
+static const float Iris_Refraction_OnOff = 1; // 1.f  [ 0 1 ] checkbox
+static const float Limbus_Pow = 5; // 5  [ 0  10 ]
+
+float2 ScaleUVsByCenter( float2 uv, float ScaleReciprocal )
+{
+    float2 newUV = float2( 0.5, 0.5 ) + ( uv - float2( 0.5, 0.5 ) ) * ScaleReciprocal;
+    return newUV;
+}
+
+float2 ML_EyeRefraction_IrisMask_Func ( float Iris_UV_Radius , float2 UV , float2 LimbusUVWidth ) 
+{ 
+    UV = UV - float2 ( 0.5f , 0.5f ) ; 
+    float2 m , r ; 
+    r = ( length ( UV ) - ( Iris_UV_Radius - LimbusUVWidth ) ) / LimbusUVWidth ; 
+    m = saturate ( 1 - r ) ; 
+    m = smoothstep ( 0 , 1 , m ) ; 
+    return m ; 
+}
+
+float2 ML_EyeRefraction_IrisMask_Block( const DonutGeometrySample gs )
+{
+    float2 LimbusUVWidth = float2( Limbus_UV_Width_Color, Limbus_UV_Width_Shading );
+    
+    float2 uv = ScaleUVsByCenter( gs.texcoord, 1.f/Sclera_UV_Radius );
+
+    return ML_EyeRefraction_IrisMask_Func( Iris_UV_Radius, uv, LimbusUVWidth );
+}
+
+MaterialSample sampleGeometryMaterialEye(const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+{
+    MaterialTextureSample textures = DefaultMaterialTextures();
+    return (MaterialSample)0;
+}
+
+
 MaterialSample sampleGeometryMaterial(uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
+  #if RLSHADER==Eye
+    return sampleGeometryMaterialEye(gs, attributes, materialSampler, textureSampler);
+  #endif
+    
     MaterialTextureSample textures = DefaultMaterialTextures();
 
     if( !optimizationHints.NoTextures )
