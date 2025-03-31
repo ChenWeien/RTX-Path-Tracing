@@ -135,6 +135,19 @@ void ConvertMetalRoughToSpecularGloss(float3 baseColor, float metalness, out flo
 
 // ----- End of PBR workflow conversion code -----
 
+float3 UnpackNormalTexture(float3 normalsTextureValue, float normalTextureScale)
+{
+    normalsTextureValue.xy = normalsTextureValue.xy * 2.0 - 1.0;
+    normalsTextureValue.xy *= normalTextureScale;
+
+    if (normalsTextureValue.z <= 0)
+        normalsTextureValue.z = sqrt(saturate(1.0 - square(normalsTextureValue.x) - square(normalsTextureValue.y)));
+    else
+        normalsTextureValue.z = abs(normalsTextureValue.z * 2.0 - 1.0);
+    
+    return normalsTextureValue;
+}
+
 
 void ApplyNormalMapImp(out float3 outNormal, inout float4 tangent, out float3 bitangent, in float3 geometryNormal, float4 normalsTextureValue, float normalTextureScale)
 {
@@ -145,13 +158,7 @@ void ApplyNormalMapImp(out float3 outNormal, inout float4 tangent, out float3 bi
     if (tangent.w == 0)
         return;
 
-    normalsTextureValue.xy = normalsTextureValue.xy * 2.0 - 1.0;
-    normalsTextureValue.xy *= normalTextureScale;
-
-    if (normalsTextureValue.z <= 0)
-        normalsTextureValue.z = sqrt(saturate(1.0 - square(normalsTextureValue.x) - square(normalsTextureValue.y)));
-    else
-        normalsTextureValue.z = abs(normalsTextureValue.z * 2.0 - 1.0);
+    normalsTextureValue.rgb = UnpackNormalTexture(normalsTextureValue.rgb, normalTextureScale);
 
     float squareNormalMapLength = dot(normalsTextureValue.xyz, normalsTextureValue.xyz);
 
@@ -167,10 +174,25 @@ void ApplyNormalMapImp(out float3 outNormal, inout float4 tangent, out float3 bi
     outNormal = normalize(tangent.xyz * localNormal.x + bitangent.xyz * localNormal.y + geometryNormal.xyz * localNormal.z);
 }
 
+float3x3 CalcTangentToWorld(float4 tangent, float3 geometryNormal)
+{
+    float squareTangentLength = dot(tangent.xyz, tangent.xyz);
+    tangent.xyz *= rsqrt(squareTangentLength);
+    float3 bitangent = cross(geometryNormal, tangent.xyz) * tangent.w;
+    
+    float3x3 tangentToWorld = { tangent.xyz, bitangent, geometryNormal };
+    return tangentToWorld;
+}
+
+float3 TransformTangentVectorToWorld(float3x3 TangentToWorld, float3 Vec) //Vec in TangentSpace 
+{
+    return normalize(TangentToWorld[0] * Vec.x + TangentToWorld[1] * Vec.y + TangentToWorld[2] * Vec.z);
+}
+
 void ApplyNormalMap(inout MaterialSample result, float4 tangent, float4 normalsTextureValue, float normalTextureScale)
 {
-    float3 bitangent = 0;
-    ApplyNormalMapImp(result.shadingNormal, tangent, bitangent, result.geometryNormal, normalsTextureValue, normalTextureScale);
+    float3 bitangentOut = 0;
+    ApplyNormalMapImp(result.shadingNormal, tangent, bitangentOut, result.geometryNormal, normalsTextureValue, normalTextureScale);
 }
 
 MaterialSample EvaluateSceneMaterial(float3 normal, float4 tangent, MaterialConstants material, MaterialTextureSample textures)
