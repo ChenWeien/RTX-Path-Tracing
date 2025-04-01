@@ -318,7 +318,60 @@ float3 SampleEyeIrisNormal(const DonutGeometrySample gs, float2 uv, const Sample
     return UnpackNormalTexture(normalsTextureValue, 1);
 }
 
-float3 Sclera_Normal_Block(const DonutGeometrySample gs, float2 ML_EyeRefraction_IrisMask, float3x3 TangentToWorld, const SamplerState materialSampler, const ActiveTextureSampler textureSampler )
+float3 SampleBaseColorTexture(float2 uv, const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+{
+    float3 TextureValue = SampleTextureByIndex(gs, uv, gs.material.baseOrDiffuseTextureIndex, MaterialFlags_UseBaseOrDiffuseTexture, float4(0,0,1,0), materialSampler, textureSampler).rgb;
+    return TextureValue;
+}
+
+float AO_Block(const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+{
+    return 1;
+}
+
+float Roughness_Block(float2 ML_EyeRefraction_IrisMask, const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler )
+{
+
+    float3 OrmTextureValue = SampleTextureByIndex(gs, gs.texcoord, gs.material.metalRoughOrSpecularTextureIndex, MaterialFlags_UseMetalRoughOrSpecularTexture, float4(1,1,0,0), materialSampler, textureSampler).rgb;
+
+    float roughness = gs.material.roughness * OrmTextureValue.g;
+    return roughness + lerp( Sclera_Roughness, _Iris_Roughness, ML_EyeRefraction_IrisMask.r);
+}
+
+float Inner_Iris_Mask(float2 uv, const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+{
+    float TextureValue = SampleTextureByIndex(gs, uv, gs.material.customTexture1Index, MaterialFlags_UseCustomTexture1, float4(0,0,0,0), materialSampler, textureSampler).r;
+    return TextureValue;
+}
+
+// Iris Albedo = albedo
+// Iris Normal = gs.material.customTexture0Index
+// Iris mask = gs.material.customTexture1
+// Sclera Albedo = gs.material.customTexture2
+// Sclera normal = gs.material.normalTextureIndex
+//
+
+float3 Sclera_Color_Block(const DonutGeometrySample gs, 
+                          const SamplerState materialSampler, 
+                          const ActiveTextureSampler textureSampler)
+{
+    float2 uv = gs.texcoord;
+    float2 vScleraUv = ScaleUVsByCenter(uv, 1.f/Sclera_UV_Radius );
+    if ( !(Is_Left_Eye > 0.f) )
+    {
+        vScleraUv = float2( 1, 1 ) - frac(vScleraUv);
+    }
+
+    float3 vScleraColor = SampleTextureByIndex(gs, uv, gs.material.customTexture2Index, MaterialFlags_UseCustomTexture2, float4(1,1,1,1), materialSampler, textureSampler).rgb;
+
+    return ScleraBrightness * vScleraColor; // need sRGB to linear?
+}
+
+float3 Sclera_Normal_Block(const DonutGeometrySample gs, 
+                           float2 ML_EyeRefraction_IrisMask, 
+                           float3x3 TangentToWorld,
+                           const SamplerState materialSampler,
+                           const ActiveTextureSampler textureSampler )
 {
     float2 vScleraNormalUv = ScaleUVsByCenter(gs.texcoord, 1.f/Sclera_Normal_UV_Scale ); 
     if ( ! ( Is_Left_Eye > 0.f ) )
@@ -338,7 +391,10 @@ float3 Sclera_Normal_Block(const DonutGeometrySample gs, float2 ML_EyeRefraction
     return TransformTangentVectorToWorld(TangentToWorld, vTangentNormal);
 }
 
-float3 Iris_Normal_Block(const DonutGeometrySample gs, float3x3 TangentToWorld, const SamplerState materialSampler, const ActiveTextureSampler textureSampler )
+float3 Iris_Normal_Block(const DonutGeometrySample gs,
+                         float3x3 TangentToWorld,
+                         const SamplerState materialSampler,
+                         const ActiveTextureSampler textureSampler )
 {
     float3 vTangentNormal = SampleEyeIrisNormal(gs, gs.texcoord, materialSampler, textureSampler);
     return TransformTangentVectorToWorld(TangentToWorld, vTangentNormal);
@@ -432,6 +488,58 @@ float2 Derive_Tangents_Block(float3 EyeDirectionWorld, float3 WorldNormal, float
     return float2 ( dotPR , dotCR );
 }
 
+float2  ScalePupils ( float2 UV , float PupilScale, float fDist ) 
+{ 
+    // Scale UVs from from unit circle in or out from center
+    float2 UVcentered = UV - float2 ( 0.5f , 0.5f ) ; 
+    float UVlength = length ( UVcentered ) ; 
+    // UV on circle at distance 0.5 from the center, in direction of original UV
+    float2 UVmax = normalize ( UVcentered ) * fDist ; 
+    
+    float2 UVscaled = lerp ( UVmax , float2 ( 0.f , 0.f ) , saturate ( ( 1.f - UVlength * 0.5f ) * PupilScale ) ) ; 
+    return UVscaled + float2 ( 0.5f , 0.5f ) ; 
+}
+
+float2 Pupil_Size_Block( float2 UV, float2 ML_EyeRefraction_RefractedUV )
+{
+    float2 uv = ScaleUVsByCenter( UV, 1.f/Sclera_UV_Radius );
+    //  UVs with Refraction or not
+    uv = lerp ( uv , ML_EyeRefraction_RefractedUV , Iris_Refraction_OnOff ) ; 
+    uv = ( uv - 0.5f ) ; 
+    uv = ( uv * 1 / ( Iris_UV_Radius * 2.f )  ) ; 
+    uv = ( uv + 0.5f ) ; 
+
+    // Scale Pupils
+    return ScalePupils ( uv , Pupil_Scale, 0.5f ) ; 
+}
+
+float3 Eye_Ball_Corner_Darkness_Block(float2 vScleraScaledUv)
+{
+    float fMask = SphereMask(vScleraScaledUv, float2(0.5, 0.5), Shadow_Radius, Shadow_Hardness);
+
+    return lerp(Eye_Corner_Darkness_Color, float3(1, 1, 1), fMask);
+}
+
+float PositiveClampedPow( float X, float Y )
+{
+    return pow( max( X, 0.0f ), Y );
+}
+
+float Iris_Distance_Block( float2 ML_EyeRefraction_RefractedUV )
+{
+    float2 uv = ML_EyeRefraction_RefractedUV - (float2)0.5; 
+    float len = length( uv );
+    len = Iris_Concavity_Scale * ( len / Iris_UV_Radius ) ; 
+    return PositiveClampedPow ( len , Iris_Concavity_Power ) ; 
+}
+
+float Limbus_Color_Block( float2 vScalePupils )
+{
+    float2 v = ( vScalePupils - float2(0.5f, 0.5f) ) * Limbus_Dark_Scale;
+
+    return 1 - PositiveClampedPow ( length( v ) , Limbus_Pow ) ; 
+}
+
 float2 ML_EyeRefraction_RefractedUV_Func(
             float2 ML_EyeRefraction_IrisMask,
             float3 EyeDirectionWorld,
@@ -453,7 +561,45 @@ float2 ML_EyeRefraction_RefractedUV_Func(
     return lerp(vScaledUv, vRefractedUv, ML_EyeRefraction_IrisMask.r);
 }
 
-MaterialSample sampleGeometryMaterialEye(const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+
+
+float3 Iris_Color_Block(
+                         float2 ML_EyeRefraction_IrisMask,
+                         float2 ML_EyeRefraction_RefractedUV,
+                         const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler
+)
+{
+    float2 UV = gs.texcoord;
+    float2 vScleraScaledUv = ScaleUVsByCenter(UV, 1.f/Sclera_UV_Radius );
+
+    // Scale Pupils
+    float2 vScalePupils = Pupil_Size_Block(UV, ML_EyeRefraction_RefractedUV ); 
+
+    // Iris Color
+    float2 vPupilUV = ScalePupils( vScalePupils , lerp( 0.92f, 0.952f, Iris_Inner_Scale ), 4 );
+    float fLerpFactor = Inner_Iris_Mask( vPupilUV, gs, materialSampler, textureSampler );
+    float3 vIrisColorLerp = lerp( Iris_Color * Iris_Color_Brightness, Iris_Inner_Color, fLerpFactor );
+
+    float3 vBaseColor = SampleBaseColorTexture( vScalePupils, gs, materialSampler, textureSampler );
+
+    vBaseColor *= ML_EyeRefraction_IrisMask.r * Iris_Color_Brightness; // yes Iris_Color_Brightness is multiplied here to compatible with CP1
+
+    vBaseColor = vBaseColor * vIrisColorLerp * Limbus_Color_Block( vScalePupils );
+
+    float3 vScleraColor = Sclera_Color_Block(gs, materialSampler, textureSampler);
+
+    vBaseColor = lerp ( vScleraColor , vBaseColor , float ( ML_EyeRefraction_IrisMask . r ) ) ; 
+
+    float3 vIrisCloudyColor = Iris_Cloudy_Color * SphereMask( vScalePupils, float2( 0.5f, 0.5f ), 0.18f, 0.2f );
+
+    vBaseColor += vIrisCloudyColor;
+
+    float3 vCornerDarkness = Eye_Ball_Corner_Darkness_Block( vScleraScaledUv ) ; 
+
+    return vBaseColor * vCornerDarkness;
+}
+
+MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
     MaterialTextureSample textures = DefaultMaterialTextures();
 
@@ -464,7 +610,7 @@ MaterialSample sampleGeometryMaterialEye(const DonutGeometrySample gs, const Mat
     float3 vIrisWorldNormal = Iris_Normal_Block(gs, TangentToWorld, materialSampler, textureSampler);
     float3 EyeDirectionWorld = vIrisWorldNormal;
 
-    float3 CameraVector = float3(1,0,0); // wo ? // float3 vView = normalize( g_vCameraPos - Input.vPosition.xyz );
+    float3 CameraVector = -rayDir; // float3 vView = normalize( g_vCameraPos - Input.vPosition.xyz );
     
     float2 ML_EyeRefraction_RefractedUV = ML_EyeRefraction_RefractedUV_Func(
              ML_EyeRefraction_IrisMask,
@@ -474,21 +620,42 @@ MaterialSample sampleGeometryMaterialEye(const DonutGeometrySample gs, const Mat
              TangentToWorld,
             gs, materialSampler, textureSampler );
     
-    MaterialSample outMat = (MaterialSample)0;
-    outMat.shadingNormal = WorldNormal;
-    outMat.geometryNormal = gs.geometryNormal;
     
+    // Scale Pupils
+    float2 vScalePupils = Pupil_Size_Block(gs.texcoord, ML_EyeRefraction_RefractedUV);
+    
+    float3 vBaseColor = Iris_Color_Block( ML_EyeRefraction_IrisMask, 
+                                          ML_EyeRefraction_RefractedUV,
+                                          gs, materialSampler, textureSampler);
+    
+    float IrisMask = saturate( ML_EyeRefraction_IrisMask.g );
+    float IrisDistance = saturate( Iris_Distance_Block( ML_EyeRefraction_RefractedUV ) );
+    
+    MaterialSample result = (MaterialSample)0;
+    result.shadingNormal = WorldNormal;
+    result.geometryNormal = gs.geometryNormal;
+    result.diffuseAlbedo = result.baseColor = vBaseColor;
+    result.ior = gs.material.ior;
 
+    result.irisMask = IrisMask;
+    result.irisNormal = vIrisWorldNormal;
+    const float3 CausticNormal = normalize(lerp(vIrisWorldNormal, -WorldNormal, IrisMask * IrisDistance));
+    result.causticNormal = CausticNormal;
 
-
-    return outMat;
+    result.shadowNoLFadeout = gs.material.shadowNoLFadeout;
+    result.metalness = 0;
+    result.opacity = 1;
+    result.occlusion = 1;
+    result.roughness = Roughness_Block(ML_EyeRefraction_IrisMask, gs, materialSampler, textureSampler );
+    result.modelId = MODELID_EYE;
+    return result;
 }
 
 
-MaterialSample sampleGeometryMaterial(uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+MaterialSample sampleGeometryMaterial(float3 rayDir, uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
   #if RLSHADER==Eye
-    return sampleGeometryMaterialEye(gs, attributes, materialSampler, textureSampler);
+    return sampleGeometryMaterialEye(rayDir, gs, attributes, materialSampler, textureSampler);
   #endif
     
     MaterialTextureSample textures = DefaultMaterialTextures();
@@ -723,7 +890,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     ptShadingData.curveRadius = ptVertex.curveRadius;
 
     // Get donut material (normal map is evaluated here)
-    MaterialSample donutMaterial = sampleGeometryMaterial(optimizationHints, donutGS, MatAttr_All, s_MaterialSampler, textureSampler);
+    MaterialSample donutMaterial = sampleGeometryMaterial(rayDir, optimizationHints, donutGS, MatAttr_All, s_MaterialSampler, textureSampler);
 
     ptShadingData.N = donutMaterial.shadingNormal;
 
@@ -843,7 +1010,7 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     //ConstructONB( ptShadingData.N, ptShadingData.T, ptShadingData.B );
 
 #if RLSHADER == Eye
-    d.diffuse = d.CausticNormal;
+    //d.diffuse = d.CausticNormal;
 #endif
     
     PathTracer::SurfaceData ret = PathTracer::SurfaceData::make(/*ptVertex, */ptShadingData, bsdf, prevPosW, matIoR);
