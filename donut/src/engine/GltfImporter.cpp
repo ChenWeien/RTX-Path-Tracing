@@ -468,7 +468,7 @@ bool GltfImporter::Load(
         matinfo->customTextures.resize( 3 );
         matinfo->customTextures[ 0 ] = load_scatter_texture( "IrisNormal.png", false );
         matinfo->customTextures[ 1 ] = load_scatter_texture( "IrisMask.jpg", false );
-        matinfo->customTextures[ 2 ] = load_scatter_texture( "IrisDistance.jpg", false );
+        matinfo->customTextures[ 2 ] = load_scatter_texture( "ScleraColor.jpg", false );
         matinfo->modelId = MaterialModelId::Eye;
         switch (material.alpha_mode)
         {

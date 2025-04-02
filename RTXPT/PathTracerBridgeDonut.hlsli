@@ -563,11 +563,10 @@ float2 ML_EyeRefraction_RefractedUV_Func(
 
 
 
-float3 Iris_Color_Block(
-                         float2 ML_EyeRefraction_IrisMask,
+float3 Iris_Color_Block( float2 ML_EyeRefraction_IrisMask,
                          float2 ML_EyeRefraction_RefractedUV,
-                         const DonutGeometrySample gs, const SamplerState materialSampler, const ActiveTextureSampler textureSampler
-)
+                         const DonutGeometrySample gs,
+                         const SamplerState materialSampler, const ActiveTextureSampler textureSampler )
 {
     float2 UV = gs.texcoord;
     float2 vScleraScaledUv = ScaleUVsByCenter(UV, 1.f/Sclera_UV_Radius );
@@ -635,6 +634,7 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySampl
     result.shadingNormal = WorldNormal;
     result.geometryNormal = gs.geometryNormal;
     result.diffuseAlbedo = result.baseColor = vBaseColor;
+    //float3(vScalePupils, 0 ); //float3(IrisDistance,IrisDistance,IrisDistance);//ML_EyeRefraction_IrisMask, 0); //ML_EyeRefraction_RefractedUV, 0 ); //vBaseColor;
     result.ior = gs.material.ior;
 
     result.irisMask = IrisMask;
@@ -654,10 +654,11 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySampl
 
 MaterialSample sampleGeometryMaterial(float3 rayDir, uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
-  #if RLSHADER==Eye
+
+  #if (defined(RLSHADER) && RLSHADER==Eye)
     return sampleGeometryMaterialEye(rayDir, gs, attributes, materialSampler, textureSampler);
   #endif
-    
+
     MaterialTextureSample textures = DefaultMaterialTextures();
 
     if( !optimizationHints.NoTextures )
