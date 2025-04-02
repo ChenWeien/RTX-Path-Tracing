@@ -62,6 +62,8 @@ struct VolumeConstants
     float   attenuationDistance;
 };
 
+#define MAX_SHADER_VAR_COUNT 288
+
 struct MaterialConstants
 {
     float3  baseOrDiffuseColor;
@@ -107,6 +109,8 @@ struct MaterialConstants
     float   scatterStrength;
     float3  sssMeanFreePath;
     float3  ssSurfaceAlbedo;
+
+    float customVar[ MAX_SHADER_VAR_COUNT ];
 };
 
 #endif // MATERIAL_CB_H

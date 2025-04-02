@@ -192,6 +192,8 @@ namespace donut::engine
 
         constants.shadowNoLFadeout = std::clamp( shadowNoLFadeout, 0.0f, 0.25f );
 
+
+        memset(constants.customVar, 0, sizeof(float)* MAX_SHADER_VAR_COUNT);
     }
 
     bool Material::SetProperty(const std::string& name, const dm::float4& value)
