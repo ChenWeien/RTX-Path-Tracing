@@ -176,8 +176,6 @@ namespace donut::engine
         float normalTextureScale = 1.f;
         float occlusionStrength = 1.f;
         float scatterStrength = 1.f;
-        //float irisMask = 0;
-        //float irisDistance = 0;
         float ior = 1.5f; // index of refraction, see KHR_materials_ior
 
         // Toggle between two PBR models: metal-rough and specular-gloss.
