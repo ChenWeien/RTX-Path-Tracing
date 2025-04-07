@@ -51,6 +51,8 @@ const float c_EnvMapRadianceScale = 1.0f / 4.0f; // used to make input 32bit flo
 
 const std::string c_closestHitSuffixName[ (int)donut::engine::RLShaderId::RLCount ] = { "Eye", "Head", "Skin", "SSS", "Tearline", "Teeth", "Tongue", "Hair" };
 
+const std::string c_compactClosestHitSuffixName[ 1 ] = { "Eye" };
+
 // Temp helper used to reduce FPS to specified target (i.e.) 30 - useful to avoid overheating the office :) but not intended for precise fps control
 class FPSLimiter
 {
@@ -1081,9 +1083,14 @@ bool Sample::CreatePTPipeline(engine::ShaderFactory& shaderFactory)
         if (variant == 5) { defines.push_back({ "PATH_TRACER_MODE", "PATH_TRACER_MODE_FILL_STABLE_PLANES" });    defines.push_back({ "USE_HIT_OBJECT_EXTENSION", "1" }); }
         m_PTShaderLibrary[variant] = shaderFactory.CreateShaderLibrary("app/Sample.hlsl", &defines);
 
-        for (size_t idx = 0; idx < (int)RLShaderId::RLCount; ++idx)
+        std::vector<engine::ShaderMacro> compactDefines;
+        if ( variant == 0 || variant == 1 || variant == 2 ) { compactDefines.push_back( { "PATH_TRACER_MODE", "PATH_TRACER_MODE_REFERENCE" } );      compactDefines.push_back( { "USE_HIT_OBJECT_EXTENSION", "0" } ); }
+        if ( variant == 3 || variant == 4 || variant == 5 ) { compactDefines.push_back( { "PATH_TRACER_MODE", "PATH_TRACER_MODE_REFERENCE" } );      compactDefines.push_back( { "USE_HIT_OBJECT_EXTENSION", "1" } ); }
+
+
+        for (size_t idx = 0; idx < _countof( c_compactClosestHitSuffixName ); ++idx)
         {
-            std::vector<engine::ShaderMacro> definesRL = defines;
+            std::vector<engine::ShaderMacro> definesRL = compactDefines;
             definesRL.push_back({ "RLSHADER", c_closestHitSuffixName[idx] });
             m_RLPTShaderLibrary[ variant ][ idx ] = shaderFactory.CreateShaderLibrary("app/RLShader.hlsl", &definesRL);
         }
@@ -1102,7 +1109,7 @@ bool Sample::CreatePTPipeline(engine::ShaderFactory& shaderFactory)
             nvrhi::ShaderHandle closestHit;
 
             bool found = false;
-            for (size_t idx = 0; idx < (size_t)RLShaderId::RLCount; ++idx)
+            for (size_t idx = 0; idx < _countof(c_compactClosestHitSuffixName); ++idx)
             {
                 if (hitGroupInfo.ClosestHitShader.find(c_closestHitSuffixName[idx]) != std::string::npos)
                 {
