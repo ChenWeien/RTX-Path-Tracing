@@ -146,7 +146,7 @@ DonutGeometrySample getGeometryFromHit(
         gs.tangent.xyz = interpolate(tangents, barycentrics).xyz;
         gs.tangent.xyz = mul(gs.instance.transform, float4(gs.tangent.xyz, 0.0)).xyz;
         gs.tangent.xyz = SafeNormalize(gs.tangent.xyz);
-        gs.tangent.w = tangents[0].w;
+        gs.tangent.w = tangents[0].w > 0 ? 1 : -1;
     }
 
     float3 objectSpaceFlatNormal = SafeNormalize(cross(
