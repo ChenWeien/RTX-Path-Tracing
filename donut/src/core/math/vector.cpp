@@ -98,7 +98,7 @@ namespace donut::math
         int x = int(v.x * scale);
         int y = int(v.y * scale);
         int z = int(v.z * scale);
-        int w = int(v.w * scale);
+        int w = v.w > 0 ? 1 : -1; // int( v.w * scale );
         return (x & 0xff) | ((y & 0xff) << 8) | ((z & 0xff) << 16) | ((w & 0xff) << 24);
     }
 
