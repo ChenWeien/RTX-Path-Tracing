@@ -56,7 +56,7 @@ void main(in uint i_globalIdx : SV_DispatchThreadID)
 	float2 texCoord2 = 0;
 
 	if (g_Const.flags & SkinningFlag_Normals)
-		normal = asfloat(t_VertexBuffer.Load3(i_globalIdx * c_SizeOfNormal + g_Const.inputNormalOffset));
+		normal = asfloat(t_VertexBuffer.Load4(i_globalIdx * c_SizeOfNormal + g_Const.inputNormalOffset));
 
 	if (g_Const.flags & SkinningFlag_Tangents)
 		tangent = asfloat(t_VertexBuffer.Load4(i_globalIdx * c_SizeOfTangent + g_Const.inputTangentOffset));

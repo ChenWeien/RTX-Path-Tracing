@@ -582,7 +582,7 @@ float3 Iris_Color_Block( float2 ML_EyeRefraction_IrisMask,
     
     float fLerpFactor = Inner_Iris_Mask( vPupilUV, gs, materialSampler, textureSampler );
     
-    return (float3)fLerpFactor;
+    //return (float3)fLerpFactor;
     
     float3 vIrisColorLerp = lerp( Iris_Color * Iris_Color_Brightness, Iris_Inner_Color, fLerpFactor );
 
@@ -637,9 +637,11 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, float3x3 TBN, const Donu
     float IrisMask = saturate( ML_EyeRefraction_IrisMask.g );
     float IrisDistance = saturate( Iris_Distance_Block( ML_EyeRefraction_RefractedUV ) );
     
+    //vBaseColor = (vIrisWorldNormal + (float3)1) / 2;
+    
     MaterialSample result = (MaterialSample)0;
     result.shadingNormal = WorldNormal;
-    result.geometryNormal = vIrisWorldNormal; //gs.geometryNormal;
+    result.geometryNormal = gs.geometryNormal;
     result.diffuseAlbedo = result.baseColor = vBaseColor;
     //float3(vScalePupils, 0 ); //float3(IrisDistance,IrisDistance,IrisDistance);//ML_EyeRefraction_IrisMask, 0); //ML_EyeRefraction_RefractedUV, 0 ); //vBaseColor;
     result.ior = gs.material.ior;
