@@ -129,12 +129,9 @@ DonutGeometrySample getGeometryFromHit(
     {
         float3 normals[3];
 
-        normals[0] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
-        normals[1] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
-        normals[2] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
-        //normals[0] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
-        //normals[1] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
-        //normals[2] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
+        normals[0] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
+        normals[1] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
+        normals[2] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
         gs.geometryNormal = interpolate(normals, barycentrics);
         gs.geometryNormal = mul(gs.instance.transform, float4(gs.geometryNormal, 0.0)).xyz;
         gs.geometryNormal = SafeNormalize(gs.geometryNormal);
@@ -143,9 +140,9 @@ DonutGeometrySample getGeometryFromHit(
     if ((attributes & GeomAttr_Tangents) && gs.geometry.tangentOffset != ~0u)
     {
         float4 tangents[3];
-        tangents[0] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[0] * c_SizeOfNormal));
-        tangents[1] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[1] * c_SizeOfNormal));
-        tangents[2] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[2] * c_SizeOfNormal));
+        tangents[0] = asfloat(vertexBuffer.Load4(gs.geometry.tangentOffset + indices[0] * c_SizeOfTangent));
+        tangents[1] = asfloat(vertexBuffer.Load4(gs.geometry.tangentOffset + indices[1] * c_SizeOfTangent));
+        tangents[2] = asfloat(vertexBuffer.Load4(gs.geometry.tangentOffset + indices[2] * c_SizeOfTangent));
 
         gs.tangent.xyz = interpolate(tangents, barycentrics).xyz;
         gs.tangent.xyz = mul(gs.instance.transform, float4(gs.tangent.xyz, 0.0)).xyz;
