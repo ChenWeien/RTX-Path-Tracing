@@ -522,8 +522,8 @@ bool GltfImporter::Load(
 
     buffers->indexData.resize(totalIndices);
     buffers->positionData.resize(totalVertices);
-    buffers->normalData.resize(totalVertices);
-    buffers->tangentData.resize(totalVertices);
+    buffers->normalData.resize(totalVertices*2);
+    buffers->tangentData.resize(totalVertices*2);
     buffers->texcoord1Data.resize(totalVertices);
     if (hasJoints)
     {
@@ -705,12 +705,15 @@ bool GltfImporter::Load(
                 assert(normals->count == positions->count);
 
                 auto [normalSrc, normalStride] = cgltf_buffer_iterator(normals, sizeof(float) * 3);
-                uint32_t* normalDst = buffers->normalData.data() + totalVertices;
+                uint32_t* normalDst = buffers->normalData.data() + totalVertices*2;
 
                 for (size_t v_idx = 0; v_idx < normals->count; v_idx++)
                 {
                     float3 normal = (const float*)normalSrc;
-                    *normalDst = vectorToSnorm8(normal);
+                    uint2 normal16 = vectorToSnorm16(normal);
+                    *normalDst = normal16.x;
+                    ++normalDst;
+                    *normalDst = normal16.y;
 
                     normalSrc += normalStride;
                     ++normalDst;
@@ -722,12 +725,15 @@ bool GltfImporter::Load(
                 assert(tangents->count == positions->count);
 
                 auto [tangentSrc, tangentStride] = cgltf_buffer_iterator(tangents, sizeof(float) * 4);
-                uint32_t* tangentDst = buffers->tangentData.data() + totalVertices;
+                uint32_t* tangentDst = buffers->tangentData.data() + totalVertices*2;
                 
                 for (size_t v_idx = 0; v_idx < tangents->count; v_idx++)
                 {
                     float4 tangent = (const float*)tangentSrc;
-                    *tangentDst = vectorToSnorm8(tangent);
+                    uint2 vec2 = vectorToSnorm16(tangent);
+                    *tangentDst = vec2.x;
+                    ++tangentDst;
+                    *tangentDst = vec2.y;
 
                     tangentSrc += tangentStride;
                     ++tangentDst;
@@ -819,7 +825,7 @@ bool GltfImporter::Load(
                     tangentStride = pair.second;
                 }
 
-                uint32_t* tangentDst = buffers->tangentData.data() + totalVertices;
+                uint32_t* tangentDst = buffers->tangentData.data() + totalVertices*2;
 
                 for (size_t v_idx = 0; v_idx < positions->count; v_idx++)
                 {

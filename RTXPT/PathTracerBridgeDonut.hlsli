@@ -128,9 +128,13 @@ DonutGeometrySample getGeometryFromHit(
     if ((attributes & GeomAttr_Normal) && gs.geometry.normalOffset != ~0u)
     {
         float3 normals[3];
-        normals[0] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
-        normals[1] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
-        normals[2] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
+
+        normals[0] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
+        normals[1] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
+        normals[2] = Unpack_snorm16_v3(vertexBuffer.Load2(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
+        //normals[0] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
+        //normals[1] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
+        //normals[2] = Unpack_RGB8_SNORM(vertexBuffer.Load(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
         gs.geometryNormal = interpolate(normals, barycentrics);
         gs.geometryNormal = mul(gs.instance.transform, float4(gs.geometryNormal, 0.0)).xyz;
         gs.geometryNormal = SafeNormalize(gs.geometryNormal);
@@ -139,9 +143,9 @@ DonutGeometrySample getGeometryFromHit(
     if ((attributes & GeomAttr_Tangents) && gs.geometry.tangentOffset != ~0u)
     {
         float4 tangents[3];
-        tangents[0] = Unpack_RGBA8_SNORM(vertexBuffer.Load(gs.geometry.tangentOffset + indices[0] * c_SizeOfNormal));
-        tangents[1] = Unpack_RGBA8_SNORM(vertexBuffer.Load(gs.geometry.tangentOffset + indices[1] * c_SizeOfNormal));
-        tangents[2] = Unpack_RGBA8_SNORM(vertexBuffer.Load(gs.geometry.tangentOffset + indices[2] * c_SizeOfNormal));
+        tangents[0] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[0] * c_SizeOfNormal));
+        tangents[1] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[1] * c_SizeOfNormal));
+        tangents[2] = Unpack_snorm16(vertexBuffer.Load2(gs.geometry.tangentOffset + indices[2] * c_SizeOfNormal));
 
         gs.tangent.xyz = interpolate(tangents, barycentrics).xyz;
         gs.tangent.xyz = mul(gs.instance.transform, float4(gs.tangent.xyz, 0.0)).xyz;
@@ -576,7 +580,13 @@ float3 Iris_Color_Block( float2 ML_EyeRefraction_IrisMask,
 
     // Iris Color
     float2 vPupilUV = ScalePupils( vScalePupils , lerp( 0.92f, 0.952f, Iris_Inner_Scale ), 4 );
+    
+    //return float3(vPupilUV,0);
+    
     float fLerpFactor = Inner_Iris_Mask( vPupilUV, gs, materialSampler, textureSampler );
+    
+    return (float3)fLerpFactor;
+    
     float3 vIrisColorLerp = lerp( Iris_Color * Iris_Color_Brightness, Iris_Inner_Color, fLerpFactor );
 
     float3 vBaseColor = SampleBaseColorTexture( vScalePupils, gs, materialSampler, textureSampler );
@@ -598,11 +608,11 @@ float3 Iris_Color_Block( float2 ML_EyeRefraction_IrisMask,
     return vBaseColor * vCornerDarkness;
 }
 
-MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+MaterialSample sampleGeometryMaterialEye(float3 rayDir, float3x3 TBN, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
     MaterialTextureSample textures = DefaultMaterialTextures();
 
-    float3x3 TangentToWorld = CalcTangentToWorld(gs.tangent, gs.geometryNormal);
+    float3x3 TangentToWorld = TBN;
 
     float2 ML_EyeRefraction_IrisMask = ML_EyeRefraction_IrisMask_Block(gs);
     float3 WorldNormal = Sclera_Normal_Block(gs, ML_EyeRefraction_IrisMask, TangentToWorld, materialSampler, textureSampler);
@@ -632,7 +642,7 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySampl
     
     MaterialSample result = (MaterialSample)0;
     result.shadingNormal = WorldNormal;
-    result.geometryNormal = gs.geometryNormal;
+    result.geometryNormal = vIrisWorldNormal; //gs.geometryNormal;
     result.diffuseAlbedo = result.baseColor = vBaseColor;
     //float3(vScalePupils, 0 ); //float3(IrisDistance,IrisDistance,IrisDistance);//ML_EyeRefraction_IrisMask, 0); //ML_EyeRefraction_RefractedUV, 0 ); //vBaseColor;
     result.ior = gs.material.ior;
@@ -652,11 +662,11 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, const DonutGeometrySampl
 }
 
 
-MaterialSample sampleGeometryMaterial(float3 rayDir, uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
+MaterialSample sampleGeometryMaterial(float3 rayDir, float3x3 TBN, uniform PathTracer::OptimizationHints optimizationHints, const DonutGeometrySample gs, const MaterialAttributes attributes, const SamplerState materialSampler, const ActiveTextureSampler textureSampler)
 {
 
   #if (defined(RLSHADER) && RLSHADER==Eye)
-    return sampleGeometryMaterialEye(rayDir, gs, attributes, materialSampler, textureSampler);
+    return sampleGeometryMaterialEye(rayDir, TBN, gs, attributes, materialSampler, textureSampler);
   #endif
 
     MaterialTextureSample textures = DefaultMaterialTextures();
@@ -890,8 +900,11 @@ PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::Optimizati
     ptShadingData.frontFacing = donutGS.frontFacing;        // must happen before adjustShadingNormal!
     ptShadingData.curveRadius = ptVertex.curveRadius;
 
+    float3 CameraVector = normalize(g_Const.view.cameraDirectionOrPosition.xyz - ptShadingData.posW);
+    float3x3 TBN = { ptShadingData.T, ptShadingData.B, ptShadingData.N };
+    
     // Get donut material (normal map is evaluated here)
-    MaterialSample donutMaterial = sampleGeometryMaterial(rayDir, optimizationHints, donutGS, MatAttr_All, s_MaterialSampler, textureSampler);
+    MaterialSample donutMaterial = sampleGeometryMaterial(-CameraVector, TBN, optimizationHints, donutGS, MatAttr_All, s_MaterialSampler, textureSampler);
 
     ptShadingData.N = donutMaterial.shadingNormal;
 

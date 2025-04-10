@@ -103,6 +103,28 @@ namespace donut::math
     }
 
     template<>
+    uint2 vectorToSnorm16( const float4& v )
+    {
+        float scale = 32767 / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+        int x = int( v.x * scale );
+        int y = int( v.y * scale );
+        int z = int( v.z * scale );
+        int w = int( v.w > 0 ? 32767 : -32767 ); //assume tangent, w is 1 or -1
+        return uint2( ( x & 0xffff ) | ( ( y & 0xffff ) << 16 ), ( z & 0xffff ) | ( ( w & 0xffff ) << 16 ) );
+    }
+
+    template<>
+    uint2 vectorToSnorm16( const float3& v )
+    {
+        float scale = 32767 / sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+        int x = int( v.x * scale );
+        int y = int( v.y * scale );
+        int z = int( v.z * scale );
+        int w = int( 32767 );
+        return uint2( ( x & 0xffff ) | ( ( y & 0xffff ) << 16 ), ( z & 0xffff ) | ( ( w & 0xffff ) << 16 ) );
+    }
+
+    template<>
     float2 snorm8ToVector(uint v)
     {
         

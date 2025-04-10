@@ -184,6 +184,52 @@ float3 Unpack_RGB8_SNORM(uint value)
     );
 }
 
+
+float3 Unpack_snorm16_v3(uint2 packed)
+{
+    // Extract the components from the packed uint2
+    int x = (packed.x & 0xffff);
+    int y = ((packed.x >> 16) & 0xffff);
+    int z = (packed.y & 0xffff);
+    
+    // Convert from unsigned format to signed format (-32767 to 32767 range)
+    if (x > 32767) x -= 65536;
+    if (y > 32767) y -= 65536;
+    if (z > 32767) z -= 65536;
+    
+    // Scale back to normalized vector
+    float scale = 1.0f / 32767.0f;
+    float3 result;
+    result.x = float(x) * scale;
+    result.y = float(y) * scale;
+    result.z = float(z) * scale;
+    return result;
+}
+
+float4 Unpack_snorm16(uint2 packed)
+{
+    // Extract the components from the packed uint2
+    int x = (packed.x & 0xffff);
+    int y = ((packed.x >> 16) & 0xffff);
+    int z = (packed.y & 0xffff);
+    int w = ((packed.y >> 16) & 0xffff);
+    // Convert from unsigned format to signed format (-32767 to 32767 range)
+    if (x > 32767) x -= 65536;
+    if (y > 32767) y -= 65536;
+    if (z > 32767) z -= 65536;
+    if (w > 32767) w -= 65536;
+    
+    // Scale back to normalized vector
+    float scale = 1.0f / 32767.0f;
+    float4 result;
+    result.x = float(x) * scale;
+    result.y = float(y) * scale;
+    result.z = float(z) * scale;
+    result.w = float(w) * scale;
+    return result;
+}
+
+
 uint Pack_RGBA8_SNORM(float4 rgb)
 {
     uint r = Pack_R8_SNORM(rgb.r);

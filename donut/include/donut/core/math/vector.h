@@ -568,6 +568,10 @@ namespace donut::math
     template<> uint vectorToSnorm8<3>(const float3& v);
     template<> uint vectorToSnorm8<4>(const float4& v);
 
+    template<int n> uint2 vectorToSnorm16( const vector<float, n>& v ); // undefined
+    template<> uint2 vectorToSnorm16<3>( const float3& v );
+    template<> uint2 vectorToSnorm16<4>( const float4& v );
+
     template<int n> vector<float, n> snorm8ToVector(uint v); // undefined
     template<> float2 snorm8ToVector<2>(uint v);
     template<> float3 snorm8ToVector<3>(uint v);
