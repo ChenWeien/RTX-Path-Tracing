@@ -184,11 +184,6 @@ float3x3 CalcTangentToWorld(float4 tangent, float3 geometryNormal)
     return tangentToWorld;
 }
 
-float3 TransformTangentVectorToWorld(float3x3 TangentToWorld, float3 Vec) //Vec in TangentSpace 
-{
-    return normalize(TangentToWorld[0] * Vec.x + TangentToWorld[1] * Vec.y + TangentToWorld[2] * Vec.z);
-}
-
 void ApplyNormalMap(inout MaterialSample result, float4 tangent, float4 normalsTextureValue, float normalTextureScale)
 {
     float3 bitangentOut = 0;

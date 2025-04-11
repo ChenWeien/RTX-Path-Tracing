@@ -389,7 +389,7 @@ float3 Sclera_Normal_Block(const DonutGeometrySample gs,
 
     vTangentNormal = FlattenNormal( vTangentNormal, lerp ( Sclera_Flatten_Normal , 1 , ML_EyeRefraction_IrisMask . r ) );
 
-    return TransformTangentVectorToWorld(TangentToWorld, vTangentNormal);
+    return normalize( mul( vTangentNormal, TangentToWorld ) );
 }
 
 float3 Iris_Normal_Block(const DonutGeometrySample gs,
@@ -398,7 +398,7 @@ float3 Iris_Normal_Block(const DonutGeometrySample gs,
                          const ActiveTextureSampler textureSampler )
 {
     float3 vTangentNormal = SampleEyeIrisNormal(gs, gs.texcoord, materialSampler, textureSampler);
-    return TransformTangentVectorToWorld(TangentToWorld, vTangentNormal);
+    return normalize( mul( vTangentNormal, TangentToWorld ) );
 }
 
 #define DISPLACEMENT_MAP_SIZE 64
@@ -637,7 +637,7 @@ MaterialSample sampleGeometryMaterialEye(float3 rayDir, float3x3 TBN, const Donu
     float IrisMask = saturate( ML_EyeRefraction_IrisMask.g );
     float IrisDistance = saturate( Iris_Distance_Block( ML_EyeRefraction_RefractedUV ) );
     
-    //vBaseColor = (vIrisWorldNormal + (float3)1) / 2;
+    vBaseColor = (vIrisWorldNormal + (float3)1) / 2;
     
     MaterialSample result = (MaterialSample)0;
     result.shadingNormal = WorldNormal;
