@@ -129,9 +129,9 @@ DonutGeometrySample getGeometryFromHit(
     {
         float3 normals[3];
 
-        normals[0] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal));
-        normals[1] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal));
-        normals[2] = asfloat(vertexBuffer.Load3(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal));
+        normals[0] = asfloat(vertexBuffer.Load4(gs.geometry.normalOffset + indices[0] * c_SizeOfNormal)).xyz;
+        normals[1] = asfloat(vertexBuffer.Load4(gs.geometry.normalOffset + indices[1] * c_SizeOfNormal)).xyz;
+        normals[2] = asfloat(vertexBuffer.Load4(gs.geometry.normalOffset + indices[2] * c_SizeOfNormal)).xyz;
         gs.geometryNormal = interpolate(normals, barycentrics);
         gs.geometryNormal = mul(gs.instance.transform, float4(gs.geometryNormal, 0.0)).xyz;
         gs.geometryNormal = SafeNormalize(gs.geometryNormal);

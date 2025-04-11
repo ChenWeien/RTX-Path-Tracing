@@ -103,10 +103,10 @@ void main(in uint i_globalIdx : SV_DispatchThreadID)
 	u_VertexBuffer.Store3(i_globalIdx * c_SizeOfPosition + g_Const.outputPositionOffset, asuint(position));
 	
 	if (g_Const.flags & SkinningFlag_Normals)
-		u_VertexBuffer.Store(i_globalIdx * c_SizeOfNormal + g_Const.outputNormalOffset, asuint(normal));
+		u_VertexBuffer.Store4(i_globalIdx * c_SizeOfNormal + g_Const.outputNormalOffset, asuint(normal));
 	
 	if (g_Const.flags & SkinningFlag_Tangents)
-		u_VertexBuffer.Store(i_globalIdx * c_SizeOfTangent + g_Const.outputTangentOffset, asuint(tangent));
+		u_VertexBuffer.Store4(i_globalIdx * c_SizeOfTangent + g_Const.outputTangentOffset, asuint(tangent));
 	
 	if (g_Const.flags & SkinningFlag_TexCoord1)
 		u_VertexBuffer.Store2(i_globalIdx * c_SizeOfTexcoord + g_Const.outputTexCoord1Offset, asuint(texCoord1));

@@ -241,8 +241,8 @@ namespace donut::engine
         std::vector<dm::float3> positionData;
         std::vector<dm::float2> texcoord1Data;
         std::vector<dm::float2> texcoord2Data;
-        std::vector<uint32_t> normalData;
-        std::vector<uint32_t> tangentData;
+        std::vector<dm::float4> normalData;
+        std::vector<dm::float4> tangentData;
         std::vector<dm::vector<uint16_t, 4>> jointData;
         std::vector<dm::float4> weightData;
 

@@ -972,14 +972,14 @@ void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
             {
                 const auto& range = buffers->getVertexBufferRange(VertexAttribute::Normal);
                 commandList->writeBuffer(buffers->vertexBuffer, buffers->normalData.data(), range.byteSize, range.byteOffset);
-                std::vector<uint32_t>().swap(buffers->normalData);
+                std::vector<float4>().swap(buffers->normalData);
             }
 
             if (!buffers->tangentData.empty())
             {
                 const auto& range = buffers->getVertexBufferRange(VertexAttribute::Tangent);
                 commandList->writeBuffer(buffers->vertexBuffer, buffers->tangentData.data(), range.byteSize, range.byteOffset);
-                std::vector<uint32_t>().swap(buffers->tangentData);
+                std::vector<float4>().swap(buffers->tangentData);
             }
 
             if (!buffers->texcoord1Data.empty())
