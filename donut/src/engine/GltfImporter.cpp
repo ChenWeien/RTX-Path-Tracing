@@ -472,10 +472,12 @@ bool GltfImporter::Load(
 
         matinfo->scatterTexture = load_scatter_texture( "Face_Scatter map.jpg", true );
         matinfo->customTextures.resize( 3 );
-        matinfo->customTextures[ 0 ] = load_scatter_texture( "IrisNormal.png", false );
-        matinfo->customTextures[ 1 ] = load_scatter_texture( "IrisMask.jpg", false );
-        matinfo->customTextures[ 2 ] = load_scatter_texture( "ScleraColor.jpg", false );
-        matinfo->modelId = MaterialModelId::Eye;
+        if (0) {
+          matinfo->customTextures[ 0 ] = load_scatter_texture( "IrisNormal.png", false );
+          matinfo->customTextures[ 1 ] = load_scatter_texture( "IrisMask.jpg", false );
+          matinfo->customTextures[ 2 ] = load_scatter_texture( "ScleraColor.jpg", false );
+          matinfo->modelId = MaterialModelId::Eye;
+        }
         switch (material.alpha_mode)
         {
         case cgltf_alpha_mode_opaque: matinfo->domain = useTransmission ? MaterialDomain::Transmissive : MaterialDomain::Opaque; break;
