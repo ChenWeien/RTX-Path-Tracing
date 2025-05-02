@@ -201,7 +201,11 @@ namespace PathTracer
     }
     
     // 'result' argument is expected to have been initialized to 'NEEResult::empty()'
-    inline void HandleNEE_MultipleSamples(inout NEEResult inoutResult, const PathState preScatterPath, const ScatterResult scatterInfo, const ShadingData shadingData, const ActiveBSDF bsdf, 
+    inline void HandleNEE_MultipleSamples(inout NEEResult inoutResult, 
+                                            const PathState preScatterPath, 
+                                            const ScatterResult scatterInfo, 
+                                            const ShadingData shadingData,
+                                            const ActiveBSDF bsdf, 
                                             inout SampleGenerator sampleGenerator, const WorkingContext workingContext, int sampleCountMultiplier)
     {
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::NextEventEstimation, false); // disabled until we figure out how to get it working with presampling
@@ -331,8 +335,12 @@ namespace PathTracer
         FinalizeLightSample(inoutResult, luminanceSum);
     }
     
-    inline NEEResult HandleNEE(const uniform OptimizationHints optimizationHints, const PathState preScatterPath, const ScatterResult scatterInfo,
-                                    const ShadingData shadingData, const ActiveBSDF bsdf, inout SampleGenerator sampleGenerator, const WorkingContext workingContext)
+    inline NEEResult HandleNEE(const uniform OptimizationHints optimizationHints,
+                               const PathState preScatterPath,
+                                const ScatterResult scatterInfo,
+                                const ShadingData shadingData,
+                                const ActiveBSDF bsdf,
+                                inout SampleGenerator sampleGenerator, const WorkingContext workingContext)
     {
         // Determine if BSDF has non-delta lobes.
         const uint lobes = bsdf.getLobes(shadingData);
