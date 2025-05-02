@@ -17,6 +17,8 @@
 #include "Lighting/Distant.hlsli"
 
 #include "LightSampling/LightSamplingLocal.hlsli"
+#include "Rendering/Materials/SubsurfaceMaterial.hlsli"
+#include "Rendering/Materials/SubsurfaceScattering.hlsli"
 
 namespace PathTracer
 {
@@ -285,6 +287,55 @@ namespace PathTracer
             
             if (validSample)   // sample's bad, skip 
             {
+                if ( bsdf.data.modelId == MODELID_SS ){
+
+                    RTXCR_SubsurfaceMaterialData subsurfaceMaterialData = RTXCR_CreateDefaultSubsurfaceMaterialData();
+                    subsurfaceMaterialData.transmissionColor = bsdf.data.transmission;
+                    subsurfaceMaterialData.scatteringColor = bsdf.data.sssMeanFreePath;
+                    subsurfaceMaterialData.scale = bsdf.data.scatter.r;
+                    subsurfaceMaterialData.g = 0;
+
+
+                    float3 hitPos = shadingData.posW;
+                    float3 shadingNormal = shadingData.N;
+                    float3 tangentWorld = shadingData.T;
+                    float3 biTangentWorld = shadingData.B;
+
+                    RTXCR_SubsurfaceInteraction subsurfaceInteraction =
+                        RTXCR_CreateSubsurfaceInteraction(hitPos, shadingNormal, tangentWorld, biTangentWorld);
+
+                    float3 radiance = float3(0.0f, 0.0f, 0.0f);
+
+                    // g_Const.sssConsts.sssSampleCount
+                    for (uint sssSampleIndex = 0; sssSampleIndex < g_Const.sssConsts.sssSampleCount; ++sssSampleIndex)
+                    {
+
+                        RTXCR_SubsurfaceSample subsurfaceSample;
+                        const float2 rand2 = sampleNext2D(sampleGenerator);
+                        RTXCR_EvalBurleyDiffusionProfile(subsurfaceMaterialData,
+                                                 subsurfaceInteraction,
+                                                 1, //bsdf.data.radius,
+                                                 true,
+                                                 rand2,
+                                                 subsurfaceSample);
+                        RayDesc ray;
+                        ray.Origin = subsurfaceSample.samplePosition;
+                        ray.Direction = subsurfaceInteraction.normal;
+                        ray.TMin = 0.0f;
+                        ray.TMax = FLT_MAX;
+
+            
+                        bool visible = Bridge::traceVisibilityRay(ray, preScatterPath.rayCone, preScatterPath.getVertexIndex(), workingContext.debug);
+
+                        if (visible)
+                        {
+                            //if (samplePayload.Hit() && samplePayload.instanceID == initialInstanceID && samplePayload.geometryIndex == initialGeometryIndex)
+                            // GeometrySample geometrySample = getGeometryFromHitFastSss(
+                        }
+           
+
+                    }
+                }
                 // account for MIS
                 float scatterPdfForDir = bsdf.evalPdf(shadingData, lightSample.Direction, kUseBSDFSampling);
                 lightSample.Li *= EvalMIS(1, lightMISPdf / sampleWeight, 1, scatterPdfForDir); // note, sampleWeight has not yet been applied to lightSample.pdf
