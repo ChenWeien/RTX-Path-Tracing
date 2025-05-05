@@ -1699,6 +1699,7 @@ void Sample::UpdatePathTracerConstants( PathTracerConstants & constants, const P
 void Sample::UpdateSssConstants( SssConstants& constants )
 {
     constants.isRandomWalk = m_ui.IsRandomWalk;
+    constants.useRTXCR = m_ui.UseRTXCR;
     constants.viewOnlyRandomWalkResult = m_ui.ViewOnlyRandomWalkResult;
     constants.sssSampleCount = m_ui.SSSSampleCount;
     constants.useUnrealScaleFactor = m_ui.EnableUnrealScaleFactor;

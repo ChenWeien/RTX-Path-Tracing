@@ -132,7 +132,8 @@ struct SampleUIData
     bool                                EnableAnimations = false;
     bool                                EnableVsync = false;
 
-    bool                                IsRandomWalk = true;
+    bool                                IsRandomWalk = false;
+    bool                                UseRTXCR = true;
     bool                                ViewOnlyRandomWalkResult = false;
     uint                                SSSSampleCount = 32;
     bool                                EnableUnrealScaleFactor = true;

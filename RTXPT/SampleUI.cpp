@@ -269,6 +269,7 @@ void SampleUI::buildUI(void)
     {
         ImGui::Indent( indent ); 
         if ( ImGui::Checkbox( "isRandomWalk", &m_ui.IsRandomWalk ) ) m_ui.ResetAccumulation = true;
+        if ( ImGui::Checkbox( "UseRTXCR", &m_ui.UseRTXCR ) ) m_ui.ResetAccumulation = true;
         if ( ImGui::Checkbox( "ViewOnlyRandomWalkResult", &m_ui.ViewOnlyRandomWalkResult ) ) m_ui.ResetAccumulation = true;
         int sssCount = (int)m_ui.SSSSampleCount;
         if ( ImGui::DragInt( "SSS Sample Count", &sssCount, 1, 1, 128 ) ) {
