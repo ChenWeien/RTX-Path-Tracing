@@ -285,10 +285,12 @@ namespace PathTracer
 #endif
             }
             
+            float3 radiance = float3(0.0f, 0.0f, 0.0f);
             if (validSample)   // sample's bad, skip 
             {
                 if ( bsdf.data.modelId == MODELID_SS ){
 
+                    radiance = float3(0.0f, 0.0f, 0.0f);
                     RTXCR_SubsurfaceMaterialData subsurfaceMaterialData = RTXCR_CreateDefaultSubsurfaceMaterialData();
                     subsurfaceMaterialData.transmissionColor = bsdf.data.transmission;
                     subsurfaceMaterialData.scatteringColor = bsdf.data.sssMeanFreePath;
@@ -297,7 +299,7 @@ namespace PathTracer
 
 
                     float3 hitPos = shadingData.posW;
-                    float3 shadingNormal = shadingData.N;
+                    float3 shadingNormal = shadingData.N; // TODO: .N is on the same side as view vector, should it be on the same side of triangle .faceN?
                     float3 tangentWorld = shadingData.T;
                     float3 biTangentWorld = shadingData.B;
 
@@ -320,32 +322,121 @@ namespace PathTracer
                                                  subsurfaceSample);
                         RayDesc ray;
                         ray.Origin = subsurfaceSample.samplePosition;
-                        ray.Direction = subsurfaceInteraction.normal;
+                        ray.Direction = -subsurfaceInteraction.normal;  // Shooting ray towards the surface
                         ray.TMin = 0.0f;
                         ray.TMax = FLT_MAX;
 
-            
-                        bool visible = Bridge::traceVisibilityRay(ray, preScatterPath.rayCone, preScatterPath.getVertexIndex(), workingContext.debug);
+                        RayQuery<RAY_FLAG_NONE> rayQuery;
+                        PackedHitInfo packedHitInfo;
+                        Bridge::traceSampleSubsurfaceRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+                        TriangleHit triangleHit = TriangleHit::make(packedHitInfo);
 
-                        if (visible)
+                        if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT 
+                            // check hit on the same mesh
+                            //&& rayQuery.CommittedInstanceID() == initialInstanceID 
+                            //&& rayQuery.CommittedGeometryIndex() == initialGeometryIndex
+                            )
                         {
-                            //if (samplePayload.Hit() && samplePayload.instanceID == initialInstanceID && samplePayload.geometryIndex == initialGeometryIndex)
-                            // GeometrySample geometrySample = getGeometryFromHitFastSss(
-                        }
-           
 
-                    }
+                            float3 samplePosition, sampleGeometryNormal, sampleShadingNormal = 0;
+                            Bridge::loadSurfacePositionShadingNormal(samplePosition,
+                                                                     sampleGeometryNormal,
+                                                                     sampleShadingNormal, 
+                                                                        triangleHit, 
+                                                                        preScatterPath.dir, // it is used to create texture mimap sampler
+                                                                        preScatterPath.rayCone,
+                                                                        preScatterPath.getVertexIndex(), workingContext.debug);
+                            const float3 vectorToLight = lightSample.Direction;
+                            const bool transition = dot(vectorToLight, sampleGeometryNormal) < 0.0f;
+
+                            float3 sampleShadowHitPos = OffsetRayOrigin(samplePosition, transition ? -sampleGeometryNormal : sampleGeometryNormal);
+
+                            //             const RayDesc ray = lightSample.ComputeVisibilityRay(shadingData.posW, shadingData.faceN).toRayDesc();
+            
+                            // visible = Bridge::traceVisibilityRay(ray, preScatterPath.rayCone, preScatterPath.getVertexIndex(), workingContext.debug);
+
+                            // if (sampleLightRIS(rngState, samplePosition, sampleLight, sampleLightWeight, unused_lightIndex))
+                            const uint distantSamplesSS       = (kUseEnvLights && Bridge::HasEnvMap()) ? (1)   : (0);
+                            const uint localSamplesSS         = (true)                                 ? (1)     : (0);
+                            const uint totalSamplesSS = distantSamplesSS + localSamplesSS;
+                            const PathVertex vertexSS = PathVertex::make(preScatterPath.getVertexIndex(), sampleShadowHitPos, sampleShadingNormal, sampleGeometryNormal);
+                            ShadingData shadindDataSS = shadingData;
+                            shadindDataSS.posW = sampleShadowHitPos;
+                            shadindDataSS.N = sampleShadingNormal;
+                            shadindDataSS.faceN = sampleGeometryNormal;
+                            shadindDataSS.V = shadingData.V;//-lightSample.Direction;
+                            shadindDataSS.T = tangentWorld;
+                            shadindDataSS.B = biTangentWorld;
+
+                            for (int sampleLightIndexSS = 0; sampleLightIndexSS < totalSamplesSS; sampleLightIndexSS++)
+                            {
+                                PathLightSample lightSampleSS;
+                                bool validSampleSS = false;
+                                float sampleWeightSS = 0.0f;
+                                float lightMISPdfSS = 0.0f;
+
+                                if (sampleLightIndexSS < distantSamplesSS)
+                                {
+                                    // sampleGenerator.startEffect(SampleGeneratorEffectSeed::NextEventEstimationLoc, true, globalIndex, environmentSamples); // for many samples this gives better distribution!
+                                    sampleWeightSS = 1.0 / (float)distantSamplesSS;
+                                    validSampleSS = GenerateEnvMapSample(envMapISType, vertexSS, sampleGenerator, lightSampleSS);
+                                    lightMISPdfSS = lightSampleSS.Pdf;
+                                }
+                                else
+                                {
+                                    sampleWeightSS = 1.0 / (float)localSamplesSS;
+                                    validSampleSS = RTXDI_MINI_SampleLocalLightsFromWorldSpace(
+                                        sampleGenerator,
+                                        shadindDataSS,
+                                        bsdf,
+                                        0,
+                                        0,
+                                        workingContext,
+                                        lightSampleSS);
+                                    lightMISPdfSS = localPdfEstimateK;
+                                }
+                                if(validSampleSS){
+                                    // const float3 sampleLightRadiance = sampleLight.color * sampleLightIrradiance * sampleLightWeight;
+                                    const float3 sampleLightRadiance = lightSampleSS.Li * sampleWeightSS;
+                                    const float cosThetaI = min(max(0.00001f, dot(sampleShadingNormal, vectorToLight)), 1.0f);
+                                    radiance += RTXCR_EvalBssrdf(subsurfaceSample, sampleLightRadiance, cosThetaI);
+                                }
+                            }//for (int sampleLightIndexSS 
+                        } //if (rayQuery
+                    }//for (uint sssSampleIndex
+                    radiance /= g_Const.sssConsts.sssSampleCount;
+
+                    //if(enableSSSTransmission){
+                    //    radiance += evalSingleScatteringTransmission(
+                    //}
+
+                    //radiance *= g_Global.sssWeight;
+
+
+                    inoutResult.DiffuseRadiance += radiance;
+                    inoutResult.SpecularRadiance += 0;
+                    
+                    // weighted sum for sample distance
+                    float lum = luminance(radiance);
+                    luminanceSum += lum;
+                    inoutResult.RadianceSourceDistance += lightSample.Distance * lum;
+                    inoutResult.Valid = true;
+                
+
+                }//if ( bsdf.data.modelId == MODELID_SS
+
+                if ( bsdf.data.modelId != MODELID_SS ){
+                    // account for MIS
+                    float scatterPdfForDir = bsdf.evalPdf(shadingData, lightSample.Direction, kUseBSDFSampling);
+                    lightSample.Li *= EvalMIS(1, lightMISPdf / sampleWeight, 1, scatterPdfForDir); // note, sampleWeight has not yet been applied to lightSample.pdf
+                    
+                    // account for multiple samples
+                    lightSample.Pdf /= sampleWeight; // <- this will affect firefly filtering and EvalMIS below!
+                    lightSample.Li *= sampleWeight;
+                    
+                    // this computes the BSDF throughput and (if throughput>0) then casts shadow ray and handles radiance summing up & weighted averaging for 'sample distance' used by denoiser
+                    ProcessLightSample(inoutResult, luminanceSum, lightSample, shadingData, bsdf, preScatterPath, workingContext);
                 }
-                // account for MIS
-                float scatterPdfForDir = bsdf.evalPdf(shadingData, lightSample.Direction, kUseBSDFSampling);
-                lightSample.Li *= EvalMIS(1, lightMISPdf / sampleWeight, 1, scatterPdfForDir); // note, sampleWeight has not yet been applied to lightSample.pdf
-                
-                // account for multiple samples
-                lightSample.Pdf /= sampleWeight; // <- this will affect firefly filtering and EvalMIS below!
-                lightSample.Li *= sampleWeight;
-                
-                // this computes the BSDF throughput and (if throughput>0) then casts shadow ray and handles radiance summing up & weighted averaging for 'sample distance' used by denoiser
-                ProcessLightSample(inoutResult, luminanceSum, lightSample, shadingData, bsdf, preScatterPath, workingContext);
             }
         }
         

@@ -18,7 +18,7 @@
 
 // Computes new ray origin based on hit position to avoid self-intersections. 
 // The function assumes that the hit position has been computed by barycentric interpolation, and not from the ray t which is less accurate.
-// Described in Ray Tracing Gems, Chapter 6, "A Fast and Robust Method for Avoiding Self-Intersection" by Carsten Wächter and Nikolaus Binder.
+// Described in Ray Tracing Gems, Chapter 6, "A Fast and Robust Method for Avoiding Self-Intersection" by Carsten Wè¸„hter and Nikolaus Binder.
 float3 ComputeRayOrigin(float3 worldPosition, float3 faceNormal)  // expects triangle faceNormal pointing towards the intended ray direction
 {
     const float origin = 1.f / 16.f;
@@ -32,6 +32,31 @@ float3 ComputeRayOrigin(float3 worldPosition, float3 faceNormal)  // expects tri
     // Select per-component between small fixed offset or above variable offset depending on distance to origin.
     float3 fOff = faceNormal * fScale;
     return select(abs(worldPosition) < origin, worldPosition + fOff, iPos);
+}
+
+// Clever offset_ray function from Ray Tracing Gems chapter 6
+// Offsets the ray origin from current position p, along normal n (which must be geometric normal)
+// so that no self-intersection can occur.
+float3 OffsetRayOrigin(const float3 p, const float3 n, const float extraOffsetDistance = 0.0f)
+{
+    static const float origin = 1.0f / 32.0f;
+    static const float float_scale = 1.0f / 65536.0f;
+    static const float int_scale = 256.0f;
+
+    int3 of_i = int3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+
+    float3 p_i = float3(
+        asfloat(asint(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
+        asfloat(asint(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
+        asfloat(asint(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+
+    float3 hitPosAdjusted = float3(abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
+        abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
+        abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+
+    hitPosAdjusted += n * extraOffsetDistance;
+
+    return hitPosAdjusted;
 }
 
 // Same as ComputeRayOrigin, except automatically aligning faceNormal to direction

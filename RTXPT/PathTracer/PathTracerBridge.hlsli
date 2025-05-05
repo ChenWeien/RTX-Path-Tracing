@@ -42,6 +42,12 @@ namespace Bridge
 
     static void loadSurfacePosNormOnly(out float3 posW, out float3 faceN, const TriangleHit triangleHit, DebugContext debug);
 
+    static void loadSurfacePositionShadingNormal(out float3 posW, 
+                                             out float3 faceN,
+                                             out float3 shadingNormal,
+                                             const TriangleHit triangleHit, 
+                                             const float3 rayDir, const RayCone rayCone, const int pathVertexIndex, DebugContext debug);
+                                             
     static PathTracer::SurfaceData loadSurface(const uniform PathTracer::OptimizationHints optimizationHints, const TriangleHit triangleHit, const float3 rayDir, const RayCone rayCone, const int pathVertexIndex, DebugContext debug);
 
     static void updateOutsideIoR(inout PathTracer::SurfaceData surfaceData, float outsideIoR);
@@ -75,6 +81,8 @@ namespace Bridge
     // There's a relatively high cost to this when used in large shaders just due to register allocation required for alphaTest, even if all geometries are opaque.
     // Consider simplifying alpha testing - perhaps splitting it up from the main geometry path, load it with fewer indirections or something like that.
     static bool traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pathVertexIndex, DebugContext debug);
+
+    static void traceSampleSubsurfaceRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug);
 
     static void traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug);
     

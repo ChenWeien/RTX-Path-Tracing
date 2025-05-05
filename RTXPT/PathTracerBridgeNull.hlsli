@@ -111,6 +111,10 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
     return false;
 }
 
+void Bridge::traceSampleSubsurfaceRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
+{
+}
+
 void Bridge::traceScatterRay(const PathState path, inout RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, inout uint SERSortKey, DebugContext debug)
 {
 }

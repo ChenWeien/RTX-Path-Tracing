@@ -365,6 +365,78 @@ void Bridge::loadSurfacePosNormOnly(out float3 posW, out float3 faceN, const Tri
     faceN   = donutGS.flatNormal;
 }
 
+void Bridge::loadSurfacePositionShadingNormal(out float3 posW, 
+                                             out float3 faceN,
+                                             out float3 shadingNormal,
+                                             const TriangleHit triangleHit, 
+                                             const float3 rayDir,
+                                             const RayCone rayCone,
+                                             const int pathVertexIndex,
+                                             DebugContext debug)
+{
+    const bool isPrimaryHit = pathVertexIndex == 1;
+
+    const uint instanceIndex    = triangleHit.instanceID.getInstanceIndex();
+    const uint geometryIndex    = triangleHit.instanceID.getGeometryIndex();
+    const uint triangleIndex    = triangleHit.primitiveIndex;
+    DonutGeometrySample donutGS = getGeometryFromHit(instanceIndex, geometryIndex, triangleIndex, triangleHit.barycentrics, GeomAttr_Position | GeomAttr_Normal,
+        t_InstanceData, t_GeometryData, t_GeometryDebugData, t_MaterialConstants, float3(0,0,0), debug);
+    posW    = mul(donutGS.instance.transform, float4(donutGS.objectSpacePosition, 1.0)).xyz;
+    faceN   = donutGS.flatNormal;
+
+
+    // Convert Donut to RTXPT vertex data
+    VertexData ptVertex;
+    ptVertex.posW           = mul(donutGS.instance.transform, float4(donutGS.objectSpacePosition, 1.0)).xyz;
+    float3 prevPosW             = mul(donutGS.instance.prevTransform, float4(donutGS.prevObjectSpacePosition, 1.0)).xyz;
+    ptVertex.normalW        = donutGS.geometryNormal;     // this normal is not guaranteed to point towards the viewer (but shading normal will get corrected below)
+    ptVertex.tangentW       = donutGS.tangent;            // .w holds the sign/direction for the bitangent
+    ptVertex.texC           = donutGS.texcoord;
+    ptVertex.faceNormalW    = donutGS.flatNormal;         // this normal is not guaranteed to point towards the viewer (but shading normal will get corrected below)
+    ptVertex.curveRadius    = 1;                          // unused for triangle meshes
+
+    // transpose is to go from Donut row_major to Falcor column_major; it is likely unnecessary here since both should work the same for this specific function, but leaving in for correctness
+    ptVertex.coneTexLODValue= computeRayConeTriangleLODValue( donutGS.vertexPositions, donutGS.vertexTexcoords, transpose((float3x3)donutGS.instance.transform) );
+
+    // using flat (triangle) normal makes more sense since actual triangle surface is where the textures are sampled on (plus geometry normals are borked in some datasets)
+    ActiveTextureSampler textureSampler = createTextureSampler(rayCone, rayDir, ptVertex.coneTexLODValue, donutGS.flatNormal/*donutGS.geometryNormal*/, isPrimaryHit, true, g_Const.ptConsts.texLODBias);
+
+    ShadingData ptShadingData = ShadingData::make();
+
+    ptShadingData.posW = ptVertex.posW;
+    ptShadingData.uv   = ptVertex.texC;
+    // ptShadingData.V    = -rayDir;
+    ptShadingData.N    = ptVertex.normalW;
+
+    // after this point we have valid tangent space in ptShadingData.N/.T/.B using geometry (interpolated) normal, but without normalmap yet
+    const bool validTangentSpace = computeTangentSpace(ptShadingData, ptVertex.tangentW);
+
+    // Primitive data
+    ptShadingData.faceN = ptVertex.faceNormalW;         // must happen before adjustShadingNormal!
+    ptShadingData.vertexN = (donutGS.frontFacing)?(donutGS.geometryNormal):(-donutGS.geometryNormal);
+    ptShadingData.frontFacing = donutGS.frontFacing;        // must happen before adjustShadingNormal!
+    ptShadingData.curveRadius = ptVertex.curveRadius;
+
+    // Get donut material (normal map is evaluated here)
+    //MaterialSample donutMaterial = sampleGeometryMaterial(optimizationHints, donutGS, MatAttr_Normal, s_MaterialSampler, textureSampler);
+
+    DonutGeometrySample gs = donutGS;
+    float4 texturesnormal = float4(0,0,1,0);
+    if ((gs.material.flags & MaterialFlags_UseNormalTexture) != 0)
+            texturesnormal = sampleTexture(gs.material.normalTextureIndex, s_MaterialSampler, textureSampler, gs.texcoord);
+
+    MaterialSample result;
+    result.geometryNormal = donutGS.geometryNormal;
+    if (gs.material.flags & MaterialFlags_UseNormalTexture)
+        ApplyNormalMap(result, float4(ptShadingData.T,1), texturesnormal, gs.material.normalTextureScale);
+
+    ptShadingData.N = result.shadingNormal;
+
+    if (!ptShadingData.frontFacing)
+        ptShadingData.N = -ptShadingData.N;
+
+    shadingNormal = donutGS.geometryNormal;
+}
 PathTracer::SurfaceData Bridge::loadSurface(const uniform PathTracer::OptimizationHints optimizationHints, const TriangleHit triangleHit, const float3 rayDir, const RayCone rayCone, const int pathVertexIndex, DebugContext debug)
 {
     const bool isPrimaryHit     = pathVertexIndex == 1;
@@ -706,6 +778,46 @@ bool Bridge::traceVisibilityRay(RayDesc ray, const RayCone rayCone, const int pa
     return !(rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 #endif
 }
+
+void Bridge::traceSampleSubsurfaceRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
+{
+    rayQuery.TraceRayInline(SceneBVH, RAY_FLAG_NONE, 0xff, ray);
+    while (rayQuery.Proceed())
+    {
+        if (rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
+        {
+            // A.k.a. 'Anyhit' shader!
+            [branch]if (Bridge::AlphaTest(
+                rayQuery.CandidateInstanceID(),
+                rayQuery.CandidateInstanceIndex(),
+                rayQuery.CandidateGeometryIndex(),
+                rayQuery.CandidatePrimitiveIndex(),
+                rayQuery.CandidateTriangleBarycentrics()
+                //, workingContext.debug
+                )
+            )
+            {
+                rayQuery.CommitNonOpaqueTriangleHit();
+            }
+        }
+    }
+
+    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+        ray.TMax = rayQuery.CommittedRayT();    // <- this gets passed via NvMakeHitWithRecordIndex/NvInvokeHitObject as RayTCurrent() or similar in ubershader path
+
+        TriangleHit triangleHit;
+        triangleHit.instanceID      = GeometryInstanceID::make( rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex() );
+        triangleHit.primitiveIndex  = rayQuery.CommittedPrimitiveIndex();
+        triangleHit.barycentrics    = rayQuery.CommittedTriangleBarycentrics(); // attrib.barycentrics;
+        packedHitInfo = triangleHit.pack();
+    }
+    else
+    {
+        packedHitInfo = PACKED_HIT_INFO_ZERO; // this invokes miss shader a.k.a. sky!
+    }
+}
+
 
 void Bridge::traceSssProfileRadiusRay(RayDesc ray, inout RayQuery<RAY_FLAG_NONE> rayQuery, inout PackedHitInfo packedHitInfo, DebugContext debug)
 {
