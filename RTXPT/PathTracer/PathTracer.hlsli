@@ -39,6 +39,9 @@ namespace PathTracer
 #include "PathTracerNEE.hlsli"
 #endif
 
+#include "Rendering/Materials/SubsurfaceMaterial.hlsli"
+#include "Rendering/Materials/SubsurfaceScattering.hlsli"
+
 namespace PathTracer
 {
     inline PathState EmptyPathInitialize(uint2 pixelPos, float pixelConeSpreadAngle, uint subSampleIndex)
@@ -941,9 +944,10 @@ float3 ComputeDwivediScale(float3 Albedo)
         // These will not change anymore, so make const shortcuts
         //const 
         ShadingData shadingData    = bridgedData.shadingData;
+        ShadingData shadingDataOriginal = shadingData;
         //const 
         ActiveBSDF bsdf   = bridgedData.bsdf;
-
+        ActiveBSDF bsdfOriginal = bsdf;
 #if ENABLE_DEBUG_VIZUALISATION && PATH_TRACER_MODE!=PATH_TRACER_MODE_BUILD_STABLE_PLANES
         if (0) //(debugPath)
         {
@@ -1007,6 +1011,11 @@ float3 ComputeDwivediScale(float3 Albedo)
         PathState preScatterPath = path;
 
         bool isSssPixel = bsdf.data.modelId == MODELID_SS; //any(bsdf.data.sssMeanFreePath) > 0;
+        bool canPerformSss = ( g_Const.sssConsts.traceAfterPrimaryHit || isPrimaryHit )
+                && ( g_Const.sssConsts.performSssOnAllPathType || ( !path.wasScatterTransmission()
+                                                                    && !path.wasScatterSpecular()
+                                                                    && !path.wasScatterDelta()
+                                                                    && !path.isInsideDielectricVolume() ) );
         bool isValidSssSample = true; //debug info
         float bssrdfPDF = 1;
         float3 sssNearbyPosition = 0;
@@ -1021,11 +1030,6 @@ float3 ComputeDwivediScale(float3 Albedo)
             scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
         }
 
-    //if (g_Const.sssConsts.useRTXCR)
-    //{
-    //    //in RTXCR SSS, calculation is done in PathTracerNEE.hlsli
-    //}
-    //else 
     if (isRandomWalk)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
@@ -1064,12 +1068,98 @@ float3 ComputeDwivediScale(float3 Albedo)
         }
 
     } //if (isRandomWalk)
+#if defined(RTXPT_COMPILE_WITH_NEE) && RTXPT_COMPILE_WITH_NEE!=0
+//#if 1
+    else if (g_Const.sssConsts.useRTXCR)
+    {
+            if (isSssPixel && canPerformSss)
+            {
+                float3 originalNormal = shadingData.N;
+                float3 originalView = shadingData.V;
+                
+                float3 radiance = float3(0.0f, 0.0f, 0.0f);
+                RTXCR_SubsurfaceMaterialData subsurfaceMaterialData = RTXCR_CreateDefaultSubsurfaceMaterialData();
+                subsurfaceMaterialData.transmissionColor = bsdf.data.transmission;
+                subsurfaceMaterialData.scatteringColor = bsdf.data.sssMeanFreePath;
+                subsurfaceMaterialData.scale = bsdf.data.scatter.r;
+                subsurfaceMaterialData.g = 0;
+
+                float3 hitPos = shadingData.posW;
+                float3 shadingNormal = shadingData.N; // TODO: .N is on the same side as view vector, should it be on the same side of triangle .faceN?
+                float3 tangentWorld = shadingData.T;
+                float3 biTangentWorld = shadingData.B;
+
+                RTXCR_SubsurfaceInteraction subsurfaceInteraction =
+                    RTXCR_CreateSubsurfaceInteraction(hitPos, shadingNormal, tangentWorld, biTangentWorld);
+
+                NEEResult neeResult = (NEEResult)0;
+                //for (uint sssSampleIndex = 0; sssSampleIndex < g_Const.sssConsts.sssSampleCount; ++sssSampleIndex)
+                {
+                
+                    RTXCR_SubsurfaceSample subsurfaceSample;
+                    const float2 rand2 = sampleNext2D(sampleGenerator);
+                    RTXCR_EvalBurleyDiffusionProfile(subsurfaceMaterialData,
+                                                subsurfaceInteraction,
+                                                1, //bsdf.data.radius,
+                                                false, //(g_Global.enableSssTransmission && g_Global.enableSingleScatteringDiffusionProfileCorrection)
+                                                rand2,
+                                                subsurfaceSample);
+                    RayDesc ray;
+                    ray.Origin = subsurfaceSample.samplePosition;
+                    ray.Direction = -subsurfaceInteraction.normal;  // Shooting ray towards the surface
+                    ray.TMin = 0.0f;
+                    ray.TMax = FLT_MAX;
+                
+                    RayQuery<RAY_FLAG_NONE> rayQuery;
+                    PackedHitInfo packedHitInfo;
+                    //GeometryInstanceID
+                    Bridge::traceSampleSubsurfaceRay(ray, rayQuery, packedHitInfo, workingContext.debug);
+                    TriangleHit triangleHit2 = TriangleHit::make(packedHitInfo);
+        
+                    if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT 
+                        // check hit on the same mesh
+                        //&& rayQuery.CommittedInstanceID() == initialInstanceID 
+                        //&& rayQuery.CommittedGeometryIndex() == initialGeometryIndex
+                        )
+                    {
+                        //load surface
+                        float3 originPos = originalPosition;
+                        float3 hitPoint = ray.Origin + ray.Direction * rayQuery.CommittedRayT();
+                        float3 sssSampleRaydir = g_Const.sssConsts.correctViewRay
+                                       ? normalize( hitPoint - originPos )
+                                       : -subsurfaceInteraction.normal;
+                        
+                        SurfaceData bridgedData = Bridge::loadSurface(optimizationHints, triangleHit2, sssSampleRaydir, preScatterPath.rayCone, preScatterPath.getVertexIndex(), workingContext.debug);
+                        bsdf = bridgedData.bsdf;
+                        bsdf.data.sssPosition = hitPoint;
+                        bsdf.data.position = originalPosition;
+                        bsdf.data.pixelNormal = originalNormal;
+                        bsdf.data.pixelView = originalView;
+                        bsdf.data.bssrdfPDF = subsurfaceSample.bssrdfWeight;
+                        bsdf.data.intersectionPDF = 1;
+
+                        shadingData = bridgedData.shadingData;
+                        if ( g_Const.sssConsts.correctViewRay )
+                        {
+                            shadingData.V = -sssSampleRaydir;
+                        }
+                    }
+                    else
+                    {
+                        RemoveMaterialSss(bsdf.data);
+                    }
+                
+
+                        //NEEResult neeResult = HandleNEE(optimizationHints, preScatterPath, scatterResult, shadingData, bsdf, sampleGenerator, workingContext);
+                }//for (uint sssSampleIndex
+            }
+            else
+            {
+                RemoveMaterialSss(bsdf.data);
+            }
+    }
+#endif
     else {
-         bool canPerformSss = ( g_Const.sssConsts.traceAfterPrimaryHit || isPrimaryHit )
-                           && ( g_Const.sssConsts.performSssOnAllPathType || ( !path.wasScatterTransmission()
-                                                                               && !path.wasScatterSpecular()
-                                                                               && !path.wasScatterDelta()
-                                                                               && !path.isInsideDielectricVolume() ) );
 
         sampleGenerator.startEffect(SampleGeneratorEffectSeed::Base, false);
 

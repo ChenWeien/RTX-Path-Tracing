@@ -306,8 +306,6 @@ namespace PathTracer
                     RTXCR_SubsurfaceInteraction subsurfaceInteraction =
                         RTXCR_CreateSubsurfaceInteraction(hitPos, shadingNormal, tangentWorld, biTangentWorld);
 
-                    float3 radiance = float3(0.0f, 0.0f, 0.0f);
-
                     // g_Const.sssConsts.sssSampleCount
                     for (uint sssSampleIndex = 0; sssSampleIndex < g_Const.sssConsts.sssSampleCount; ++sssSampleIndex)
                     {
