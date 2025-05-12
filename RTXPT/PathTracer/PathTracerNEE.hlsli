@@ -288,7 +288,7 @@ namespace PathTracer
             float3 radiance = float3(0.0f, 0.0f, 0.0f);
             if (validSample)   // sample's bad, skip 
             {
-                if ( bsdf.data.modelId == MODELID_SS ){
+                if ( 0 && bsdf.data.modelId == MODELID_SS ){
 
                     radiance = float3(0.0f, 0.0f, 0.0f);
                     RTXCR_SubsurfaceMaterialData subsurfaceMaterialData = RTXCR_CreateDefaultSubsurfaceMaterialData();
@@ -425,7 +425,7 @@ namespace PathTracer
 
                 }//if ( bsdf.data.modelId == MODELID_SS
 
-                if ( bsdf.data.modelId != MODELID_SS ){
+                else {
                     // account for MIS
                     float scatterPdfForDir = bsdf.evalPdf(shadingData, lightSample.Direction, kUseBSDFSampling);
                     lightSample.Li *= EvalMIS(1, lightMISPdf / sampleWeight, 1, scatterPdfForDir); // note, sampleWeight has not yet been applied to lightSample.pdf

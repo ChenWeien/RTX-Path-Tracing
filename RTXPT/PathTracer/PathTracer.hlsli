@@ -1021,11 +1021,12 @@ float3 ComputeDwivediScale(float3 Albedo)
             scatterResult = GenerateScatterRay( shadingData, bsdf, path, sampleGenerator, workingContext );
         }
 
-    if (g_Const.sssConsts.useRTXCR)
-    {
-        //in RTXCR SSS, calculation is done in PathTracerNEE.hlsli
-    }
-    else if (isRandomWalk)
+    //if (g_Const.sssConsts.useRTXCR)
+    //{
+    //    //in RTXCR SSS, calculation is done in PathTracerNEE.hlsli
+    //}
+    //else 
+    if (isRandomWalk)
     {
         const bool SimplifySSS = false; //PathState.PathRoughness >= 0.15; rough path, use diffuse sampling only
 
