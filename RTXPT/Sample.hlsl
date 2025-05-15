@@ -270,6 +270,7 @@ void RayGen()
     {
 #endif
         PathState path = PathTracer::EmptyPathInitialize(pixelPos, g_Const.ptConsts.camera.pixelConeSpreadAngle, subSampleIndex);
+        path.setSssPath(false);
         PathTracer::SetupPathPrimaryRay(path, Bridge::computeCameraRay(pixelPos, /*subSampleIndex*/0));  // note: all realtime mode subSamples currently share same camera ray at subSampleIndex == 0 (otherwise denoising guidance buffers would be noisy)
 
 #if PATH_TRACER_MODE==PATH_TRACER_MODE_FILL_STABLE_PLANES    // we're continuing from base stable plane (index 0) here to avoid unnecessary path tracing

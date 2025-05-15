@@ -404,7 +404,7 @@ inline bool sss_sampling_disk_sample(
     ray.TMin = tMin;
     ray.TMax = tMax;
 
-        if(g_Const.sssConsts.useRTXCR) {
+if(g_Const.sssConsts.useRTXCR) {
             
             // Initialize ray query
     RayQuery<RAY_FLAG_NONE> rayQuery;
@@ -431,22 +431,22 @@ inline bool sss_sampling_disk_sample(
 
     if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {
-                ray.TMax = rayQuery.CommittedRayT(); // <- this get
-                numIntersections++;
+        ray.TMax = rayQuery.CommittedRayT(); // <- this get
+        numIntersections++;
 
-                triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex());
-                triangleHit.primitiveIndex = rayQuery.CommittedPrimitiveIndex();
-                triangleHit.barycentrics = rayQuery.CommittedTriangleBarycentrics();
-                wrsWeight = weightNew;
-                chosenIntersection = numIntersections;
-                wrsT = rayQuery.CommittedRayT();
+        triangleHit.instanceID = GeometryInstanceID::make(rayQuery.CommittedInstanceIndex(), rayQuery.CommittedGeometryIndex());
+        triangleHit.primitiveIndex = rayQuery.CommittedPrimitiveIndex();
+        triangleHit.barycentrics = rayQuery.CommittedTriangleBarycentrics();
+        wrsWeight = weightNew;
+        chosenIntersection = numIntersections;
+        wrsT = rayQuery.CommittedRayT();
             
-                weightTotal += weightNew;
+        weightTotal += weightNew;
                 
-            }
+    }
     
             
-        } else{
+} else{
             
 
         
@@ -1063,6 +1063,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         PathState preScatterPath = path;
 
         bool isSssPixel = bsdf.data.modelId == MODELID_SS; //any(bsdf.data.sssMeanFreePath) > 0;
+        bool isSssCalculated = path.isSssPath();
         bool canPerformSss = ( g_Const.sssConsts.traceAfterPrimaryHit || isPrimaryHit )
                 && ( g_Const.sssConsts.performSssOnAllPathType || ( !path.wasScatterTransmission()
                                                                     && !path.wasScatterSpecular()
@@ -1136,29 +1137,24 @@ float3 ComputeDwivediScale(float3 Albedo)
                 scatterDistance = bsdf.data.sssMeanFreePath / GetSssScalingFactor3D(bsdf.data.diffuse);
 
                 BSDFFrame frame;
-                frame.n = shadingData.N; // faceN, vertexN
+                frame.n = shadingData.N; // faceN?
                 frame.t = shadingData.T;
                 frame.b = shadingData.B;
 
                 BSDFFrame projectionFrame;
                 sss_sampling_axis(axis, frame, projectionFrame);
 
-
-
                 SSSInfo sssInfo = SSSInfo::make(shadingData.posW, pixelGeometryInstanceID.data, scatterDistance, INVALID_UINT_VALUE);
 
                 uint validSampleCount = 0;
                 neeResultRTXCR = (NEEResult) 0;
+                neeResultRTXCR.Valid = false;
                 for (uint sssSampleIndex = 0; sssSampleIndex < g_Const.sssConsts.sssSampleCount; ++sssSampleIndex) {
-                
-
-                    TriangleHit triangleHit; // reservoir sample
+                    TriangleHit triangleHit;
                     SSSSample sssSample = SSSSample::makeZero();
-                
                     float bssrdfIntersectionPDF = 0;
                     if (!sss_sampling_sample(workingContext, sampleGenerator, optimizationHints, rayOrigin, path, frame, projectionFrame, sssInfo, channel, xiRadius, xiAngle, triangleHit, sssSample, bssrdfPDF, bssrdfIntersectionPDF))            {
                         //RemoveMaterialSss(bsdf.data);
-                        //isValidSssSample = false;
                     } else{
                         const uint vertexIndex = path.getVertexIndex();
                         path.setSssPath();
@@ -1208,6 +1204,11 @@ float3 ComputeDwivediScale(float3 Albedo)
                     neeResultRTXCR.ScatterEmissiveMISWeight *= rcpCount;
                     neeResultRTXCR.ScatterEnvironmentMISWeight *= rcpCount;
                 }
+                else{
+                    bsdf = bsdfOriginal;
+                    shadingData = shadingDataOriginal;
+                    RemoveMaterialSss(bsdf.data);
+                }   
                 
                 if (0){
                     float3 radiance = float3(0.0f, 0.0f, 0.0f);
@@ -1417,7 +1418,7 @@ float3 ComputeDwivediScale(float3 Albedo)
         // Compute NextEventEstimation a.k.a. direct light sampling!
 #if defined(RTXPT_COMPILE_WITH_NEE) && RTXPT_COMPILE_WITH_NEE!=0
         NEEResult neeResult = HandleNEE(optimizationHints, preScatterPath, scatterResult, shadingData, bsdf, sampleGenerator, workingContext); 
-        if (g_Const.sssConsts.useRTXCR )
+        if (g_Const.sssConsts.useRTXCR && neeResultRTXCR.Valid )
         {
             neeResult = neeResultRTXCR;
         }
