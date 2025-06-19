@@ -52,29 +52,38 @@ struct SssConstants
     uint isRandomWalk;
     uint useRTXCR;
     uint viewOnlyRandomWalkResult;
-    uint sssSampleCount;
     uint useUnrealScaleFactor;
     uint useMultipleIntersection;
+
     uint useReStirAxisWeights;
     uint queryBackFace;
     uint correctViewRay;
     uint useRayOrigin;
+
     uint singleIntersectionOnly;
     uint lateScatterRay;
     uint bssrdfSampleRay;
     uint SkipCheckWiWoAreOnTheSameSide;
+
     uint transmissionLobeOnRefract;
     uint invertWoZ;
     uint absoluteWoZ;
     uint onlyOnTransmission;
+
     uint onlyDiffuseReflection;
     uint traceAfterPrimaryHit;
     uint performSssOnAllPathType;
     uint bssrdfFresnel;
+
     uint bsrdfFresnel;
     uint lengthInsteadOfChannel;
     uint scatterMapOnProbability;
     uint bssrdfEvalPdf;
+
+    uint sssSampleCount;
+    uint padding0;
+    uint padding1;
+    uint padding2;
 };
 
 // path tracer main constants
